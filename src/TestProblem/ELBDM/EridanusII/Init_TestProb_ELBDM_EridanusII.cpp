@@ -3,7 +3,7 @@
 
 
 
-// problem-specific global variables
+// soliton-specific global variables
 // =======================================================================================
 static double   Soliton_CoreRadius;                      // soliton core radius
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the reference soliton density profile
@@ -15,6 +15,26 @@ static double   Soliton_ScaleL     = NULL;               // L/D: length/density 
                                                          //      density of the target and reference soliton profiles)
 static double   Soliton_ScaleD     = NULL;
 // =======================================================================================
+
+
+// particle-specific global variables
+// =======================================================================================
+       int    Star_RSeed;           // random seed for setting particle position and velocity
+       double Star_Rho0;            // peak density
+       double Star_R0;              // scale radius
+       double Star_MaxR;            // maximum radius for particles
+       int    Star_MassProfNBin;    // number of radial bins in the mass profile table
+
+static double Star_FreeT;           // free-fall time at Star_R0
+// =======================================================================================
+
+// problem-specific function prototypes
+#ifdef PARTICLE
+void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_AllRank,
+                                     real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
+                                     real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
+                                     real *AllAttribute[PAR_NATT_TOTAL] );
+#endif
 
 
 
@@ -94,6 +114,11 @@ void SetParameter()
 // ********************************************************************************************************************************
    ReadPara->Add( "Soliton_CoreRadius",        &Soliton_CoreRadius,        -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  Useless_str,   Useless_str,      Useless_str       );
+   ReadPara->Add( "Star_RSeed",                &Star_RSeed,                 123,           0,                NoMax_int         );
+   ReadPara->Add( "Star_Rho0",                 &Star_Rho0,                 -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Star_R0",                   &Star_R0,                   -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Star_MaxR",                 &Star_MaxR,                 -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Star_MassProfNBin",         &Star_MassProfNBin,          1000,          2,                NoMax_int         );
 
    ReadPara->Read( FileName );
 
@@ -105,6 +130,10 @@ void SetParameter()
 
 
 // (2) set the problem-specific derived parameters
+#  ifdef GRAVITY
+   Star_FreeT = sqrt( (3.0*M_PI*pow(2.0,1.5)) / (32.0*NEWTON_G*Star_Rho0) );
+#  endif
+
 
 // (3) load the reference soliton density profile and evaluate the scale factors
    if ( OPT__INIT != INIT_BY_RESTART )
@@ -168,6 +197,14 @@ void SetParameter()
       Aux_Message( stdout, "  soliton core radius                       = %13.6e\n", Soliton_CoreRadius         );
       Aux_Message( stdout, "  density profile filename                  = %s\n",     Soliton_DensProf_Filename  );
       Aux_Message( stdout, "  number of bins of the density profile     = %d\n",     Soliton_DensProf_NBin      );
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  star cluster properties:\n" );
+      Aux_Message( stdout, "  random seed for setting particle position = %d\n",     Star_RSeed );
+      Aux_Message( stdout, "  peak density                              = %13.7e\n", Star_Rho0 );
+      Aux_Message( stdout, "  scale radius                              = %13.7e\n", Star_R0 );
+      Aux_Message( stdout, "  maximum radius of particles               = %13.7e\n", Star_MaxR );
+      Aux_Message( stdout, "  number of radial bins in the mass profile = %d\n",     Star_MassProfNBin );
+      Aux_Message( stdout, "  free-fall time at the scale radius        = %13.7e\n", Star_FreeT );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -320,6 +357,9 @@ void Init_TestProb_ELBDM_EridanusII()
    End_User_Ptr             = End_EridanusII;
    Init_ExternalAcc_Ptr     = NULL;
    Init_ExternalPot_Ptr     = NULL;
+#  ifdef PARTICLE
+   Par_Init_ByFunction_Ptr  = Par_Init_ByFunction_EridanusII;
+#  endif
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 

@@ -1,3 +1,8 @@
 # problem-specific runtime parameters
 Soliton_CoreRadius          1.0e0                              # core radius (in code unit)
 Soliton_DensProf_Filename   SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
+Star_RSeed                  123                                # random seed for setting particle position and velocity (>=0) [123]
+Star_Rho0                   1.1e8                              # peak density
+Star_R0                     1.3e-2                             # scale radius
+Star_MaxR                   1.0e-1                             # maximum radius for particles
+Star_MassProfNBin           1000                               # number of radial bins in the mass profile table [1000]

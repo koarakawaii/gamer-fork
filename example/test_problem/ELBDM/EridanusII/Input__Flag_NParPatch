@@ -1,8 +1,8 @@
 # Level   Number of Particles per Patch
-      0                               0
-      1                               0
-      2                               0
-      3                               0
+      0                              10
+      1                              10
+      2                              10
+      3                             100
       4                             100
       5                             100
       6                             100
