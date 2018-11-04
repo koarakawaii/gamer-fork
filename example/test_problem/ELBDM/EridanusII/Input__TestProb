@@ -1,0 +1,3 @@
+# problem-specific runtime parameters
+Soliton_CoreRadius          1.0e0                              # core radius (in code unit)
+Soliton_DensProf_Filename   SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
