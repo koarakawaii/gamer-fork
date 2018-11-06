@@ -153,6 +153,22 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
+
+//    remove the center-of-mass velocity
+      double Vcm[3] = { 0.0, 0.0, 0.0 };
+
+      for (long p=0; p<NPar_AllRank; p++)
+      for (int d=0; d<3; d++)
+         Vcm[d] += ParM*Vel_AllRank[d][p];
+
+      for (int d=0; d<3; d++)
+         Vcm[d] /= TotM;
+
+      for (long p=0; p<NPar_AllRank; p++)
+      for (int d=0; d<3; d++)
+         Vel_AllRank[d][p] -= Vcm[d];
+
+
       Aux_Message( stdout, "   Total enclosed mass within MaxR  = %13.7e\n",  TotM );
       Aux_Message( stdout, "   Total enclosed mass to inifinity = %13.7e\n",  TotM_Inf );
       Aux_Message( stdout, "   Enclosed mass ratio              = %6.2f%%\n", 100.0*TotM/TotM_Inf );
