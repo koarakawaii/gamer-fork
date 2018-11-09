@@ -1,5 +1,7 @@
 # problem-specific runtime parameters
-Soliton_CoreRadius          1.0e0                              # core radius (in code unit)
+Soliton_CoreRadius          1.0e0                              # soliton core radius (in code unit)
+Soliton_InputMode           1                                  # soliton input mode (1/2 -> table/approximate analytical form) [1]
+Soliton_OuterSlope         -8.0                                # soliton outer slope (only used by Soliton_InputMode=2) [-8.0]
 Soliton_DensProf_Filename   SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
 Star_RSeed                  123                                # random seed for setting particle position and velocity (>=0) [123]
 Star_Rho0                   1.1e8                              # peak density

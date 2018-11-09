@@ -6,6 +6,8 @@
 // soliton-specific global variables
 // =======================================================================================
 static double   Soliton_CoreRadius;                      // soliton core radius
+static int      Soliton_InputMode;                       // soliton input mode: 1/2 -> table/approximate analytical form
+static double   Soliton_OuterSlope;                      // soliton outer slope (only used by Soliton_InputMode=2)
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the reference soliton density profile
 
 static int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
@@ -113,6 +115,8 @@ void SetParameter()
 // ReadPara->Add( "KEY_IN_THE_FILE",           &VARIABLE,                   DEFAULT,       MIN,              MAX               );
 // ********************************************************************************************************************************
    ReadPara->Add( "Soliton_CoreRadius",        &Soliton_CoreRadius,        -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Soliton_InputMode",         &Soliton_InputMode,          1,             1,                2                 );
+   ReadPara->Add( "Soliton_OuterSlope",        &Soliton_OuterSlope,        -8.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "Star_RSeed",                &Star_RSeed,                 123,           0,                NoMax_int         );
    ReadPara->Add( "Star_Rho0",                 &Star_Rho0,                 -1.0,           Eps_double,       NoMax_double      );
@@ -136,7 +140,7 @@ void SetParameter()
 
 
 // (3) load the reference soliton density profile and evaluate the scale factors
-   if ( OPT__INIT != INIT_BY_RESTART )
+   if ( OPT__INIT != INIT_BY_RESTART  &&  Soliton_InputMode == 1 )
    {
 //    load the reference profile
       const bool RowMajor_No  = false;    // load data into the column-major order
@@ -195,8 +199,12 @@ void SetParameter()
       Aux_Message( stdout, "======================================================================================\n" );
       Aux_Message( stdout, "  test problem ID                           = %d\n",     TESTPROB_ID                );
       Aux_Message( stdout, "  soliton core radius                       = %13.6e\n", Soliton_CoreRadius         );
+      Aux_Message( stdout, "  soliton input mode                        = %d\n",     Soliton_InputMode          );
+      if      ( Soliton_InputMode == 2 )
+      Aux_Message( stdout, "  soliton outer slope                       = %13.6e\n", Soliton_OuterSlope         );
+      else if ( Soliton_InputMode == 1 ) {
       Aux_Message( stdout, "  density profile filename                  = %s\n",     Soliton_DensProf_Filename  );
-      Aux_Message( stdout, "  number of bins of the density profile     = %d\n",     Soliton_DensProf_NBin      );
+      Aux_Message( stdout, "  number of bins of the density profile     = %d\n",     Soliton_DensProf_NBin      ); }
       Aux_Message( stdout, "\n" );
       Aux_Message( stdout, "  star cluster properties:\n" );
       Aux_Message( stdout, "  random seed for setting particle position = %d\n",     Star_RSeed );
@@ -239,36 +247,51 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    const double Soliton_Center[3] = { amr->BoxCenter[0],
                                       amr->BoxCenter[1],
                                       amr->BoxCenter[2] };
-   const double *Table_Radius  = Soliton_DensProf + 0*Soliton_DensProf_NBin;  // radius
-   const double *Table_Density = Soliton_DensProf + 1*Soliton_DensProf_NBin;  // density
+   const double r_tar             = sqrt( SQR(x-Soliton_Center[0]) +
+                                          SQR(y-Soliton_Center[1]) +
+                                          SQR(z-Soliton_Center[2]) );
 
-   double r_tar, r_ref, dens_ref;
-
-
-// radius
-   r_tar = sqrt( SQR(x-Soliton_Center[0]) + SQR(y-Soliton_Center[1]) + SQR(z-Soliton_Center[2]) );
-
-// rescale radius (target radius --> reference radius)
-   r_ref = r_tar / Soliton_ScaleL;
-
-// linear interpolation
-   dens_ref = Mis_InterpolateFromTable( Soliton_DensProf_NBin, Table_Radius, Table_Density, r_ref );
-
-   if ( dens_ref == NULL_REAL )
+   if ( Soliton_InputMode == 1 )
    {
-      if      ( r_ref <  Table_Radius[0] )
-         dens_ref = Table_Density[0];
+      const double *Table_Radius  = Soliton_DensProf + 0*Soliton_DensProf_NBin;  // radius
+      const double *Table_Density = Soliton_DensProf + 1*Soliton_DensProf_NBin;  // density
 
-      else if ( r_ref >= Table_Radius[Soliton_DensProf_NBin-1] )
-         dens_ref = Table_Density[Soliton_DensProf_NBin-1];
+      double r_ref, dens_ref;
 
-      else
-         Aux_Error( ERROR_INFO, "interpolation failed at radius %13.7e (min/max radius = %13.7e/%13.7e) !!\n",
-                    r_ref, Table_Radius[0], Table_Radius[Soliton_DensProf_NBin-1] );
+//    rescale radius (target radius --> reference radius)
+      r_ref = r_tar / Soliton_ScaleL;
+
+//    linear interpolation
+      dens_ref = Mis_InterpolateFromTable( Soliton_DensProf_NBin, Table_Radius, Table_Density, r_ref );
+
+      if ( dens_ref == NULL_REAL )
+      {
+         if      ( r_ref <  Table_Radius[0] )
+            dens_ref = Table_Density[0];
+
+         else if ( r_ref >= Table_Radius[Soliton_DensProf_NBin-1] )
+            dens_ref = Table_Density[Soliton_DensProf_NBin-1];
+
+         else
+            Aux_Error( ERROR_INFO, "interpolation failed at radius %13.7e (min/max radius = %13.7e/%13.7e) !!\n",
+                       r_ref, Table_Radius[0], Table_Radius[Soliton_DensProf_NBin-1] );
+      }
+
+//    rescale density (reference density --> target density) and add to the fluid array
+      fluid[DENS] = dens_ref*Soliton_ScaleD;
    }
 
-// rescale density (reference density --> target density) and add to the fluid array
-   fluid[DENS] = dens_ref*Soliton_ScaleD;
+   else if ( Soliton_InputMode == 2 )
+   {
+      const double m22    = ELBDM_MASS*UNIT_M/(Const_eV/SQR(Const_c))/1.0e-22;
+      const double rc_kpc = Soliton_CoreRadius*UNIT_L/Const_kpc;
+
+      fluid[DENS] = 1.945e7/SQR( m22*rc_kpc*rc_kpc )*pow( 1.0+9.06e-2*SQR(r_tar/rc_kpc), Soliton_OuterSlope );
+   }
+
+   else
+      Aux_Error( ERROR_INFO, "Unsupported Soliton_InputMode (%d) !!\n", Soliton_InputMode );
+
 
 // set the real and imaginary parts
    fluid[REAL] = sqrt( fluid[DENS] );
