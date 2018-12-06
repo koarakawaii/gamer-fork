@@ -2,7 +2,19 @@
 
 #ifdef PARTICLE
 
+#ifdef SUPPORT_GSL
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#else
+#error : ERROR : please turn on SUPPORT_GSL for the EridanusII test problem !!
+#endif
+
+extern int     Soliton_DensProf_NBin;
+extern double *Soliton_DensProf;
+extern double  Soliton_ScaleD;
+
 extern int    Star_RSeed;
+extern int    Star_SigmaMode;
 extern double Star_Rho0;
 extern double Star_R0;
 extern double Star_MaxR;
@@ -67,13 +79,23 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
 // only the master rank will construct the initial condition
    if ( MPI_Rank == 0 )
    {
-      const double TotM_Inf    = 4.0/3.0*M_PI*CUBE(Star_R0)*Star_Rho0;
-      const double Vmax_Fac    = sqrt( 2.0*NEWTON_G*TotM_Inf );
+      const double TotM_Inf      = 4.0/3.0*M_PI*CUBE(Star_R0)*Star_Rho0;
+      const double Vmax_Fac      = sqrt( 2.0*NEWTON_G*TotM_Inf );                      // for SigmaMode==0
+      const double SolitonRhoMax = (Soliton_DensProf + 1*Soliton_DensProf_NBin)[0]*Soliton_ScaleD;
+      const double Sigma_Fac     = 4.0*M_PI/9.0*NEWTON_G*SolitonRhoMax*SQR(Star_R0);   // for SigmaMode==1
 
       double *Table_MassProf_r = NULL;
       double *Table_MassProf_M = NULL;
       double  TotM, ParM, dr, RanM, RanR, EstM, ErrM, ErrM_Max=-1.0, RanVec[3];
-      double  Vmax, RanV, RanProb, Prob;
+      double  Vmax, RanV, RanProb, Prob, Sigma;
+
+//    initialize GSL random number generator for SigmaMode==1
+      gsl_rng *GSL_RNG = NULL;
+      if ( Star_SigmaMode == 1 )
+      {
+         gsl_rng_alloc( gsl_rng_mt19937 );
+         gsl_rng_set( GSL_RNG, Star_RSeed );
+      }
 
       Mass_AllRank = new real [NPar_AllRank];
       for (int d=0; d<3; d++)
@@ -135,20 +157,39 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
 
 
 //       velocity
-//       determine the maximum velocity (i.e., the escaping velocity)
-         Vmax = Vmax_Fac*pow( SQR(Star_R0) + SQR(RanR), -0.25 );
-
-//       randomly determine the velocity amplitude (ref: Aarseth, S. et al. 1974, A&A, 37, 183: Eq. [A4,A5])
-         do
+//       mode 0: stars are self-bound
+         if      ( Star_SigmaMode == 0 )
          {
-            RanV    = RNG->GetValue( 0, 0.0, 1.0 );         // (0.0, 1.0)
-            RanProb = RNG->GetValue( 0, 0.0, 0.1 );         // (0.0, 0.1)
-            Prob    = SQR(RanV)*pow( 1.0-SQR(RanV), 3.5 );  // < 0.1
-         }
-         while ( RanProb > Prob );
+//          determine the maximum velocity (i.e., the escaping velocity)
+            Vmax = Vmax_Fac*pow( SQR(Star_R0) + SQR(RanR), -0.25 );
 
-//       randomly set the velocity vector with the given amplitude (RanV*Vmax)
-         RanVec_FixRadius( RanV*Vmax, RanVec );
+//          randomly determine the velocity amplitude (ref: Aarseth, S. et al. 1974, A&A, 37, 183: Eq. [A4,A5])
+            do
+            {
+               RanV    = RNG->GetValue( 0, 0.0, 1.0 );         // (0.0, 1.0)
+               RanProb = RNG->GetValue( 0, 0.0, 0.1 );         // (0.0, 0.1)
+               Prob    = SQR(RanV)*pow( 1.0-SQR(RanV), 3.5 );  // < 0.1
+            }
+            while ( RanProb > Prob );
+
+            RanVec_FixRadius( RanV*Vmax, RanVec );
+         }
+
+//       mode 1: soliton-dominated and stars are well within the soliton radius
+         else if ( Star_SigmaMode == 1 )
+         {
+//          determine the velocity dispersion
+            Sigma = sqrt( Sigma_Fac*(1.0+SQR(RanR/Star_R0)) );
+
+//          randomly determine the velocity amplitude
+//          --> assume velocity distribution is isotropic and Gaussian with a standard deviation of Sigma
+            for (int d=0; d<3; d++)    RanVec[d] = gsl_ran_gaussian( GSL_RNG, Sigma );
+         }
+
+         else
+            Aux_Error( ERROR_INFO, "unsupported Star_SigmaMode !!\n" );
+
+//       store the velocity
          for (int d=0; d<3; d++)    Vel_AllRank[d][p] = RanVec[d];
 
       } // for (long p=0; p<NPar_AllRank; p++)
@@ -179,6 +220,8 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
 //    free memory
       delete [] Table_MassProf_r;
       delete [] Table_MassProf_M;
+
+      if ( Star_SigmaMode == 1 )    gsl_rng_free( GSL_RNG );
    } // if ( MPI_Rank == 0 )
 
 

@@ -10,12 +10,12 @@ static int      Soliton_InputMode;                       // soliton input mode: 
 static double   Soliton_OuterSlope;                      // soliton outer slope (only used by Soliton_InputMode=2)
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the reference soliton density profile
 
-static int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
-static double  *Soliton_DensProf   = NULL;               // soliton density profile [radius/density]
+       int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
+       double  *Soliton_DensProf   = NULL;               // soliton density profile [radius/density]
 static double   Soliton_ScaleL     = NULL;               // L/D: length/density scale factors of each soliton
                                                          //      (defined as the ratio between the core radii/peak
                                                          //      density of the target and reference soliton profiles)
-static double   Soliton_ScaleD     = NULL;
+       double   Soliton_ScaleD     = NULL;
 // =======================================================================================
 
 
@@ -26,6 +26,8 @@ static double   Soliton_ScaleD     = NULL;
        double Star_R0;              // scale radius
        double Star_MaxR;            // maximum radius for particles
        int    Star_MassProfNBin;    // number of radial bins in the mass profile table
+       int    Star_SigmaMode;       // different modes for assigning stellar velocity dispersion
+                                    // 0: self-bound; 1: constant soliton peak density
 
 static double Star_FreeT;           // free-fall time at Star_R0
 // =======================================================================================
@@ -119,6 +121,7 @@ void SetParameter()
    ReadPara->Add( "Soliton_OuterSlope",        &Soliton_OuterSlope,        -8.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "Star_RSeed",                &Star_RSeed,                 123,           0,                NoMax_int         );
+   ReadPara->Add( "Star_SigmaMode",            &Star_SigmaMode,             0,             0,                1                 );
    ReadPara->Add( "Star_Rho0",                 &Star_Rho0,                 -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Star_R0",                   &Star_R0,                   -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Star_MaxR",                 &Star_MaxR,                 -1.0,           Eps_double,       NoMax_double      );
