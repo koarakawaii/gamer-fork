@@ -4,6 +4,7 @@ Soliton_InputMode           1                                  # soliton input m
 Soliton_OuterSlope         -8.0                                # soliton outer slope (only used by Soliton_InputMode=2) [-8.0]
 Soliton_DensProf_Filename   SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
 Star_RSeed                  123                                # random seed for setting particle position and velocity (>=0) [123]
+Star_SigmaMode              1                                  # velocity dispersion assignment (0/1 -> self-bound/soliton) [0]
 Star_Rho0                   1.1e8                              # peak density
 Star_R0                     1.3e-2                             # scale radius
 Star_MaxR                   1.0e-1                             # maximum radius for particles

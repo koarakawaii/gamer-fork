@@ -5,17 +5,17 @@
 
 // soliton-specific global variables
 // =======================================================================================
-static double   Soliton_CoreRadius;                      // soliton core radius
+       double   Soliton_CoreRadius;                      // soliton core radius
 static int      Soliton_InputMode;                       // soliton input mode: 1/2 -> table/approximate analytical form
 static double   Soliton_OuterSlope;                      // soliton outer slope (only used by Soliton_InputMode=2)
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the reference soliton density profile
 
-       int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
-       double  *Soliton_DensProf   = NULL;               // soliton density profile [radius/density]
+static int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
+static double  *Soliton_DensProf   = NULL;               // soliton density profile [radius/density]
 static double   Soliton_ScaleL     = NULL;               // L/D: length/density scale factors of each soliton
                                                          //      (defined as the ratio between the core radii/peak
                                                          //      density of the target and reference soliton profiles)
-       double   Soliton_ScaleD     = NULL;
+static double   Soliton_ScaleD     = NULL;
 // =======================================================================================
 
 
@@ -211,6 +211,7 @@ void SetParameter()
       Aux_Message( stdout, "\n" );
       Aux_Message( stdout, "  star cluster properties:\n" );
       Aux_Message( stdout, "  random seed for setting particle position = %d\n",     Star_RSeed );
+      Aux_Message( stdout, "  velocity dispersion mode                  = %d\n",     Star_SigmaMode );
       Aux_Message( stdout, "  peak density                              = %13.7e\n", Star_Rho0 );
       Aux_Message( stdout, "  scale radius                              = %13.7e\n", Star_R0 );
       Aux_Message( stdout, "  maximum radius of particles               = %13.7e\n", Star_MaxR );
@@ -286,10 +287,11 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
    else if ( Soliton_InputMode == 2 )
    {
-      const double m22    = ELBDM_MASS*UNIT_M/(Const_eV/SQR(Const_c))/1.0e-22;
-      const double rc_kpc = Soliton_CoreRadius*UNIT_L/Const_kpc;
+      const double m22      = ELBDM_MASS*UNIT_M/(Const_eV/SQR(Const_c))/1.0e-22;
+      const double rc_kpc   = Soliton_CoreRadius*UNIT_L/Const_kpc;
+      const double peak_rho = 1.945e7/SQR( m22*rc_kpc*rc_kpc )*Const_Msun/CUBE(Const_kpc)/(UNIT_M/CUBE(UNIT_L));
 
-      fluid[DENS] = 1.945e7/SQR( m22*rc_kpc*rc_kpc )*pow( 1.0+9.06e-2*SQR(r_tar/rc_kpc), Soliton_OuterSlope );
+      fluid[DENS] = peak_rho*pow( 1.0+9.06e-2*SQR(r_tar/rc_kpc), Soliton_OuterSlope );
    }
 
    else

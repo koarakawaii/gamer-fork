@@ -9,9 +9,7 @@
 #error : ERROR : please turn on SUPPORT_GSL for the EridanusII test problem !!
 #endif
 
-extern int     Soliton_DensProf_NBin;
-extern double *Soliton_DensProf;
-extern double  Soliton_ScaleD;
+extern double Soliton_CoreRadius;
 
 extern int    Star_RSeed;
 extern int    Star_SigmaMode;
@@ -79,10 +77,13 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
 // only the master rank will construct the initial condition
    if ( MPI_Rank == 0 )
    {
-      const double TotM_Inf      = 4.0/3.0*M_PI*CUBE(Star_R0)*Star_Rho0;
-      const double Vmax_Fac      = sqrt( 2.0*NEWTON_G*TotM_Inf );                      // for SigmaMode==0
-      const double SolitonRhoMax = (Soliton_DensProf + 1*Soliton_DensProf_NBin)[0]*Soliton_ScaleD;
-      const double Sigma_Fac     = 4.0*M_PI/9.0*NEWTON_G*SolitonRhoMax*SQR(Star_R0);   // for SigmaMode==1
+      const double TotM_Inf    = 4.0/3.0*M_PI*CUBE(Star_R0)*Star_Rho0;
+      const double Vmax_Fac    = sqrt( 2.0*NEWTON_G*TotM_Inf );                     // for SigmaMode==0
+
+      const double m22         = ELBDM_MASS*UNIT_M/(Const_eV/SQR(Const_c))/1.0e-22;
+      const double rc_kpc      = Soliton_CoreRadius*UNIT_L/Const_kpc;
+      const double peak_rho    = 1.945e7/SQR( m22*rc_kpc*rc_kpc )*Const_Msun/CUBE(Const_kpc)/(UNIT_M/CUBE(UNIT_L));
+      const double Sigma_Fac   = 4.0*M_PI/9.0*NEWTON_G*peak_rho*SQR(Star_R0);       // for SigmaMode==1
 
       double *Table_MassProf_r = NULL;
       double *Table_MassProf_M = NULL;
@@ -93,7 +94,7 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
       gsl_rng *GSL_RNG = NULL;
       if ( Star_SigmaMode == 1 )
       {
-         gsl_rng_alloc( gsl_rng_mt19937 );
+         GSL_RNG = gsl_rng_alloc( gsl_rng_mt19937 );
          gsl_rng_set( GSL_RNG, Star_RSeed );
       }
 
