@@ -346,6 +346,98 @@ void BC_EridanusII( real fluid[], const double x, const double y, const double z
    fluid[DENS] = (real)0.0;
 
 } // FUNCTION : BC
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  RecordMaxDens_EridanusII
+// Description :  Record the maximum density
+//
+// Note        :  1. It will also record the real and imaginary parts associated with the maximum density
+//                2. Output filename is fixed to "Record__MaxDens"
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void RecordMaxDens_EridanusII()
+{
+
+   const char filename[] = "Record__MaxDens";
+   real dens, max_dens_loc=-1.0, real_loc, imag_loc;
+   real send[3], (*recv)[3]=new real [MPI_NRank][3];
+
+   for (int lv=0; lv<NLEVEL; lv++)
+   for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+   {
+      for (int k=0; k<PS1; k++)
+      for (int j=0; j<PS1; j++)
+      for (int i=0; i<PS1; i++)
+      {
+         dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+         if ( dens > max_dens_loc )
+         {
+            max_dens_loc = dens;
+            real_loc     = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
+            imag_loc     = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+         }
+      }
+   }
+
+   send[0] = max_dens_loc;
+   send[1] = real_loc;
+   send[2] = imag_loc;
+
+#  ifdef FLOAT8
+   MPI_Gather( send, 3, MPI_DOUBLE, recv[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+#  else
+   MPI_Gather( send, 3, MPI_FLOAT,  recv[0], 3, MPI_FLOAT,  0, MPI_COMM_WORLD );
+#  endif
+
+   if ( MPI_Rank == 0 )
+   {
+      real max_dens=-1.0;
+      int  trank=-1;
+
+      for (int r=0; r<MPI_NRank; r++)
+      {
+         if ( recv[r][0] > max_dens )
+         {
+            max_dens = recv[r][0];
+            trank    = r;
+         }
+      }
+
+      if ( trank < 0  ||  trank >= MPI_NRank )
+         Aux_Error( ERROR_INFO, "incorrect trank (%d) !!\n", trank );
+
+
+      static bool FirstTime = true;
+
+      if ( FirstTime )
+      {
+         if ( Aux_CheckFileExist(filename) )
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename );
+
+         else
+         {
+            FILE *file = fopen( filename, "w" );
+            fprintf( file, "#%19s   %10s   %14s   %14s   %14s\n", "Time", "Step", "Dens", "Real", "Imag" );
+            fclose( file );
+         }
+
+         FirstTime = false;
+      }
+
+      FILE *file = fopen( filename, "a" );
+      fprintf( file, "%20.14e   %10ld   %14.7e   %14.7e   %14.7e\n",
+               Time[0], Step, recv[trank][0], recv[trank][1], recv[trank][2] );
+      fclose( file );
+   } // if ( MPI_Rank == 0 )
+
+   delete [] recv;
+
+} // FUNCTION : RecordMaxDens_EridanusII
 #endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 
@@ -381,7 +473,7 @@ void Init_TestProb_ELBDM_EridanusII()
    BC_User_Ptr              = BC_EridanusII;
    Flu_ResetByUser_Func_Ptr = NULL;
    Output_User_Ptr          = NULL;
-   Aux_Record_User_Ptr      = NULL;
+   Aux_Record_User_Ptr      = RecordMaxDens_EridanusII;
    End_User_Ptr             = End_EridanusII;
    Init_ExternalAcc_Ptr     = NULL;
    Init_ExternalPot_Ptr     = NULL;
