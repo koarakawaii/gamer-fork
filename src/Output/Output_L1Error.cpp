@@ -296,8 +296,8 @@ void WriteFile( void (*AnalFunc)( real fluid[], const double X, const double Y, 
    const bool   CheckMinPres_No = false;
    const double Gamma_m1        = GAMMA - 1.0;
 
-   fluid[ENGY] = CPU_GetPressure( fluid[DENS], fluid[MOMX], fluid[MOMY], fluid[MOMZ], fluid[ENGY],
-                                  Gamma_m1, CheckMinPres_No, NULL_REAL );
+   fluid[ENGY] = Hydro_GetPressure( fluid[DENS], fluid[MOMX], fluid[MOMY], fluid[MOMZ], fluid[ENGY],
+                                    Gamma_m1, CheckMinPres_No, NULL_REAL );
 #  endif
 
 
@@ -311,8 +311,8 @@ void WriteFile( void (*AnalFunc)( real fluid[], const double X, const double Y, 
 
 // convert total energy to pressure
 #  if ( MODEL == HYDRO )
-   Anal[ENGY] = CPU_GetPressure( Anal[DENS], Anal[MOMX], Anal[MOMY], Anal[MOMZ], Anal[ENGY],
-                                 Gamma_m1, CheckMinPres_No, NULL_REAL );
+   Anal[ENGY] = Hydro_GetPressure( Anal[DENS], Anal[MOMX], Anal[MOMY], Anal[MOMZ], Anal[ENGY],
+                                   Gamma_m1, CheckMinPres_No, NULL_REAL );
 #  endif
 
 
