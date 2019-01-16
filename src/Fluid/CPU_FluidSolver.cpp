@@ -33,8 +33,8 @@ void CPU_FluidSolver_MHM(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const int NPatchGroup, const real dt, const real dh, const real Gamma,
-   const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int NPatchGroup, const real dt, const real c_dh[], const real Gamma, const bool StoreFlux,
+   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const double c_ExtAcc_AuxArray[], const real MinDens, const real MinPres,
    const real DualEnergySwitch, const bool NormPassive, const int NNorm, const int c_NormIdx[],
@@ -51,8 +51,8 @@ void CPU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const int NPatchGroup, const real dt, const real dh, const real Gamma,
-   const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int NPatchGroup, const real dt, const real c_dh[], const real Gamma, const bool StoreFlux,
+   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const double c_ExtAcc_AuxArray[], const real MinDens, const real MinPres,
    const real DualEnergySwitch, const bool NormPassive, const int NNorm, const int c_NormIdx[],
@@ -199,19 +199,17 @@ void CPU_FluidSolver( real h_Flu_Array_In[][FLU_NIN][ CUBE(FLU_NXT) ],
 
 #     elif ( FLU_SCHEME == MHM  ||  FLU_SCHEME == MHM_RP )
 
-//###: COORD-FIX: input dh instead of dh[0]
       CPU_FluidSolver_MHM ( h_Flu_Array_In, h_Flu_Array_Out, h_DE_Array_Out, h_Flux_Array, h_Corner_Array, h_Pot_Array_USG,
                             h_PriVar, h_Slope_PPM, h_FC_Var, h_FC_Flux,
-                            NPatchGroup, dt, dh[0], Gamma, StoreFlux, LR_Limiter, MinMod_Coeff, Time,
+                            NPatchGroup, dt, dh, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff, Time,
                             GravityType, ExtAcc_AuxArray, MinDens, MinPres, DualEnergySwitch, NormPassive, NNorm, NormIdx,
                             JeansMinPres, JeansMinPres_Coeff );
 
 #     elif ( FLU_SCHEME == CTU )
 
-//###: COORD-FIX: input dh instead of dh[0]
       CPU_FluidSolver_CTU ( h_Flu_Array_In, h_Flu_Array_Out, h_DE_Array_Out, h_Flux_Array, h_Corner_Array, h_Pot_Array_USG,
                             h_PriVar, h_Slope_PPM, h_FC_Var, h_FC_Flux,
-                            NPatchGroup, dt, dh[0], Gamma, StoreFlux, LR_Limiter, MinMod_Coeff, Time,
+                            NPatchGroup, dt, dh, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff, Time,
                             GravityType, ExtAcc_AuxArray, MinDens, MinPres, DualEnergySwitch, NormPassive, NNorm, NormIdx,
                             JeansMinPres, JeansMinPres_Coeff );
 

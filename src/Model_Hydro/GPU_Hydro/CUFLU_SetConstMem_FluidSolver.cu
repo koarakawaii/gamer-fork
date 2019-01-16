@@ -5,6 +5,7 @@
 
 
 
+
 #ifdef UNSPLIT_GRAVITY
 #include "CUPOT.h"
 __constant__ double c_ExtAcc_AuxArray[EXT_ACC_NAUX_MAX];
@@ -33,6 +34,7 @@ int CUFLU_SetConstMem_FluidSolver_ExtAcc( double h_ExtAcc_AuxArray[] )
 
 } // FUNCTION : CUFLU_SetConstMem_FluidSolver_ExtAcc
 #endif // #ifdef UNSPLIT_GRAVITY
+
 
 
 #if ( NCOMP_PASSIVE > 0 )
@@ -67,6 +69,33 @@ __constant__ int *c_NormIdx = NULL;
 
 #endif // #if ( NCOMP_PASSIVE > 0 ) ... else ...
 
+
+
+__constant__ real c_dh[3];
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  CUFLU_SetConstMem_FluidSolver_dh
+// Description :  Set the constant memory of c_dh[] used by CUFLU_FluidSolver_CTU/MHM()
+//
+// Note        :  1. Adopt the suggested approach for CUDA version >= 5.0
+//                2. Invoked by CUAPI_SetConstMem()
+//
+// Parameter   :  None
+//
+// Return      :  0/-1 : successful/failed
+//---------------------------------------------------------------------------------------------------
+__host__
+int CUFLU_SetConstMem_FluidSolver_dh( real h_dh[] )
+{
+
+   if (  cudaSuccess != cudaMemcpyToSymbol( c_dh, h_dh, 3*sizeof(real),
+                                            0, cudaMemcpyHostToDevice)  )
+      return -1;
+
+   else
+      return 0;
+
+} // FUNCTION : CUFLU_SetConstMem_FluidSolver_dh
 
 
 #endif // #if ( MODEL == HYDRO  &&  defined GPU )

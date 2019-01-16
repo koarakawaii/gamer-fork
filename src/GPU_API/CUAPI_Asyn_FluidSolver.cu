@@ -28,7 +28,7 @@ void CUFLU_FluidSolver_MHM(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const real dt, const real dh, const real Gamma, const bool StoreFlux,
+   const real dt, const real Gamma, const bool StoreFlux,
    const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const real MinDens, const real MinPres, const real DualEnergySwitch,
@@ -47,7 +47,7 @@ void CUFLU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const real dt, const real dh, const real Gamma, const bool StoreFlux,
+   const real dt, const real Gamma, const bool StoreFlux,
    const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const real MinDens, const real MinPres, const real DualEnergySwitch,
@@ -347,7 +347,6 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
 
 #        elif ( FLU_SCHEME == MHM  ||  FLU_SCHEME == MHM_RP )
 
-//###: COORD-FIX: use dh instead of dh[0]
          CUFLU_FluidSolver_MHM <<< NPatch_per_Stream[s], BlockDim_FluidSolver, 0, Stream[s] >>>
             ( d_Flu_Array_F_In  + UsedPatch[s],
               d_Flu_Array_F_Out + UsedPatch[s],
@@ -359,13 +358,12 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
               d_Slope_PPM       + UsedPatch[s],
               d_FC_Var          + UsedPatch[s],
               d_FC_Flux         + UsedPatch[s],
-              dt, dh[0], Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
+              dt, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
               Time, GravityType, MinDens, MinPres, DualEnergySwitch, NormPassive, NNorm,
               JeansMinPres, JeansMinPres_Coeff );
 
 #        elif ( FLU_SCHEME == CTU )
 
-//###: COORD-FIX: use dh instead of dh[0]
          CUFLU_FluidSolver_CTU <<< NPatch_per_Stream[s], BlockDim_FluidSolver, 0, Stream[s] >>>
             ( d_Flu_Array_F_In  + UsedPatch[s],
               d_Flu_Array_F_Out + UsedPatch[s],
@@ -377,7 +375,7 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
               d_Slope_PPM       + UsedPatch[s],
               d_FC_Var          + UsedPatch[s],
               d_FC_Flux         + UsedPatch[s],
-              dt, dh[0], Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
+              dt, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
               Time, GravityType, MinDens, MinPres, DualEnergySwitch, NormPassive, NNorm,
               JeansMinPres, JeansMinPres_Coeff );
 

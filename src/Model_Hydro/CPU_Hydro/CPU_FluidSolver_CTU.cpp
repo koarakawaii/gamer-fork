@@ -69,9 +69,13 @@ static void Hydro_TGradient_Correction(       real g_FC_Var [][NCOMP_TOTAL][ CUB
 //                g_Slope_PPM        : Array to store the slope for the PPM reconstruction
 //                g_FC_Var           : Array to store the half-step variables
 //                g_FC_Flux          : Array to store the face-centered fluxes
-//                NPatchGroup        : Number of patch groups to be evaluated
+//                NPatchGroup        : Number of patch groups to be evaluated (for CPU only)
 //                dt                 : Time interval to advance solution
-//                dh                 : Cell size
+//                c_dh               : Cell size (for CPU only)
+//                                     --> When using GPU, this array is stored in the constant memory and does
+//                                         not need to be passed as a function argument
+//                                         --> Declared in CUFLU_SetConstMem_FluidSolver.cu with the prefix "c_" to
+//                                             highlight that this is a constant variable on GPU
 //                Gamma              : Ratio of specific heats
 //                StoreFlux          : true --> store the coarse-fine fluxes
 //                LR_Limiter         : Slope limiter for the data reconstruction in the MHM/MHM_RP/CTU schemes
@@ -113,7 +117,7 @@ void CUFLU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const real dt, const real dh, const real Gamma, const bool StoreFlux,
+   const real dt, const real Gamma, const bool StoreFlux,
    const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const real MinDens, const real MinPres, const real DualEnergySwitch,
@@ -131,8 +135,8 @@ void CPU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const int NPatchGroup, const real dt, const real dh, const real Gamma,
-   const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int NPatchGroup, const real dt, const real c_dh[], const real Gamma, const bool StoreFlux,
+   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const double c_ExtAcc_AuxArray[], const real MinDens, const real MinPres,
    const real DualEnergySwitch, const bool NormPassive, const int NNorm, const int c_NormIdx[],
@@ -181,9 +185,10 @@ void CPU_FluidSolver_CTU(
 #     endif
       {
 //       1. evaluate the face-centered values at the half time-step
+//###: COORD-FIX: input c_dh instead of c_dh[0]
          Hydro_DataReconstruction( g_Flu_Array_In[P], g_PriVar_1PG, g_FC_Var_1PG, g_Slope_PPM_1PG,
                                    Con2Pri_Yes, FLU_NXT, FLU_GHOST_SIZE-1,
-                                   Gamma, LR_Limiter, MinMod_Coeff, dt, dh, MinDens, MinPres,
+                                   Gamma, LR_Limiter, MinMod_Coeff, dt, c_dh[0], MinDens, MinPres,
                                    NormPassive, NNorm, c_NormIdx, JeansMinPres, JeansMinPres_Coeff );
 
 
@@ -194,14 +199,16 @@ void CPU_FluidSolver_CTU(
 
 
 //       3. correct the face-centered variables by the transverse flux gradients
-         Hydro_TGradient_Correction( g_FC_Var_1PG, g_FC_Flux_1PG, dt, dh, Gamma, MinDens, MinPres );
+//###: COORD-FIX: input c_dh instead of c_dh[0]
+         Hydro_TGradient_Correction( g_FC_Var_1PG, g_FC_Flux_1PG, dt, c_dh[0], Gamma, MinDens, MinPres );
 
 
 //       4. evaluate the face-centered full-step fluxes by solving the Riemann problem with the corrected data
+//###: COORD-FIX: input c_dh instead of c_dh[0]
 #        ifdef UNSPLIT_GRAVITY
          Hydro_ComputeFlux( g_FC_Var_1PG, g_FC_Flux_1PG, 1, Gamma, CorrHalfVel_Yes,
                             g_Pot_Array_USG[P], g_Corner_Array[P],
-                            dt, dh, Time, GravityType, c_ExtAcc_AuxArray, MinPres,
+                            dt, c_dh[0], Time, GravityType, c_ExtAcc_AuxArray, MinPres,
                             StoreFlux, g_Flux_Array[P] );
 #        else
          Hydro_ComputeFlux( g_FC_Var_1PG, g_FC_Flux_1PG, 1, Gamma, CorrHalfVel_No,
@@ -212,8 +219,9 @@ void CPU_FluidSolver_CTU(
 
 
 //       5. full-step evolution
+//###: COORD-FIX: input c_dh instead of c_dh[0]
          Hydro_FullStepUpdate( g_Flu_Array_In[P], g_Flu_Array_Out[P], g_DE_Array_Out[P],
-                               g_FC_Flux_1PG, dt, dh, Gamma, MinDens, MinPres, DualEnergySwitch,
+                               g_FC_Flux_1PG, dt, c_dh[0], Gamma, MinDens, MinPres, DualEnergySwitch,
                                NormPassive, NNorm, c_NormIdx );
 
       } // loop over all patch groups
