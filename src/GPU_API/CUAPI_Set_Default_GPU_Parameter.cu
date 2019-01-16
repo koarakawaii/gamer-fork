@@ -149,6 +149,8 @@ int CUPOT_SetConstMem_PoissonSolver();
 
 #endif // GRAVITY
 
+int CUFLU_SetConstMem_FluidSolver_dh( real h_dh_AllLv[][3] );
+
 
 
 
@@ -423,6 +425,13 @@ void CUAPI_Set_Default_GPU_Parameter( int &GPU_NStream, int &Flu_GPU_NPGroup, in
    if ( CUPOT_SetConstMem_PoissonSolver() != 0 )
       Aux_Error( ERROR_INFO, "CUPOT_SetConstMem_PoissonSolver failed ...\n" );
 #  endif // #ifdef GRAVITY
+
+   real dh_AllLv[NLEVEL][3];
+   for (int lv=0; lv<NLEVEL; lv++)
+   for (int d=0; d<3; d++)
+      dh_AllLv[lv][d] = (real)amr->dh[lv][d];
+
+   CUFLU_SetConstMem_FluidSolver_dh( dh_AllLv );
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
