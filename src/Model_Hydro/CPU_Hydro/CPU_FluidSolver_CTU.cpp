@@ -70,6 +70,7 @@ static void Hydro_TGradient_Correction(       real g_FC_Var [][NCOMP_TOTAL][ CUB
 //                g_FC_Var           : Array to store the half-step variables
 //                g_FC_Flux          : Array to store the face-centered fluxes
 //                NPatchGroup        : Number of patch groups to be evaluated (for CPU only)
+//                lv                 : Target AMR level
 //                dt                 : Time interval to advance solution
 //                c_dh               : Cell size (for CPU only)
 //                                     --> When using GPU, this array is stored in the constant memory and does
@@ -117,8 +118,8 @@ void CUFLU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const real dt, const real Gamma, const bool StoreFlux,
-   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int lv, const real dt,
+   const real Gamma, const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const real MinDens, const real MinPres, const real DualEnergySwitch,
    const bool NormPassive, const int NNorm,
@@ -135,8 +136,8 @@ void CPU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const int NPatchGroup, const real dt, const real c_dh[], const real Gamma, const bool StoreFlux,
-   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int NPatchGroup, const int lv, const real dt, const real c_dh[],
+   const real Gamma, const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const double c_ExtAcc_AuxArray[], const real MinDens, const real MinPres,
    const real DualEnergySwitch, const bool NormPassive, const int NNorm, const int c_NormIdx[],
@@ -150,6 +151,9 @@ void CPU_FluidSolver_CTU(
    const bool CorrHalfVel_No  = false;
    const bool StoreFlux_No    = false;
    const bool Con2Pri_Yes     = true;
+#  ifdef __CUDACC__
+   const real (*const c_dh)   = c_dh_AllLv[lv];
+#  endif
 
 
 // openmp pragma for the CPU solver

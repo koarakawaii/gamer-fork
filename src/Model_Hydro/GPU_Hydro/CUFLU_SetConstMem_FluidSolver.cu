@@ -71,11 +71,11 @@ __constant__ int *c_NormIdx = NULL;
 
 
 
-__constant__ real c_dh[3];
+__constant__ real c_dh_AllLv[NLEVEL][3];
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  CUFLU_SetConstMem_FluidSolver_dh
-// Description :  Set the constant memory of c_dh[] used by CUFLU_FluidSolver_CTU/MHM()
+// Description :  Set the constant memory of c_dh_AllLv[] used by CUFLU_FluidSolver_CTU/MHM()
 //
 // Note        :  1. Adopt the suggested approach for CUDA version >= 5.0
 //                2. Invoked by CUAPI_SetConstMem()
@@ -85,10 +85,10 @@ __constant__ real c_dh[3];
 // Return      :  0/-1 : successful/failed
 //---------------------------------------------------------------------------------------------------
 __host__
-int CUFLU_SetConstMem_FluidSolver_dh( real h_dh[] )
+int CUFLU_SetConstMem_FluidSolver_dh( real h_dh_AllLv[][3] )
 {
 
-   if (  cudaSuccess != cudaMemcpyToSymbol( c_dh, h_dh, 3*sizeof(real),
+   if (  cudaSuccess != cudaMemcpyToSymbol( c_dh_AllLv, h_dh_AllLv, NLEVEL*3*sizeof(real),
                                             0, cudaMemcpyHostToDevice)  )
       return -1;
 

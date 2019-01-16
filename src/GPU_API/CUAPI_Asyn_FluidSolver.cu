@@ -28,8 +28,8 @@ void CUFLU_FluidSolver_MHM(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const real dt, const real Gamma, const bool StoreFlux,
-   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int lv, const real dt,
+   const real Gamma, const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const real MinDens, const real MinPres, const real DualEnergySwitch,
    const bool NormPassive, const int NNorm,
@@ -47,8 +47,8 @@ void CUFLU_FluidSolver_CTU(
          real   g_Slope_PPM    [][3][NCOMP_TOTAL][ CUBE(N_SLOPE_PPM) ],
          real   g_FC_Var       [][6][NCOMP_TOTAL][ CUBE(N_FC_VAR) ],
          real   g_FC_Flux      [][3][NCOMP_TOTAL][ CUBE(N_FC_FLUX) ],
-   const real dt, const real Gamma, const bool StoreFlux,
-   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
+   const int lv, const real dt,
+   const real Gamma, const bool StoreFlux, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
    const double Time, const OptGravityType_t GravityType,
    const real MinDens, const real MinPres, const real DualEnergySwitch,
    const bool NormPassive, const int NNorm,
@@ -139,6 +139,7 @@ extern cudaStream_t *Stream;
 //                h_Corner_Array       : Host array storing the physical corner coordinates of each patch group
 //                h_Pot_Array_USG      : Host array storing the input potential for UNSPLIT_GRAVITY
 //                NPatchGroup          : Number of patch groups evaluated simultaneously by GPU
+//                lv                   : Target AMR level
 //                dt                   : Time interval to advance solution
 //                dh                   : Cell size
 //                Gamma                : Ratio of specific heats
@@ -175,7 +176,8 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
                              real h_Flux_Array[][9][NFLUX_TOTAL][ SQR(PS2) ],
                              const double h_Corner_Array[][3],
                              real h_Pot_Array_USG[][ CUBE(USG_NXT_F) ],
-                             const int NPatchGroup, const real dt, const real dh[], const real Gamma, const bool StoreFlux,
+                             const int NPatchGroup, const int lv, const real dt, const real dh[],
+                             const real Gamma, const bool StoreFlux,
                              const bool XYZ, const LR_Limiter_t LR_Limiter, const real MinMod_Coeff,
                              const real ELBDM_Eta, real ELBDM_Taylor3_Coeff, const bool ELBDM_Taylor3_Auto,
                              const double Time, const OptGravityType_t GravityType,
@@ -358,7 +360,7 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
               d_Slope_PPM       + UsedPatch[s],
               d_FC_Var          + UsedPatch[s],
               d_FC_Flux         + UsedPatch[s],
-              dt, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
+              lv, dt, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
               Time, GravityType, MinDens, MinPres, DualEnergySwitch, NormPassive, NNorm,
               JeansMinPres, JeansMinPres_Coeff );
 
@@ -375,7 +377,7 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
               d_Slope_PPM       + UsedPatch[s],
               d_FC_Var          + UsedPatch[s],
               d_FC_Flux         + UsedPatch[s],
-              dt, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
+              lv, dt, Gamma, StoreFlux, LR_Limiter, MinMod_Coeff,
               Time, GravityType, MinDens, MinPres, DualEnergySwitch, NormPassive, NNorm,
               JeansMinPres, JeansMinPres_Coeff );
 
