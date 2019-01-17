@@ -19,6 +19,32 @@
 #  include "../../GPU_Utility/CUUTI_BlockReduction_WarpSync.cu"
 #endif
 
+__constant__ real c_dh_AllLv[NLEVEL][3];
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  CUFLU_SetConstMem_dtSolver_HydroCFL
+// Description :  Set the constant memory of c_dh_AllLv[] used by CPU/CUFLU_dtSolver_HydroCFL()
+//
+// Note        :  1. Adopt the suggested approach for CUDA version >= 5.0
+//                2. Invoked by CUAPI_Set_Default_GPU_Parameter()
+//
+// Parameter   :  None
+//
+// Return      :  0/-1 : successful/failed
+//---------------------------------------------------------------------------------------------------
+__host__
+int CUFLU_SetConstMem_dtSolver_HydroCFL( real h_dh_AllLv[][3] )
+{
+
+   if (  cudaSuccess != cudaMemcpyToSymbol( c_dh_AllLv, h_dh_AllLv, NLEVEL*3*sizeof(real),
+                                            0, cudaMemcpyHostToDevice)  )
+      return -1;
+
+   else
+      return 0;
+
+} // FUNCTION : CUFLU_SetConstMem_dtSolver_HydroCFL
+
 #else // #ifdef __CUDACC__
 
 real Hydro_GetPressure( const real Dens, const real MomX, const real MomY, const real MomZ, const real Engy,
@@ -47,7 +73,11 @@ real Hydro_GetPressure( const real Dens, const real MomX, const real MomY, const
 //                g_Flu_Array    : Array storing the prepared fluid data of each target patch
 //                g_Corner_Array : Array storing the physical corner coordinates of each patch
 //                NPG            : Number of target patch groups (for CPU only)
-//                dh             : Cell size
+//                c_dh           : Cell size (for CPU only)
+//                                 --> When using GPU, this array is stored in the constant memory and does
+//                                     not need to be passed as a function argument
+//                                     --> Declared on top of this function with the prefix "c_" to
+//                                         highlight that this is a constant variable on GPU
 //                Safety         : dt safety factor
 //                Gamma          : Ratio of specific heats
 //                MinPres        : Minimum allowed pressure
@@ -59,19 +89,24 @@ __global__
 void CUFLU_dtSolver_HydroCFL(       real   g_dt_Array[],
                               const real   g_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
                               const double g_Corner_Array[][3],
-                              const real dh, const real Safety, const real Gamma, const real MinPres )
+                              const int lv,
+                              const real Safety, const real Gamma, const real MinPres )
 #else
 void CPU_dtSolver_HydroCFL  (       real   g_dt_Array[],
                               const real   g_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
                               const double g_Corner_Array[][3],
-                              const int NPG,
-                              const real dh, const real Safety, const real Gamma, const real MinPres )
+                              const int NPG, const int lv, const real c_dh[],
+                              const real Safety, const real Gamma, const real MinPres )
 #endif
 {
 
+#  ifdef __CUDACC__
+   const real (*const c_dh)    = c_dh_AllLv[lv];
+#  endif
    const bool CheckMinPres_Yes = true;
    const real Gamma_m1         = Gamma - (real)1.0;
-   const real dhSafety         = Safety*dh;
+//###: COORD-FIX: use c_dh instead of c_dh[0]
+   const real dhSafety         = Safety*c_dh[0];
 
 // loop over all patches
 // --> CPU/GPU solver: use different (OpenMP threads) / (CUDA thread blocks)

@@ -13,7 +13,8 @@ __global__
 void CUFLU_dtSolver_HydroCFL(       real   g_dt_Array[],
                               const real   g_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
                               const double g_Corner_Array[][3],
-                              const real dh, const real Safety, const real Gamma, const real MinPres );
+                              const int lv,
+                              const real Safety, const real Gamma, const real MinPres );
 #ifdef GRAVITY
 __global__
 void CUPOT_dtSolver_HydroGravity( real g_dt_Array[], const real g_Pot_Array[][ CUBE(GRA_NXT) ],
@@ -69,6 +70,7 @@ extern cudaStream_t *Stream;
 //                h_Pot_Array    : Host array storing the prepared potential data of each target patch
 //                h_Corner_Array : Array storing the physical corner coordinates of each patch
 //                NPatchGroup    : Number of patch groups evaluated simultaneously by GPU
+//                lv             : Target AMR level
 //                dh             : Grid size
 //                Safety         : dt safety factor
 //                Gamma          : Ratio of specific heats
@@ -83,9 +85,10 @@ extern cudaStream_t *Stream;
 //-------------------------------------------------------------------------------------------------------
 void CUAPI_Asyn_dtSolver( const Solver_t TSolver, real h_dt_Array[], const real h_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
                           const real h_Pot_Array[][ CUBE(GRA_NXT) ], const double h_Corner_Array[][3],
-                          const int NPatchGroup, const real dh[], const real Safety, const real Gamma, const real MinPres,
-                          const bool P5_Gradient, const OptGravityType_t GravityType, const bool ExtPot,
-                          const double TargetTime, const int GPU_NStream )
+                          const int NPatchGroup, const int lv, const real dh[], const real Safety,
+                          const real Gamma, const real MinPres, const bool P5_Gradient,
+                          const OptGravityType_t GravityType, const bool ExtPot, const double TargetTime,
+                          const int GPU_NStream )
 {
 
 // determine whether or not to prepare the corner array
@@ -129,16 +132,16 @@ void CUAPI_Asyn_dtSolver( const Solver_t TSolver, real h_dt_Array[], const real 
       if ( h_Corner_Array   == NULL )  Aux_Error( ERROR_INFO, "h_Corner_Array == NULL !!\n" );
       if ( d_Corner_Array_T == NULL )  Aux_Error( ERROR_INFO, "d_Corner_Array_T == NULL !!\n" );
    }
-#  endif // #ifdef GAMER_DEBUG
 
 #  if ( COORDINATE == CARTESIAN )
-   if (  !Mis_CompareRealValue( dh[0], dh[1], NULL, false )  ||
-         !Mis_CompareRealValue( dh[0], dh[2], NULL, false )    )
+   if (  !Mis_CompareRealValue( amr->dh[lv][0], amr->dh[lv][1], NULL, false )  ||
+         !Mis_CompareRealValue( amr->dh[lv][0], amr->dh[lv][2], NULL, false )    )
       Aux_Error( ERROR_INFO, "currently the Cartesian coordinates only work with cubic cells --> dh = (%20.14e, %20.14e, %20.14e) !!\n",
-                 dh[0], dh[1], dh[2] );
+                 amr->dh[lv][0], amr->dh[lv][1], amr->dh[lv][2] );
 #  else
    Aux_Error( ERROR_INFO, "non-Cartesian coordinates do not support %s() yet !!\n", __FUNCTION__ );
 #  endif
+#  endif // #ifdef GAMER_DEBUG
 
 
 // set the block size
@@ -250,13 +253,12 @@ void CUAPI_Asyn_dtSolver( const Solver_t TSolver, real h_dt_Array[], const real 
 #     if   ( MODEL == HYDRO )
       switch ( TSolver )
       {
-//###: COORD-FIX: use dh instead of dh[0]
          case DT_FLU_SOLVER:
             CUFLU_dtSolver_HydroCFL <<< NPatch_per_Stream[s], BlockDim_dtSolver, 0, Stream[s] >>>
                                     ( d_dt_Array_T     + UsedPatch[s],
                                       d_Flu_Array_T    + UsedPatch[s],
                                       d_Corner_Array_T + UsedPatch[s],
-                                      dh[0], Safety, Gamma, MinPres );
+                                      lv, Safety, Gamma, MinPres );
          break;
 
 #        ifdef GRAVITY

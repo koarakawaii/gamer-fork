@@ -10,6 +10,7 @@
 
 // fluid solver prototypes in different models
 #if   ( MODEL == HYDRO )
+int CUFLU_SetConstMem_dtSolver_HydroCFL( real h_dh_AllLv[][3] );
 #if   ( FLU_SCHEME == RTVD )
 __global__ void CUFLU_FluidSolver_RTVD(
    real g_Fluid_In [][NCOMP_TOTAL][ CUBE(FLU_NXT) ],
@@ -64,10 +65,12 @@ void CUFLU_FluidSolver_CTU(
 int CUFLU_SetConstMem_FluidSolver_NormIdx( int NormIdx_h[] );
 #endif
 #endif // FLU_SCHEME
-__global__ void CUFLU_dtSolver_HydroCFL( real g_dt_Array[],
-                                         const real g_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
-                                         const double g_Corner_Array[][3],
-                                         const real dh, const real Safety, const real Gamma, const real MinPres );
+__global__
+void CUFLU_dtSolver_HydroCFL(       real   g_dt_Array[],
+                              const real   g_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
+                              const double g_Corner_Array[][3],
+                              const int lv,
+                              const real Safety, const real Gamma, const real MinPres );
 #ifdef GRAVITY
 __global__ void CUPOT_dtSolver_HydroGravity( real g_dt_Array[],
                                              const real g_Pot_Array[][ CUBE(GRA_NXT) ],
@@ -432,6 +435,11 @@ void CUAPI_Set_Default_GPU_Parameter( int &GPU_NStream, int &Flu_GPU_NPGroup, in
       dh_AllLv[lv][d] = (real)amr->dh[lv][d];
 
    CUFLU_SetConstMem_FluidSolver_dh( dh_AllLv );
+#  if   ( MODEL == HYDRO )
+   CUFLU_SetConstMem_dtSolver_HydroCFL( dh_AllLv );
+#  elif ( MODEL == MHD )
+#  warning : WAIT MHD !!!
+#  endif
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );

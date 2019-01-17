@@ -78,7 +78,7 @@ __constant__ real c_dh_AllLv[NLEVEL][3];
 // Description :  Set the constant memory of c_dh_AllLv[] used by CUFLU_FluidSolver_CTU/MHM()
 //
 // Note        :  1. Adopt the suggested approach for CUDA version >= 5.0
-//                2. Invoked by CUAPI_SetConstMem()
+//                2. Invoked by CUAPI_Set_Default_GPU_Parameter()
 //
 // Parameter   :  None
 //
