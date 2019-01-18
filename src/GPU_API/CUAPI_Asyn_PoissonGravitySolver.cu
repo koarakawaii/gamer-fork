@@ -41,8 +41,8 @@ void CUPOT_HydroGravitySolver(
    const real   g_Pot_Array_USG[][ CUBE(USG_NXT_G) ],
    const real   g_Flu_Array_USG[][GRA_NIN-1][ CUBE(PS1) ],
          char   g_DE_Array     [][ CUBE(PS1) ],
-   const real dt, const real dh, const bool P5_Gradient,
-   const OptGravityType_t GravityType,
+   const int lv, const real dt,
+   const bool P5_Gradient, const OptGravityType_t GravityType,
    const double TimeNew, const double TimeOld, const real MinEint );
 #elif ( MODEL == MHD )
 #warning : WAIT MHD !!!
@@ -112,8 +112,9 @@ extern cudaStream_t *Stream;
 //                h_Flu_Array_USG      : Host array storing the prepared density + momentum for UNSPLIT_GRAVITY
 //                h_DE_Array           : Host array storing the dual-energy status (for both input and output)
 //                NPatchGroup          : Number of patch groups evaluated simultaneously by GPU
+//                lv                   : Target AMR level
 //                dt                   : Time interval to advance solution
-//                dh                   : Grid size
+//                dh                   : Cell size
 //                SOR_Min_Iter         : Minimum # of iterations for SOR
 //                SOR_Max_Iter         : Maximum # of iterations for SOR
 //                SOR_Omega            : Over-relaxation parameter
@@ -149,12 +150,13 @@ void CUAPI_Asyn_PoissonGravitySolver( const real h_Rho_Array    [][RHO_NXT][RHO_
                                       const real h_Pot_Array_USG[][USG_NXT_G][USG_NXT_G][USG_NXT_G],
                                       const real h_Flu_Array_USG[][GRA_NIN-1][PS1][PS1][PS1],
                                             char h_DE_Array     [][PS1][PS1][PS1],
-                                      const int NPatchGroup, const real dt, const real dh[], const int SOR_Min_Iter,
-                                      const int SOR_Max_Iter, const real SOR_Omega, const int MG_Max_Iter,
-                                      const int MG_NPre_Smooth, const int MG_NPost_Smooth,
+                                      const int NPatchGroup, const int lv, const real dt, const real dh[],
+                                      const int SOR_Min_Iter, const int SOR_Max_Iter, const real SOR_Omega,
+                                      const int MG_Max_Iter, const int MG_NPre_Smooth, const int MG_NPost_Smooth,
                                       const real MG_Tolerated_Error, const real Poi_Coeff,
-                                      const IntScheme_t IntScheme, const bool P5_Gradient, const real ELBDM_Eta,
-                                      const real ELBDM_Lambda, const bool Poisson, const bool GraAcc, const int GPU_NStream,
+                                      const IntScheme_t IntScheme, const bool P5_Gradient,
+                                      const real ELBDM_Eta, const real ELBDM_Lambda,
+                                      const bool Poisson, const bool GraAcc, const int GPU_NStream,
                                       const OptGravityType_t GravityType, const double TimeNew, const double TimeOld,
                                       const bool ExtPot, const real MinEint )
 {
@@ -393,7 +395,6 @@ void CUAPI_Asyn_PoissonGravitySolver( const real h_Rho_Array    [][RHO_NXT][RHO_
       if ( GraAcc )
       {
 #        if   ( MODEL == HYDRO )
-//###: COORD-FIX: use dh instead of dh[0]
          CUPOT_HydroGravitySolver <<< NPatch_per_Stream[s], Gra_Block_Dim, 0, Stream[s] >>>
                                   ( d_Flu_Array_G     + UsedPatch[s],
                                     d_Pot_Array_P_Out + UsedPatch[s],
@@ -401,7 +402,7 @@ void CUAPI_Asyn_PoissonGravitySolver( const real h_Rho_Array    [][RHO_NXT][RHO_
                                     d_Pot_Array_USG_G + UsedPatch[s],
                                     d_Flu_Array_USG_G + UsedPatch[s],
                                     d_DE_Array_G      + UsedPatch[s],
-                                    dt, dh[0], P5_Gradient, GravityType, TimeNew, TimeOld, MinEint );
+                                    lv, dt, P5_Gradient, GravityType, TimeNew, TimeOld, MinEint );
 
 #        elif ( MODEL == MHD )
 #        warning : WAITH MHD !!!
