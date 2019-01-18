@@ -448,7 +448,7 @@ void CUAPI_Asyn_FluidSolver( real h_Flu_Array_In[][FLU_NIN ][ CUBE(FLU_NXT) ],
                              const bool JeansMinPres, const real JeansMinPres_Coeff );
 void CUAPI_Asyn_dtSolver( const Solver_t TSolver, real h_dt_Array[], const real h_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
                           const real h_Pot_Array[][ CUBE(GRA_NXT) ], const double h_Corner_Array[][3],
-                          const int NPatchGroup, const int lv, const real dh[], const real Safety,
+                          const int NPatchGroup, const int lv, const real Safety,
                           const real Gamma, const real MinPres, const bool P5_Gradient,
                           const OptGravityType_t GravityType, const bool ExtPot, const double TargetTime,
                           const int GPU_NStream );

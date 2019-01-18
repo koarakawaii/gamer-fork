@@ -17,10 +17,11 @@ void CUFLU_dtSolver_HydroCFL(       real   g_dt_Array[],
                               const real Safety, const real Gamma, const real MinPres );
 #ifdef GRAVITY
 __global__
-void CUPOT_dtSolver_HydroGravity( real g_dt_Array[], const real g_Pot_Array[][ CUBE(GRA_NXT) ],
+void CUPOT_dtSolver_HydroGravity(       real   g_dt_Array[],
+                                  const real   g_Pot_Array[][ CUBE(GRA_NXT) ],
                                   const double g_Corner_Array[][3],
-                                  const real dh, const real Safety, const bool P5_Gradient,
-                                  const OptGravityType_t GravityType,
+                                  const int lv,
+                                  const real Safety, const bool P5_Gradient, const OptGravityType_t GravityType,
                                   const double ExtAcc_Time );
 #endif
 #elif ( MODEL == MHD )
@@ -71,7 +72,6 @@ extern cudaStream_t *Stream;
 //                h_Corner_Array : Array storing the physical corner coordinates of each patch
 //                NPatchGroup    : Number of patch groups evaluated simultaneously by GPU
 //                lv             : Target AMR level
-//                dh             : Grid size
 //                Safety         : dt safety factor
 //                Gamma          : Ratio of specific heats
 //                MinPres        : Minimum allowed pressure
@@ -85,7 +85,7 @@ extern cudaStream_t *Stream;
 //-------------------------------------------------------------------------------------------------------
 void CUAPI_Asyn_dtSolver( const Solver_t TSolver, real h_dt_Array[], const real h_Flu_Array[][NCOMP_FLUID][ CUBE(PS1) ],
                           const real h_Pot_Array[][ CUBE(GRA_NXT) ], const double h_Corner_Array[][3],
-                          const int NPatchGroup, const int lv, const real dh[], const real Safety,
+                          const int NPatchGroup, const int lv, const real Safety,
                           const real Gamma, const real MinPres, const bool P5_Gradient,
                           const OptGravityType_t GravityType, const bool ExtPot, const double TargetTime,
                           const int GPU_NStream )
@@ -262,13 +262,12 @@ void CUAPI_Asyn_dtSolver( const Solver_t TSolver, real h_dt_Array[], const real 
          break;
 
 #        ifdef GRAVITY
-//###: COORD-FIX: use dh instead of dh[0]
          case DT_GRA_SOLVER:
             CUPOT_dtSolver_HydroGravity <<< NPatch_per_Stream[s], BlockDim_dtSolver, 0, Stream[s] >>>
                                         ( d_dt_Array_T     + UsedPatch[s],
                                           d_Pot_Array_T    + UsedPatch[s],
                                           d_Corner_Array_T + UsedPatch[s],
-                                          dh[0], Safety, P5_Gradient, GravityType, TargetTime );
+                                          lv, Safety, P5_Gradient, GravityType, TargetTime );
          break;
 #        endif
 

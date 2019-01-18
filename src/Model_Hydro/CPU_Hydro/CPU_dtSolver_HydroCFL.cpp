@@ -19,6 +19,7 @@
 #  include "../../GPU_Utility/CUUTI_BlockReduction_WarpSync.cu"
 #endif
 
+
 __constant__ real c_dh_AllLv[NLEVEL][3];
 
 //-------------------------------------------------------------------------------------------------------

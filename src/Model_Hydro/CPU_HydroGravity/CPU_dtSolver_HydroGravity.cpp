@@ -25,7 +25,7 @@
 __constant__ double c_ExtAcc_AuxArray[EXT_ACC_NAUX_MAX];
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  CUPOT_SetConstMem_dtSolver_HydroGravity
+// Function    :  CUPOT_SetConstMem_dtSolver_HydroGravity_ExtAcc
 // Description :  Set the constant memory used by CUPOT_dtSolver_HydroGravity()
 //
 // Note        :  1. Adopt the suggested approach for CUDA version >= 5.0
@@ -36,7 +36,7 @@ __constant__ double c_ExtAcc_AuxArray[EXT_ACC_NAUX_MAX];
 // Return      :  0/-1 : successful/failed
 //---------------------------------------------------------------------------------------------------
 __host__
-int CUPOT_SetConstMem_dtSolver_HydroGravity( double h_ExtAcc_AuxArray[] )
+int CUPOT_SetConstMem_dtSolver_HydroGravity_ExtAcc( double h_ExtAcc_AuxArray[] )
 {
 
    if (  cudaSuccess != cudaMemcpyToSymbol( c_ExtAcc_AuxArray, h_ExtAcc_AuxArray, EXT_ACC_NAUX_MAX*sizeof(double),
@@ -46,7 +46,34 @@ int CUPOT_SetConstMem_dtSolver_HydroGravity( double h_ExtAcc_AuxArray[] )
    else
       return 0;
 
-} // FUNCTION : CUPOT_SetConstMem_dtSolver_HydroGravity
+} // FUNCTION : CUPOT_SetConstMem_dtSolver_HydroGravity_ExtAcc
+
+
+__constant__ real c_dh_AllLv[NLEVEL][3];
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  CUFLU_SetConstMem_dtSolver_HydroGravity_dh
+// Description :  Set the constant memory of c_dh_AllLv[] used by CPU/CUPOT_dtSolver_HydroGravity()
+//
+// Note        :  1. Adopt the suggested approach for CUDA version >= 5.0
+//                2. Invoked by CUAPI_Set_Default_GPU_Parameter()
+//
+// Parameter   :  None
+//
+// Return      :  0/-1 : successful/failed
+//---------------------------------------------------------------------------------------------------
+__host__
+int CUFLU_SetConstMem_dtSolver_HydroGravity_dh( real h_dh_AllLv[][3] )
+{
+
+   if (  cudaSuccess != cudaMemcpyToSymbol( c_dh_AllLv, h_dh_AllLv, NLEVEL*3*sizeof(real),
+                                            0, cudaMemcpyHostToDevice)  )
+      return -1;
+
+   else
+      return 0;
+
+} // FUNCTION : CUFLU_SetConstMem_dtSolver_HydroGravity_dh
 
 #endif // #ifdef __CUDACC__
 
@@ -70,7 +97,12 @@ int CUPOT_SetConstMem_dtSolver_HydroGravity( double h_ExtAcc_AuxArray[] )
 //                g_Pot_Array       : Array storing the prepared potential data of each target patch
 //                g_Corner_Array    : Array storing the physical corner coordinates of each patch
 //                NPatchGroup       : Number of target patch groups (for CPU only)
-//                dh                : Cell size
+//                lv                : Target AMR level
+//                c_dh              : Cell size (for CPU only)
+//                                    --> When using GPU, this array is stored in the constant memory and does
+//                                        not need to be passed as a function argument
+//                                        --> Declared on top of this function with the prefix "c_" to
+//                                            highlight that this is a constant variable on GPU
 //                Safety            : dt safety factor
 //                P5_Gradient       : Use 5-point stencil to evaluate the potential gradient
 //                GravityType       : Types of gravity --> self-gravity, external gravity, both
@@ -88,17 +120,16 @@ __global__
 void CUPOT_dtSolver_HydroGravity(       real   g_dt_Array[],
                                   const real   g_Pot_Array[][ CUBE(GRA_NXT) ],
                                   const double g_Corner_Array[][3],
-                                  const real dh, const real Safety, const bool P5_Gradient,
-                                  const OptGravityType_t GravityType,
+                                  const int lv,
+                                  const real Safety, const bool P5_Gradient, const OptGravityType_t GravityType,
                                   const double ExtAcc_Time )
 #else
 void CPU_dtSolver_HydroGravity  (       real   g_dt_Array[],
                                   const real   g_Pot_Array[][ CUBE(GRA_NXT) ],
                                   const double g_Corner_Array[][3],
-                                  const int NPatchGroup,
-                                  const real dh, const real Safety, const bool P5_Gradient,
-                                  const OptGravityType_t GravityType, const double c_ExtAcc_AuxArray[],
-                                  const double ExtAcc_Time )
+                                  const int NPatchGroup, const int lv, const real c_dh[],
+                                  const real Safety, const bool P5_Gradient, const OptGravityType_t GravityType,
+                                  const double c_ExtAcc_AuxArray[], const double ExtAcc_Time )
 #endif
 {
 
@@ -109,10 +140,15 @@ void CPU_dtSolver_HydroGravity  (       real   g_dt_Array[],
 #  endif
 
 
-   const real dh2         = (real)2.0*dh;
-   const real Gra_Const   = ( P5_Gradient ) ? (real)-1.0/((real)12.0*dh) : (real)-1.0/((real)2.0*dh);
-   const int  PS1_sqr     = SQR(PS1);
-   const int  didx_pot[3] = { 1, GRA_NXT, SQR(GRA_NXT) };
+#  ifdef __CUDACC__
+   const real (*const c_dh) = c_dh_AllLv[lv];
+#  endif
+//###: COORD-FIX: use c_dh instead of c_dh[0]
+   const real dh2           = (real)2.0*c_dh[0];
+//###: COORD-FIX: use c_dh instead of c_dh[0]
+   const real Gra_Const     = ( P5_Gradient ) ? (real)-1.0/((real)12.0*c_dh[0]) : (real)-1.0/((real)2.0*c_dh[0]);
+   const int  PS1_sqr       = SQR(PS1);
+   const int  didx_pot[3]   = { 1, GRA_NXT, SQR(GRA_NXT) };
 
 
 // load potential from global to shared memory to improve the GPU performance
@@ -168,9 +204,9 @@ void CPU_dtSolver_HydroGravity  (       real   g_dt_Array[],
          {
             double x, y, z;
 
-            x = g_Corner_Array[P][0] + double(i_ext*dh);
-            y = g_Corner_Array[P][1] + double(j_ext*dh);
-            z = g_Corner_Array[P][2] + double(k_ext*dh);
+            x = g_Corner_Array[P][0] + double(i_ext*c_dh[0]);
+            y = g_Corner_Array[P][1] + double(j_ext*c_dh[1]);
+            z = g_Corner_Array[P][2] + double(k_ext*c_dh[2]);
 
             ExternalAcc( Acc, x, y, z, ExtAcc_Time, c_ExtAcc_AuxArray );
          }

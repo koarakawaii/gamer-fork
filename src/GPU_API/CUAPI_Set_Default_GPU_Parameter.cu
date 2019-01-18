@@ -72,11 +72,14 @@ void CUFLU_dtSolver_HydroCFL(       real   g_dt_Array[],
                               const int lv,
                               const real Safety, const real Gamma, const real MinPres );
 #ifdef GRAVITY
-__global__ void CUPOT_dtSolver_HydroGravity( real g_dt_Array[],
-                                             const real g_Pot_Array[][ CUBE(GRA_NXT) ],
-                                             const double g_Corner_Array[][3],
-                                             const real dh, const real Safety, const bool P5_Gradient,
-                                             const OptGravityType_t GravityType, const double ExtAcc_Time );
+__global__
+void CUPOT_dtSolver_HydroGravity(       real   g_dt_Array[],
+                                  const real   g_Pot_Array[][ CUBE(GRA_NXT) ],
+                                  const double g_Corner_Array[][3],
+                                  const int lv,
+                                  const real Safety, const bool P5_Gradient, const OptGravityType_t GravityType,
+                                  const double ExtAcc_Time );
+int CUFLU_SetConstMem_dtSolver_HydroGravity_dh( real h_dh_AllLv[][3] );
 #endif
 #elif ( MODEL == MHD )
 #warning : WAIT MHD !!!
@@ -435,11 +438,18 @@ void CUAPI_Set_Default_GPU_Parameter( int &GPU_NStream, int &Flu_GPU_NPGroup, in
       dh_AllLv[lv][d] = (real)amr->dh[lv][d];
 
    CUFLU_SetConstMem_FluidSolver_dh( dh_AllLv );
+
 #  if   ( MODEL == HYDRO )
    CUFLU_SetConstMem_dtSolver_HydroCFL( dh_AllLv );
+
+#  ifdef GRAVITY
+   CUFLU_SetConstMem_dtSolver_HydroGravity_dh( dh_AllLv );
+#  endif
+
 #  elif ( MODEL == MHD )
 #  warning : WAIT MHD !!!
-#  endif
+
+#  endif // MODEL
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );

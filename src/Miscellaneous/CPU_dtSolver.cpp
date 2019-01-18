@@ -20,10 +20,9 @@ void CPU_dtSolver_HydroCFL  (       real   g_dt_Array[],
 void CPU_dtSolver_HydroGravity  (       real   g_dt_Array[],
                                   const real   g_Pot_Array[][ CUBE(GRA_NXT) ],
                                   const double g_Corner_Array[][3],
-                                  const int NPatchGroup,
-                                  const real dh, const real Safety, const bool P5_Gradient,
-                                  const OptGravityType_t GravityType, const double c_ExtAcc_AuxArray[],
-                                  const double ExtAcc_Time );
+                                  const int NPatchGroup, const int lv, const real c_dh[],
+                                  const real Safety, const bool P5_Gradient, const OptGravityType_t GravityType,
+                                  const double c_ExtAcc_AuxArray[], const double ExtAcc_Time );
 #endif
 
 #elif ( MODEL == MHD )
@@ -91,9 +90,8 @@ void CPU_dtSolver( const Solver_t TSolver, real dt_Array[], const real Flu_Array
       break;
 
 #     ifdef GRAVITY
-//###: COORD-FIX: use dh instead of dh[0]
       case DT_GRA_SOLVER:
-         CPU_dtSolver_HydroGravity( dt_Array, Pot_Array, Corner_Array, NPatchGroup, dh[0], Safety, P5_Gradient,
+         CPU_dtSolver_HydroGravity( dt_Array, Pot_Array, Corner_Array, NPatchGroup, lv, dh, Safety, P5_Gradient,
                                     GravityType, ExtAcc_AuxArray, TargetTime );
       break;
 #     endif

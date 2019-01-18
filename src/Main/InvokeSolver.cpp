@@ -583,7 +583,7 @@ void Solver( const Solver_t TSolver, const int lv, const double TimeNew, const d
       case DT_FLU_SOLVER:
 #        ifdef GPU
          CUAPI_Asyn_dtSolver( TSolver, h_dt_Array_T[ArrayID], h_Flu_Array_T[ArrayID], NULL, h_Corner_Array_T[ArrayID],
-                              NPG, lv, dh_real, (Step==0)?DT__FLUID_INIT:DT__FLUID, GAMMA, MIN_PRES,
+                              NPG, lv,          (Step==0)?DT__FLUID_INIT:DT__FLUID, GAMMA, MIN_PRES,
                               NULL_BOOL, GRAVITY_NONE, NULL_BOOL, NULL_REAL, GPU_NSTREAM );
 #        else
          CPU_dtSolver       ( TSolver, h_dt_Array_T[ArrayID], h_Flu_Array_T[ArrayID], NULL, h_Corner_Array_T[ArrayID],
@@ -596,11 +596,11 @@ void Solver( const Solver_t TSolver, const int lv, const double TimeNew, const d
       case DT_GRA_SOLVER:
 #        ifdef GPU
          CUAPI_Asyn_dtSolver( TSolver, h_dt_Array_T[ArrayID], NULL, h_Pot_Array_T[ArrayID], h_Corner_Array_T[ArrayID],
-                              NPG, dh_real, DT__GRAVITY, NULL_REAL, NULL_REAL, OPT__GRA_P5_GRADIENT, OPT__GRAVITY_TYPE, NULL_BOOL,
+                              NPG, lv,          DT__GRAVITY, NULL_REAL, NULL_REAL, OPT__GRA_P5_GRADIENT, OPT__GRAVITY_TYPE, NULL_BOOL,
                               TimeNew, GPU_NSTREAM );
 #        else
          CPU_dtSolver       ( TSolver, h_dt_Array_T[ArrayID], NULL, h_Pot_Array_T[ArrayID], h_Corner_Array_T[ArrayID],
-                              NPG, dh_real, DT__GRAVITY, NULL_REAL, NULL_REAL, OPT__GRA_P5_GRADIENT, OPT__GRAVITY_TYPE, NULL_BOOL,
+                              NPG, lv, dh_real, DT__GRAVITY, NULL_REAL, NULL_REAL, OPT__GRA_P5_GRADIENT, OPT__GRAVITY_TYPE, NULL_BOOL,
                               TimeNew );
 #        endif
       break;

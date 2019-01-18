@@ -12,7 +12,7 @@ extern double ExtAcc_AuxArray[EXT_ACC_NAUX_MAX];
 // declare all GPU kernels requiring ExtPot_AuxArray[] and/or ExtAcc_AuxArray[]
 #if ( MODEL == HYDRO )
 int CUPOT_SetConstMem_HydroGravitySolver( double ExtAcc_AuxArray_h[] );
-int CUPOT_SetConstMem_dtSolver_HydroGravity( double ExtAcc_AuxArray_h[] );
+int CUPOT_SetConstMem_dtSolver_HydroGravity_ExtAcc( double ExtAcc_AuxArray_h[] );
 #if (  defined UNSPLIT_GRAVITY  &&  ( FLU_SCHEME == MHM || FLU_SCHEME == MHM_RP || FLU_SCHEME == CTU )  )
 int CUFLU_SetConstMem_FluidSolver_ExtAcc( double ExtAcc_AuxArray_h[] );
 #endif
@@ -44,8 +44,8 @@ void CUAPI_Init_ExternalAccPot()
       if (  CUPOT_SetConstMem_HydroGravitySolver( ExtAcc_AuxArray ) != 0  )
          Aux_Error( ERROR_INFO, "CUPOT_SetConstMem_HydroGravitySolver failed ...\n" );
 
-      if (  CUPOT_SetConstMem_dtSolver_HydroGravity( ExtAcc_AuxArray ) != 0  )
-         Aux_Error( ERROR_INFO, "CUPOT_SetConstMem_dtSolver_HydroGravity failed ...\n" );
+      if (  CUPOT_SetConstMem_dtSolver_HydroGravity_ExtAcc( ExtAcc_AuxArray ) != 0  )
+         Aux_Error( ERROR_INFO, "CUPOT_SetConstMem_dtSolver_HydroGravity_ExtAcc failed ...\n" );
 
 #     if (  defined UNSPLIT_GRAVITY  &&  ( FLU_SCHEME == MHM || FLU_SCHEME == MHM_RP || FLU_SCHEME == CTU )  )
       if (  CUFLU_SetConstMem_FluidSolver_ExtAcc( ExtAcc_AuxArray ) != 0  )
