@@ -250,7 +250,8 @@ void CPU_FluidSolver_MHM(
 
 
 //       1-a-2. evaluate the half-step solutions
-         Hydro_RiemannPredict( g_Flu_Array_In[P], g_Half_Flux_1PG, g_Half_Var_1PG, dt, dh, Gamma, MinDens, MinPres,
+//###: COORD-FIX: input c_dh instead of c_dh[0]
+         Hydro_RiemannPredict( g_Flu_Array_In[P], g_Half_Flux_1PG, g_Half_Var_1PG, dt, c_dh[0], Gamma, MinDens, MinPres,
                                NormPassive, NNorm, c_NormIdx, JeansMinPres, JeansMinPres_Coeff );
 
 
