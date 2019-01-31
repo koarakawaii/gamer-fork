@@ -25,6 +25,7 @@ static double   Soliton_ScaleD     = NULL;
        double Star_Rho0;            // peak density
        double Star_R0;              // scale radius
        double Star_MaxR;            // maximum radius for particles
+       double Star_Center[3];       // center coordinates
        int    Star_MassProfNBin;    // number of radial bins in the mass profile table
        int    Star_SigmaMode;       // different modes for assigning stellar velocity dispersion
                                     // 0: self-bound; 1: constant soliton peak density
@@ -130,6 +131,9 @@ void SetParameter()
    ReadPara->Add( "Star_Rho0",                 &Star_Rho0,                 -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Star_R0",                   &Star_R0,                   -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Star_MaxR",                 &Star_MaxR,                 -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Star_CenterX",              &Star_Center[0],             amr->BoxCenter[0], NoMin_double, NoMax_double      );
+   ReadPara->Add( "Star_CenterY",              &Star_Center[1],             amr->BoxCenter[1], NoMin_double, NoMax_double      );
+   ReadPara->Add( "Star_CenterZ",              &Star_Center[2],             amr->BoxCenter[2], NoMin_double, NoMax_double      );
    ReadPara->Add( "Star_MassProfNBin",         &Star_MassProfNBin,          1000,          2,                NoMax_int         );
    ReadPara->Add( "Star_AddParForRestart",     &Star_AddParForRestart,      false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar, -1L,           NoMin_long,       NoMax_long        );
@@ -223,6 +227,9 @@ void SetParameter()
       Aux_Message( stdout, "  peak density                              = %13.7e\n", Star_Rho0 );
       Aux_Message( stdout, "  scale radius                              = %13.7e\n", Star_R0 );
       Aux_Message( stdout, "  maximum radius of particles               = %13.7e\n", Star_MaxR );
+      Aux_Message( stdout, "  central coordinate x                      = %13.7e\n", Star_Center[0] );
+      Aux_Message( stdout, "  central coordinate y                      = %13.7e\n", Star_Center[1] );
+      Aux_Message( stdout, "  central coordinate z                      = %13.7e\n", Star_Center[2] );
       Aux_Message( stdout, "  number of radial bins in the mass profile = %d\n",     Star_MassProfNBin );
       Aux_Message( stdout, "  free-fall time at the scale radius        = %13.7e\n", Star_FreeT );
       Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );

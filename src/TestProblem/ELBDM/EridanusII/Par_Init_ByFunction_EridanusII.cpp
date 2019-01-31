@@ -16,6 +16,7 @@ extern int    Star_SigmaMode;
 extern double Star_Rho0;
 extern double Star_R0;
 extern double Star_MaxR;
+extern double Star_Center[3];
 extern int    Star_MassProfNBin;
 
 static RandomNumber_t *RNG = NULL;
@@ -67,9 +68,6 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
 
 
-   const double Star_Center[3] = { amr->BoxCenter[0],
-                                   amr->BoxCenter[1],
-                                   amr->BoxCenter[2] };
    real *Mass_AllRank   = NULL;
    real *Pos_AllRank[3] = { NULL, NULL, NULL };
    real *Vel_AllRank[3] = { NULL, NULL, NULL };

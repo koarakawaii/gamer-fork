@@ -16,6 +16,7 @@ extern int    Star_SigmaMode;
 extern double Star_Rho0;
 extern double Star_R0;
 extern double Star_MaxR;
+extern double Star_Center[3];
 extern int    Star_MassProfNBin;
 
 extern bool   Star_AddParForRestart;
@@ -58,9 +59,6 @@ void Init_User_EridanusII()
       Aux_Error( ERROR_INFO, "Star_AddParForRestart_PeakRho = %14.7e < 0.0 !!\n", Star_AddParForRestart_PeakRho );
 
 
-   const double Star_Center[3] = { amr->BoxCenter[0],
-                                   amr->BoxCenter[1],
-                                   amr->BoxCenter[2] };
    const long   NNewPar        = ( MPI_Rank == 0 ) ? Star_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
 
