@@ -29,6 +29,10 @@ static double   Soliton_ScaleD     = NULL;
        int    Star_SigmaMode;       // different modes for assigning stellar velocity dispersion
                                     // 0: self-bound; 1: constant soliton peak density
 
+       bool   Star_AddParForRestart;         // add particles after restart
+       long   Star_AddParForRestart_NPar;    // number of particles for Star_AddParForRestart
+       double Star_AddParForRestart_PeakRho; // Peak density for Star_AddParForRestart and Star_SigmaMode=1
+
 static double Star_FreeT;           // free-fall time at Star_R0
 // =======================================================================================
 
@@ -38,6 +42,7 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
                                      real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
                                      real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
                                      real *AllAttribute[PAR_NATT_TOTAL] );
+void Init_User_EridanusII();
 #endif
 
 
@@ -126,6 +131,9 @@ void SetParameter()
    ReadPara->Add( "Star_R0",                   &Star_R0,                   -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Star_MaxR",                 &Star_MaxR,                 -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Star_MassProfNBin",         &Star_MassProfNBin,          1000,          2,                NoMax_int         );
+   ReadPara->Add( "Star_AddParForRestart",     &Star_AddParForRestart,      false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar, -1L,           NoMin_long,       NoMax_long        );
+   ReadPara->Add( "Star_AddParForRestart_PeakRho", &Star_AddParForRestart_PeakRho, -1.0,   NoMin_double,     NoMax_double      );
 
    ReadPara->Read( FileName );
 
@@ -217,6 +225,9 @@ void SetParameter()
       Aux_Message( stdout, "  maximum radius of particles               = %13.7e\n", Star_MaxR );
       Aux_Message( stdout, "  number of radial bins in the mass profile = %d\n",     Star_MassProfNBin );
       Aux_Message( stdout, "  free-fall time at the scale radius        = %13.7e\n", Star_FreeT );
+      Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );
+      Aux_Message( stdout, "     number of particles to be added        = %ld\n",    Star_AddParForRestart_NPar );
+      Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -468,6 +479,7 @@ void Init_TestProb_ELBDM_EridanusII()
 
 
    Init_Function_User_Ptr   = SetGridIC;
+   Init_User_Ptr            = Init_User_EridanusII;
    Flag_User_Ptr            = NULL;
    Mis_GetTimeStep_User_Ptr = NULL;
    BC_User_Ptr              = BC_EridanusII;
