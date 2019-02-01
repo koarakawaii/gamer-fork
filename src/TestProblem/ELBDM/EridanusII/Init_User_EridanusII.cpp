@@ -230,6 +230,41 @@ void Init_User_EridanusII()
    for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
 
 
+// refine the grids
+   const bool   Redistribute_Yes = true;
+   const bool   ResetLB_Yes      = true;
+#  if ( defined PARTICLE  &&  defined LOAD_BALANCE )
+   const double Par_Weight       = amr->LB->Par_Weight;
+#  else
+   const double Par_Weight       = 0.0;
+#  endif
+#  ifdef LOAD_BALANCE
+   const UseLBFunc_t UseLB       = USELB_YES;
+#  else
+   const UseLBFunc_t UseLB       = USELB_NO;
+#  endif
+
+   for (int lv=0; lv<MAX_LEVEL; lv++)
+   {
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Refining level %d ... ", lv );
+
+      Flag_Real( lv, UseLB );
+
+      Refine( lv, UseLB );
+
+#     ifdef LOAD_BALANCE
+//    no need to exchange potential since we haven't calculated it yet
+      Buf_GetBufferData( lv,   amr->FluSg[lv  ], NULL_INT, DATA_AFTER_REFINE, _TOTAL, Flu_ParaBuf, USELB_YES );
+
+      Buf_GetBufferData( lv+1, amr->FluSg[lv+1], NULL_INT, DATA_AFTER_REFINE, _TOTAL, Flu_ParaBuf, USELB_YES );
+
+      LB_Init_LoadBalance( Redistribute_Yes, Par_Weight, ResetLB_Yes, lv+1 );
+#     endif
+
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
+   } // for (int lv=0; lv<MAX_LEVEL; lv++)
+
+
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
 } // FUNCTION : Init_User_EridanusII
