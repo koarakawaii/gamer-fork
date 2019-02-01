@@ -17,6 +17,7 @@ extern Timer_t *Timer_Poi_PrePot_C[NLEVEL];
 extern Timer_t *Timer_Poi_PrePot_F[NLEVEL];
 #endif
 
+extern bool FixDM;
 
 
 
@@ -391,9 +392,10 @@ void Preparation_Step( const Solver_t TSolver, const int lv, const double TimeNe
 //                Poi_Coeff : Coefficient in front of the RHS in the Poisson eq.
 //-------------------------------------------------------------------------------------------------------
 void Solver( const Solver_t TSolver, const int lv, const double TimeNew, const double TimeOld,
-             const int NPG, const int ArrayID, const double dt, const double Poi_Coeff )
+             const int NPG, const int ArrayID, const double dt_in, const double Poi_Coeff )
 {
 
+   const double dt = ( FixDM ) ? 0.0 : dt_in;
    const double dh = amr->dh[lv];
 
 #  ifdef GRAVITY

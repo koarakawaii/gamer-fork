@@ -5,6 +5,7 @@
 
 // soliton-specific global variables
 // =======================================================================================
+       bool     FixDM;                                   // true --> do not evolve psidm at all
        double   Soliton_CoreRadius;                      // soliton core radius
 static int      Soliton_InputMode;                       // soliton input mode: 1/2 -> table/approximate analytical form
 static double   Soliton_OuterSlope;                      // soliton outer slope (only used by Soliton_InputMode=2)
@@ -122,6 +123,7 @@ void SetParameter()
 // ********************************************************************************************************************************
 // ReadPara->Add( "KEY_IN_THE_FILE",           &VARIABLE,                   DEFAULT,       MIN,              MAX               );
 // ********************************************************************************************************************************
+   ReadPara->Add( "FixDM",                     &FixDM,                      false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Soliton_CoreRadius",        &Soliton_CoreRadius,        -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Soliton_InputMode",         &Soliton_InputMode,          1,             1,                2                 );
    ReadPara->Add( "Soliton_OuterSlope",        &Soliton_OuterSlope,        -8.0,           NoMin_double,     NoMax_double      );
@@ -146,7 +148,7 @@ void SetParameter()
 // (1-2) set the default values
 
 // (1-3) check the runtime parameters
-
+   if ( FixDM  &&  OPT__FIXUP_FLUX )   Aux_Error( ERROR_INFO, "must disable OPT__FIXUP_FLUX for FixDM !!\n" );
 
 // (2) set the problem-specific derived parameters
 #  ifdef GRAVITY
@@ -213,6 +215,7 @@ void SetParameter()
    {
       Aux_Message( stdout, "======================================================================================\n" );
       Aux_Message( stdout, "  test problem ID                           = %d\n",     TESTPROB_ID                );
+      Aux_Message( stdout, "  fix dark matter                           = %d\n",     FixDM                      );
       Aux_Message( stdout, "  soliton core radius                       = %13.6e\n", Soliton_CoreRadius         );
       Aux_Message( stdout, "  soliton input mode                        = %d\n",     Soliton_InputMode          );
       if      ( Soliton_InputMode == 2 )
