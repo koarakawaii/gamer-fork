@@ -45,7 +45,8 @@ static void   RanVec_FixRadius( const double r, double RanVec[] );
 void Init_User_EridanusII()
 {
 
-   if ( amr->Par->Init != PAR_INIT_BY_RESTART  ||  !Star_AddParForRestart )   return;
+   if ( amr->Par->Init != PAR_INIT_BY_RESTART  ||  !OPT__RESTART_RESET  ||  !Star_AddParForRestart )
+      return;
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
