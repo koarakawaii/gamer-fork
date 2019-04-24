@@ -24,6 +24,7 @@ void Init_TestProb_ELBDM_Soliton();
 void Init_TestProb_ELBDM_SelfSimilarHalo();
 void Init_TestProb_ELBDM_VortexPairRotating();
 void Init_TestProb_ELBDM_VortexPairLinear();
+void Init_TestProb_ELBDM_DynamicalFriction();
 
 
 
@@ -69,6 +70,7 @@ void Init_TestProb()
       case TESTPROB_ELBDM_SELF_SIMILAR_HALO :            Init_TestProb_ELBDM_SelfSimilarHalo();             break;
       case TESTPROB_ELBDM_VORTEX_PAIR_ROTATING :         Init_TestProb_ELBDM_VortexPairRotating();          break;
       case TESTPROB_ELBDM_VORTEX_PAIR_LINEAR :           Init_TestProb_ELBDM_VortexPairLinear();            break;
+      case TESTPROB_ELBDM_DYNAMICAL_FRICTION :           Init_TestProb_ELBDM_DynamicalFriction();           break;
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );
    } // switch( TESTPROB_ID )
