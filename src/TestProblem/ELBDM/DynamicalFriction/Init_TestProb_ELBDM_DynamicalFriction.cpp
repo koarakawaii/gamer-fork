@@ -104,7 +104,7 @@ void SetParameter()
    }
 
    if ( DynFri_CM_MaxR    < 0 )  DynFri_CM_MaxR    = 10.0*amr->dh[MAX_LEVEL];
-   if ( DynFri_CM_TolErrR < 0 )  DynFri_CM_TolErrR =  1.0*amr->dh[MAX_LEVEL]; 
+   if ( DynFri_CM_TolErrR < 0 )  DynFri_CM_TolErrR =  1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
    if ( OPT__INIT == INIT_BY_FUNCTION )   Aux_Error( ERROR_INFO, "OPT__INIT = 1 is not supported !!\n" );
@@ -182,6 +182,8 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
 {
 
    const double CM_MaxR2          = SQR( CM_MaxR );
+   const double HalfBox[3]        = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
+   const bool   Periodic          = ( OPT__BC_FLU[0] == BC_FLU_PERIODIC );
    const bool   IntPhase_No       = false;
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
@@ -205,18 +207,6 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
 
    M_ThisRank = 0.0;
    for (int d=0; d<3; d++)    MR_ThisRank[d] = 0.0;
-
-
-// set the periodic CM_Old[]
-   double CM_Old_Periodic[3];
-
-   if ( OPT__BC_FLU[0] == BC_FLU_PERIODIC )
-      for (int d=0; d<3; d++)
-         CM_Old_Periodic[d] = ( CM_Old[d] > amr->BoxCenter[d] ) ? CM_Old[d]-2.0*amr->BoxSize[d] :
-                                                                  CM_Old[d]+2.0*amr->BoxSize[d];
-   else
-      for (int d=0; d<3; d++)
-         CM_Old_Periodic[d] = CM_Old[d];
 
 
    for (int lv=0; lv<NLEVEL; lv++)
@@ -263,29 +253,34 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
          const double y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
          const double z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
 
-         for (int k=0; k<PS1; k++)  {  const double zz = z0 + k*dh;
-                                       const double z1 = zz - CM_Old         [2];
-                                       const double z2 = zz - CM_Old_Periodic[2];
-                                       const double z  = ( fabs(z1) <= fabs(z2) ) ? z1 : z2;
-         for (int j=0; j<PS1; j++)  {  const double yy = y0 + j*dh;
-                                       const double y1 = yy - CM_Old         [1];
-                                       const double y2 = yy - CM_Old_Periodic[1];
-                                       const double y  = ( fabs(y1) <= fabs(y2) ) ? y1 : y2;
-         for (int i=0; i<PS1; i++)  {  const double xx = x0 + i*dh;
-                                       const double x1 = xx - CM_Old         [0];
-                                       const double x2 = xx - CM_Old_Periodic[0];
-                                       const double x  = ( fabs(x1) <= fabs(x2) ) ? x1 : x2;
+         double x, y, z, dx, dy, dz;
+
+         for (int k=0; k<PS1; k++)  {  z = z0 + k*dh;  dz = z - CM_Old[2];
+                                       if ( Periodic ) {
+                                          if      ( dz > +HalfBox[2] )  {  z -= amr->BoxSize[2];  dz -= amr->BoxSize[2];  }
+                                          else if ( dz < -HalfBox[2] )  {  z += amr->BoxSize[2];  dz += amr->BoxSize[2];  }
+                                       }
+         for (int j=0; j<PS1; j++)  {  y = y0 + j*dh;  dy = y - CM_Old[1];
+                                       if ( Periodic ) {
+                                          if      ( dy > +HalfBox[1] )  {  y -= amr->BoxSize[1];  dy -= amr->BoxSize[1];  }
+                                          else if ( dy < -HalfBox[1] )  {  y += amr->BoxSize[1];  dy += amr->BoxSize[1];  }
+                                       }
+         for (int i=0; i<PS1; i++)  {  x = x0 + i*dh;  dx = x - CM_Old[0];
+                                       if ( Periodic ) {
+                                          if      ( dx > +HalfBox[0] )  {  x -= amr->BoxSize[0];  dx -= amr->BoxSize[0];  }
+                                          else if ( dx < -HalfBox[0] )  {  x += amr->BoxSize[0];  dx += amr->BoxSize[0];  }
+                                       }
 
 //          only include cells within CM_MaxR
-            const double R2 = x*x + y*y + z*z;
+            const double R2 = SQR(dx) + SQR(dy) + SQR(dz);
             if ( R2 < CM_MaxR2 )
             {
                const double dm = TotalDens[PID][k][j][i]*dv;
 
                M_ThisRank     += dm;
-               MR_ThisRank[0] += dm*xx;
-               MR_ThisRank[1] += dm*yy;
-               MR_ThisRank[2] += dm*zz;
+               MR_ThisRank[0] += dm*x;
+               MR_ThisRank[1] += dm*y;
+               MR_ThisRank[2] += dm*z;
             }
          }}}
       } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
@@ -300,6 +295,19 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
    MPI_Allreduce( MR_ThisRank, MR_AllRank, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)    CM_New[d] = MR_AllRank[d] / M_AllRank;
+
+// map the new CM back to the simulation domain
+   if ( Periodic )
+   for (int d=0; d<3; d++)
+   {
+      if      ( CM_New[d] >= amr->BoxSize[d] )  CM_New[d] -= amr->BoxSize[d];
+      else if ( CM_New[d] < 0.0              )  CM_New[d] += amr->BoxSize[d];
+
+   }
+
+   for (int d=0; d<3; d++)
+      if ( CM_New[d] >= amr->BoxSize[d]  ||  CM_New[d] < 0.0 )
+         Aux_Error( ERROR_INFO, "CM_New[%d] = %14.7e lies outside the domain !!\n", d, CM_New[d] );
 
 } // FUNCTION : GetCenterOfMass
 
