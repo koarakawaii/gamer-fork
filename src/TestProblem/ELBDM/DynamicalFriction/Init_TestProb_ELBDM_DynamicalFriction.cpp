@@ -103,7 +103,7 @@ void SetParameter()
       }
    }
 
-   if ( DynFri_CM_MaxR    < 0 )  DynFri_CM_MaxR    = 10.0*amr->dh[MAX_LEVEL];
+   if ( DynFri_CM_MaxR    < 0 )  DynFri_CM_MaxR    = 20.0*amr->dh[MAX_LEVEL];
    if ( DynFri_CM_TolErrR < 0 )  DynFri_CM_TolErrR =  1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
