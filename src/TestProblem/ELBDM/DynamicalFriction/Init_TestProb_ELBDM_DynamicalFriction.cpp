@@ -111,7 +111,7 @@ void SetParameter()
 
 
 // (2) set the problem-specific derived parameters
-   for (int d=0; d<3; d++)    DynFri_CM_Old[d] = DynFri_CM_Init[d];
+   for (int d=0; d<3; d++)    DynFri_CM_New[d] = DynFri_CM_Init[d];
 
 
 // (3) reset other general-purpose parameters
@@ -335,6 +335,8 @@ void Aux_Record_DynamicalFriction()
    double dR2;
    int NIter = 0;
 
+   memcpy( DynFri_CM_Old, DynFri_CM_New, sizeof(double)*3 );
+
    while ( true )
    {
       GetCenterOfMass( DynFri_CM_Old, DynFri_CM_New, DynFri_CM_MaxR );
@@ -344,9 +346,10 @@ void Aux_Record_DynamicalFriction()
           + SQR( DynFri_CM_Old[2] - DynFri_CM_New[2] );
       NIter ++;
 
-      memcpy( DynFri_CM_Old, DynFri_CM_New, sizeof(double)*3 );
-
-      if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )   break;
+      if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
+         break;
+      else
+         memcpy( DynFri_CM_Old, DynFri_CM_New, sizeof(double)*3 );
    }
 
 
@@ -381,6 +384,53 @@ void Aux_Record_DynamicalFriction()
    } // if ( MPI_Rank == 0 )
 
 } // FUNCTION : Aux_Record_DynamicalFriction
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Flag_DynamicalFriction
+// Description :  Flag cells around the center of mass
+//
+// Note        :  1. Linked to the function pointer "Flag_User_Ptr"
+//                2. Use the runtime table Input__Flag_User to specify the target refinement radius
+//
+// Parameter   :  i,j,k       : Indices of the target element in the patch ptr[ amr->FluSg[lv] ][lv][PID]
+//                lv          : Refinement level of the target patch
+//                PID         : ID of the target patch
+//                Threshold   : User-provided threshold for the flag operation, which is loaded from the
+//                              file "Input__Flag_User"
+//
+// Return      :  "true"  if the flag criteria are satisfied
+//                "false" if the flag criteria are not satisfied
+//-------------------------------------------------------------------------------------------------------
+bool Flag_DynamicalFriction( const int i, const int j, const int k, const int lv, const int PID, const double Threshold )
+{
+
+   bool Flag = false;
+
+// flag cells within a distance of "Threshold" from the center of mass
+   const double dh   = amr->dh[lv];
+   const double r[3] = { amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*dh,
+                         amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*dh,
+                         amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*dh };
+
+   double dr[3], dr2;
+
+   for (int d=0; d<3; d++)    dr[d] = fabs( r[d] - DynFri_CM_New[d] );
+
+   if ( OPT__BC_FLU[0] == BC_FLU_PERIODIC )
+   {
+      for (int d=0; d<3; d++)
+         if ( dr[d] > 0.5*amr->BoxSize[d] )  dr[d] -= amr->BoxSize[d];
+   }
+
+   dr2 = SQR( dr[0] ) + SQR( dr[1] ) + SQR( dr[2] );
+
+   Flag = dr2 < SQR( Threshold );
+
+   return Flag;
+
+} // FUNCTION : Flag_DynamicalFriction
 #endif // #if ( MODEL == ELBDM )
 
 
@@ -411,7 +461,7 @@ void Init_TestProb_ELBDM_DynamicalFriction()
 
 
    Init_Function_User_Ptr   = SetGridIC;
-   Flag_User_Ptr            = NULL;
+   Flag_User_Ptr            = Flag_DynamicalFriction;
    Mis_GetTimeStep_User_Ptr = NULL;
    BC_User_Ptr              = NULL;
    Flu_ResetByUser_Func_Ptr = NULL;
