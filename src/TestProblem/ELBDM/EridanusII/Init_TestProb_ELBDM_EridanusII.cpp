@@ -489,7 +489,11 @@ void Init_TestProb_ELBDM_EridanusII()
 
 
    Init_Function_User_Ptr   = SetGridIC;
+#  ifdef PARTICLE
    Init_User_Ptr            = Init_User_EridanusII;
+#  else
+   Init_User_Ptr            = NULL;
+#  endif
    Flag_User_Ptr            = NULL;
    Mis_GetTimeStep_User_Ptr = NULL;
    BC_User_Ptr              = BC_EridanusII;
