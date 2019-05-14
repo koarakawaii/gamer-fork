@@ -371,94 +371,153 @@ void BC_EridanusII( real fluid[], const double x, const double y, const double z
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  RecordMaxDens_EridanusII
-// Description :  Record the maximum density
+// Function    :  Record_EridanusII
+// Description :  Record the maximum density and center coordinates
 //
 // Note        :  1. It will also record the real and imaginary parts associated with the maximum density
-//                2. Output filename is fixed to "Record__MaxDens"
+//                2. For the center coordinates, it will record the position of maximum density, minimum potential,
+//                   and center-of-mass
+//                3. Output filenames are fixed to "Record__MaxDens" and "Record__Center"
 //
 // Parameter   :  None
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void RecordMaxDens_EridanusII()
+void Record_EridanusII()
 {
 
-   const char filename[] = "Record__MaxDens";
-   real dens, max_dens_loc=-1.0, real_loc, imag_loc;
-   real send[3], (*recv)[3]=new real [MPI_NRank][3];
+   const char filename_max_dens[] = "Record__MaxDens";
+   const char filename_center  [] = "Record__Center";
+   const int  CountMPI            = 10;
 
+   double dens, max_dens_loc=-__FLT_MAX__, max_dens_pos_loc[3], real_loc, imag_loc;
+   double pote, min_pote_loc=+__FLT_MAX__, min_pote_pos_loc[3];
+   double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
+
+
+// collect local data
    for (int lv=0; lv<NLEVEL; lv++)
    for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
    {
-      for (int k=0; k<PS1; k++)
-      for (int j=0; j<PS1; j++)
-      for (int i=0; i<PS1; i++)
-      {
+//    skip non-leaf patches
+      if ( amr->patch[0][lv][PID]->son != -1 )  continue;
+
+      for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*amr->dh[lv];
+      for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*amr->dh[lv];
+      for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*amr->dh[lv];
+
          dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+         pote = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
+
          if ( dens > max_dens_loc )
          {
-            max_dens_loc = dens;
-            real_loc     = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
-            imag_loc     = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+            max_dens_loc        = dens;
+            real_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
+            imag_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+            max_dens_pos_loc[0] = x;
+            max_dens_pos_loc[1] = y;
+            max_dens_pos_loc[2] = z;
          }
-      }
+
+         if ( pote < min_pote_loc )
+         {
+            min_pote_loc        = pote;
+            min_pote_pos_loc[0] = x;
+            min_pote_pos_loc[1] = y;
+            min_pote_pos_loc[2] = z;
+         }
+      }}}
    }
 
+
+// gather data to the root rank
    send[0] = max_dens_loc;
    send[1] = real_loc;
    send[2] = imag_loc;
+   send[3] = max_dens_pos_loc[0];
+   send[4] = max_dens_pos_loc[1];
+   send[5] = max_dens_pos_loc[2];
+   send[6] = min_pote_loc;
+   send[7] = min_pote_pos_loc[0];
+   send[8] = min_pote_pos_loc[1];
+   send[9] = min_pote_pos_loc[2];
 
-#  ifdef FLOAT8
-   MPI_Gather( send, 3, MPI_DOUBLE, recv[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-#  else
-   MPI_Gather( send, 3, MPI_FLOAT,  recv[0], 3, MPI_FLOAT,  0, MPI_COMM_WORLD );
-#  endif
+   MPI_Gather( send, CountMPI, MPI_DOUBLE, recv[0], CountMPI, MPI_DOUBLE, 0, MPI_COMM_WORLD );
 
+
+// record the maximum density and center coordinates
    if ( MPI_Rank == 0 )
    {
-      real max_dens=-1.0;
-      int  trank=-1;
+      double max_dens      = -__FLT_MAX__;
+      double min_pote      = +__FLT_MAX__;
+      int    max_dens_rank = -1;
+      int    min_pote_rank = -1;
 
       for (int r=0; r<MPI_NRank; r++)
       {
          if ( recv[r][0] > max_dens )
          {
-            max_dens = recv[r][0];
-            trank    = r;
+            max_dens      = recv[r][0];
+            max_dens_rank = r;
+         }
+
+         if ( recv[r][6] < min_pote )
+         {
+            min_pote      = recv[r][6];
+            min_pote_rank = r;
          }
       }
 
-      if ( trank < 0  ||  trank >= MPI_NRank )
-         Aux_Error( ERROR_INFO, "incorrect trank (%d) !!\n", trank );
+      if ( max_dens_rank < 0  ||  max_dens_rank >= MPI_NRank )
+         Aux_Error( ERROR_INFO, "incorrect max_dens_rank (%d) !!\n", max_dens_rank );
 
+      if ( min_pote_rank < 0  ||  min_pote_rank >= MPI_NRank )
+         Aux_Error( ERROR_INFO, "incorrect min_pote_rank (%d) !!\n", min_pote_rank );
 
       static bool FirstTime = true;
 
       if ( FirstTime )
       {
-         if ( Aux_CheckFileExist(filename) )
-            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename );
-
+         if ( Aux_CheckFileExist(filename_max_dens) )
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_max_dens );
          else
          {
-            FILE *file = fopen( filename, "w" );
-            fprintf( file, "#%19s   %10s   %14s   %14s   %14s\n", "Time", "Step", "Dens", "Real", "Imag" );
-            fclose( file );
+            FILE *file_max_dens = fopen( filename_max_dens, "w" );
+            fprintf( file_max_dens, "#%19s   %10s   %14s   %14s   %14s\n", "Time", "Step", "Dens", "Real", "Imag" );
+            fclose( file_max_dens );
+         }
+
+         if ( Aux_CheckFileExist(filename_center) )
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
+         else
+         {
+            FILE *file_center = fopen( filename_center, "w" );
+            fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "CM_x", "CM_y", "CM_z" );
+            fclose( file_center );
          }
 
          FirstTime = false;
       }
 
-      FILE *file = fopen( filename, "a" );
-      fprintf( file, "%20.14e   %10ld   %14.7e   %14.7e   %14.7e\n",
-               Time[0], Step, recv[trank][0], recv[trank][1], recv[trank][2] );
-      fclose( file );
+      FILE *file_max_dens = fopen( filename_max_dens, "a" );
+      fprintf( file_max_dens, "%20.14e   %10ld   %14.7e   %14.7e   %14.7e\n",
+               Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2] );
+      fclose( file_max_dens );
+
+      FILE *file_center = fopen( filename_center, "a" );
+      fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n",
+               Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][3], recv[max_dens_rank][4], recv[max_dens_rank][5],
+                              recv[min_pote_rank][6], recv[min_pote_rank][7], recv[min_pote_rank][8], recv[min_pote_rank][9],
+                              0.0, 0.0, 0.0 );
+      fclose( file_center );
    } // if ( MPI_Rank == 0 )
+
 
    delete [] recv;
 
-} // FUNCTION : RecordMaxDens_EridanusII
+} // FUNCTION : Record_EridanusII
 #endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 
@@ -499,7 +558,7 @@ void Init_TestProb_ELBDM_EridanusII()
    BC_User_Ptr              = BC_EridanusII;
    Flu_ResetByUser_Func_Ptr = NULL;
    Output_User_Ptr          = NULL;
-   Aux_Record_User_Ptr      = RecordMaxDens_EridanusII;
+   Aux_Record_User_Ptr      = Record_EridanusII;
    End_User_Ptr             = End_EridanusII;
    Init_ExternalAcc_Ptr     = NULL;
    Init_ExternalPot_Ptr     = NULL;
