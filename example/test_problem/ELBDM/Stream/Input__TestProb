@@ -1,0 +1,3 @@
+# problem-specific runtime parameters
+Stream_ExtDens_Filename    nsi_000000  # filename of the external density array
+Stream_ExtDens_N           512         # Grid size of the external density array
