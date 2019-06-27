@@ -5,10 +5,13 @@
 
 // problem-specific global variables
 // =======================================================================================
-static char  Stream_ExtDens_Filename[MAX_STRING];  // filename of the external density array
-static int   Stream_ExtDens_N;                     // Grid size of the external density array
+static char   Stream_ExtDens_Filename[MAX_STRING];    // filename of the external density array
+static int    Stream_ExtDens_N;                       // number of cells along each direction of the external density array
+static double Stream_ExtDens_L;                       // physical box size of the external density array
+static int    Stream_ExtDens_IntOrder;                // interpolation order on the external density array
 
-static real *Stream_ExtDens = NULL;                // external density array
+static real  *Stream_ExtDens = NULL;                  // external density array
+static double Stream_ExtDens_dh;                      // cell size of the external density array
 // =======================================================================================
 
 
@@ -42,6 +45,9 @@ void Validate()
 #  ifndef PARTICLE
    Aux_Error( ERROR_INFO, "PARTICLE must be enabled !!\n" );
 #  endif
+
+   if ( amr->BoxSize[0] != amr->BoxSize[1]  ||  amr->BoxSize[0] != amr->BoxSize[2] )
+      Aux_Error( ERROR_INFO, "simulation domain must be cubic --> reset NX0_TOT_* !!\n" );
 
 
 // warnings
@@ -92,17 +98,21 @@ void SetParameter()
 // ********************************************************************************************************************************
    ReadPara->Add( "Stream_ExtDens_Filename",    Stream_ExtDens_Filename,   Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "Stream_ExtDens_N",          &Stream_ExtDens_N,         -1,             1,                NoMax_int         );
+   ReadPara->Add( "Stream_ExtDens_L",          &Stream_ExtDens_L,         -1.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Stream_ExtDens_IntOrder",   &Stream_ExtDens_IntOrder,   1,             0,                1                 );
 
    ReadPara->Read( FileName );
 
    delete ReadPara;
 
 // (1-2) set the default values
+   if ( Stream_ExtDens_L <= 0.0 )   Stream_ExtDens_L = amr->BoxSize[0];
 
 // (1-3) check the runtime parameters
 
 
 // (2) set the problem-specific derived parameters
+   Stream_ExtDens_dh = Stream_ExtDens_L / Stream_ExtDens_N;
 
 
 // (3) reset other general-purpose parameters
@@ -125,9 +135,11 @@ void SetParameter()
    if ( MPI_Rank == 0 )
    {
       Aux_Message( stdout, "=============================================================================\n" );
-      Aux_Message( stdout, "  test problem ID         = %d\n", TESTPROB_ID             );
-      Aux_Message( stdout, "  Stream_ExtDens_Filename = %s\n", Stream_ExtDens_Filename );
-      Aux_Message( stdout, "  Stream_ExtDens_N        = %d\n", Stream_ExtDens_N        );
+      Aux_Message( stdout, "  test problem ID         = %d\n",     TESTPROB_ID             );
+      Aux_Message( stdout, "  Stream_ExtDens_Filename = %s\n",     Stream_ExtDens_Filename );
+      Aux_Message( stdout, "  Stream_ExtDens_N        = %d\n",     Stream_ExtDens_N        );
+      Aux_Message( stdout, "  Stream_ExtDens_L        = %13.7e\n", Stream_ExtDens_L        );
+      Aux_Message( stdout, "  Stream_ExtDens_IntOrder = %d\n",     Stream_ExtDens_IntOrder );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
@@ -233,20 +245,94 @@ real Poi_AddExtraMassForGravity_Stream( const double x, const double y, const do
                                         const int lv, double AuxArray[] )
 {
 
-   const double dh  = amr->dh[0];    // replace it by an input parameter later
+// return zero if (x,y,z) lies outside the external density array
+   const double EdgeL = 0.5*Stream_ExtDens_dh;
+   const double EdgeR = Stream_ExtDens_L - 0.5*Stream_ExtDens_dh;
+
+   if ( x < EdgeL  ||  y < EdgeL  ||  z < EdgeL  ||  x > EdgeR  ||  y > EdgeR  ||  z > EdgeR )  return (real)0.0;
+
+
+   const double _dh = 1.0/Stream_ExtDens_dh;
    const long   N   = Stream_ExtDens_N;
-   const long   i   = x/dh;
-   const long   j   = y/dh;
-   const long   k   = z/dh;
-   const long   idx = IDX321( i, j, k, N, N );
+   real ExtDens = 0.0;
 
-#  ifdef GAMER_DEBUG
-   if ( i < 0  ||  i >= N )   Aux_Error( ERROR_INFO, "incorrect i = %ld (x %14.7e, N %ld) !!\n", i, x, N );
-   if ( j < 0  ||  j >= N )   Aux_Error( ERROR_INFO, "incorrect j = %ld (y %14.7e, N %ld) !!\n", j, y, N );
-   if ( k < 0  ||  k >= N )   Aux_Error( ERROR_INFO, "incorrect k = %ld (z %14.7e, N %ld) !!\n", k, z, N );
-#  endif
+   switch ( Stream_ExtDens_IntOrder )
+   {
+      case 0:
+      {
+         const long i   = x*_dh;
+         const long j   = y*_dh;
+         const long k   = z*_dh;
+         const long idx = IDX321( i, j, k, N, N );
 
-   return Stream_ExtDens[idx];
+#        ifdef GAMER_DEBUG
+         if ( i < 0  ||  i >= N )   Aux_Error( ERROR_INFO, "incorrect i = %ld (x %14.7e, N %ld) !!\n", i, x, N );
+         if ( j < 0  ||  j >= N )   Aux_Error( ERROR_INFO, "incorrect j = %ld (y %14.7e, N %ld) !!\n", j, y, N );
+         if ( k < 0  ||  k >= N )   Aux_Error( ERROR_INFO, "incorrect k = %ld (z %14.7e, N %ld) !!\n", k, z, N );
+#        endif
+
+         ExtDens = Stream_ExtDens[idx];
+      } // case 0
+      break;
+
+
+      case 1:
+      {
+         int    idxLR[2][3];  // array index of the left (idxLR[0][d]) and right (idxLR[1][d]) cells
+         double dr      [3];  // distance to the center of the left cell
+         double Frac [2][3];  // weighting of the left (Frac[0][d]) and right (Frac[1][d]) cells
+         double xyz     [3] = { x, y, z };
+
+         for (int d=0; d<3; d++)
+         {
+//          calculate the array index of the left and right cells
+            dr      [d] = xyz[d]*_dh - 0.5;
+            idxLR[0][d] = int( dr[d] );
+            idxLR[1][d] = idxLR[0][d] + 1;
+
+            if ( idxLR[0][d] < 0 )
+            {
+               idxLR[0][d] = 0;
+               idxLR[1][d] = 1;
+            }
+
+            else if ( idxLR[1][d] >= N )
+            {
+               idxLR[0][d] = N-2;
+               idxLR[1][d] = N-1;
+            }
+
+//          get the weighting of the nearby 8 cells
+            dr     [d] -= (double)idxLR[0][d];
+            Frac[0][d]  = 1.0 - dr[d];
+            Frac[1][d]  =       dr[d];
+         }
+
+//       calculate acceleration
+         for (int k=0; k<2; k++)
+         for (int j=0; j<2; j++)
+         for (int i=0; i<2; i++)
+         {
+            const long idx = IDX321( idxLR[i][0], idxLR[j][1], idxLR[k][2], N, N );
+
+#           ifdef GAMER_DEBUG
+            if ( idxLR[i][0] < 0  ||  idxLR[i][0] >= N )   Aux_Error( ERROR_INFO, "incorrect i = %ld (LR %d, x %14.7e, N %ld) !!\n", idxLR[i][0], i, x, N );
+            if ( idxLR[j][1] < 0  ||  idxLR[j][1] >= N )   Aux_Error( ERROR_INFO, "incorrect j = %ld (LR %d, y %14.7e, N %ld) !!\n", idxLR[j][1], j, y, N );
+            if ( idxLR[k][2] < 0  ||  idxLR[k][2] >= N )   Aux_Error( ERROR_INFO, "incorrect k = %ld (LR %d, z %14.7e, N %ld) !!\n", idxLR[k][2], k, z, N );
+#           endif
+
+            ExtDens += Stream_ExtDens[idx]*Frac[i][0]*Frac[j][1]*Frac[k][2];
+         }
+      } // case 1
+      break;
+
+
+      default:
+         Aux_Error( ERROR_INFO, "unsupported order of interpolation (%d) !!\n", Stream_ExtDens_IntOrder );
+   } // switch ( Stream_ExtDens_IntOrder )
+
+
+   return ExtDens;
 
 } // FUNCTION : Poi_AddExtraMassForGravity_Stream
 

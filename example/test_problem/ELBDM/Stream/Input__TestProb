@@ -1,3 +1,5 @@
 # problem-specific runtime parameters
 Stream_ExtDens_Filename    nsi_000000  # filename of the external density array
-Stream_ExtDens_N           512         # Grid size of the external density array
+Stream_ExtDens_N           512         # number of cells along each direction of the external density array
+Stream_ExtDens_L          -1.0         # physical size of the external density array (<=0=auto -> box size along x) [-1.0]
+Stream_ExtDens_IntOrder    1           # interpolation order on the external density array (0=NGP, 1=CIC) [1]
