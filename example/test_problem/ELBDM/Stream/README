@@ -6,6 +6,8 @@ Disable:
 
 Default setup:
 ========================================
+1. Periodic BC for gravity
+2. Outflow BC for particles
 
 
 Note:

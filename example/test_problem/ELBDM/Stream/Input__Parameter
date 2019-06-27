@@ -19,7 +19,7 @@ NX0_TOT_X                     512         # number of base-level cells along x
 NX0_TOT_Y                     512         # number of base-level cells along y
 NX0_TOT_Z                     512         # number of base-level cells along z
 OMP_NTHREAD                   1           # number of OpenMP threads (<=0=auto -> omp_get_max_threads) [-1] ##OPENMP ONLY##
-END_T                         8.0e4       # end physical time (<0=auto -> must be set by test problems or restart) [-1.0]
+END_T                         2.0e4       # end physical time (<0=auto -> must be set by test problems or restart) [-1.0]
 END_STEP                     -1           # end step (<0=auto -> must be set by test problems or restart) [-1]
 
 
@@ -44,7 +44,7 @@ OPT__BC_FLU_YM                4           # fluid boundary condition at the -y f
 OPT__BC_FLU_YP                4           # fluid boundary condition at the +y face: (1=periodic, 2=outflow, 3=reflecting, 4=user) ##2/3 for HYDRO ONLY##
 OPT__BC_FLU_ZM                4           # fluid boundary condition at the -z face: (1=periodic, 2=outflow, 3=reflecting, 4=user) ##2/3 for HYDRO ONLY##
 OPT__BC_FLU_ZP                4           # fluid boundary condition at the +z face: (1=periodic, 2=outflow, 3=reflecting, 4=user) ##2/3 for HYDRO ONLY##
-OPT__BC_POT                   2           # gravity boundary condition: (1=periodic, 2=isolated)
+OPT__BC_POT                   1           # gravity boundary condition: (1=periodic, 2=isolated)
 GFUNC_COEFF0                 -1.0         # Green's function coefficient at the origin for the isolated BC (<0=auto) [-1.0]
 
 
@@ -178,9 +178,9 @@ OPT__OUTPUT_BASE              0           # only output the base-level data [0] 
 OPT__OUTPUT_POT               0           # output gravitational potential [0] ##OPT__OUTPUT_TOTAL ONLY##
 OPT__OUTPUT_PAR_DENS          1           # output the particle or total mass density on grids:
                                           # (0=off, 1=particle mass density, 2=total mass density) [1] ##OPT__OUTPUT_TOTAL ONLY##
-OPT__OUTPUT_MODE              1           # (1=const step, 2=const dt, 3=dump table) -> edit "Input__DumpTable" for 3
+OPT__OUTPUT_MODE              2           # (1=const step, 2=const dt, 3=dump table) -> edit "Input__DumpTable" for 3
 OUTPUT_STEP                   1000        # output data every OUTPUT_STEP step ##OPT__OUTPUT_MODE==1 ONLY##
-OUTPUT_DT                     1.0         # output data every OUTPUT_DT time interval ##OPT__OUTPUT_MODE==2 ONLY##
+OUTPUT_DT                     5.0e1       # output data every OUTPUT_DT time interval ##OPT__OUTPUT_MODE==2 ONLY##
 OUTPUT_PART_X                -1.0         # x coordinate for OPT__OUTPUT_PART [-1.0]
 OUTPUT_PART_Y                -1.0         # y coordinate for OPT__OUTPUT_PART [-1.0]
 OUTPUT_PART_Z                -1.0         # z coordinate for OPT__OUTPUT_PART [-1.0]
