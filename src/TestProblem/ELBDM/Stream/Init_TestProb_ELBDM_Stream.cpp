@@ -5,6 +5,7 @@
 
 // problem-specific global variables
 // =======================================================================================
+// parameters of the external density array
 static char   Stream_ExtDens_Filename[MAX_STRING];    // filename of the external density array
 static int    Stream_ExtDens_N;                       // number of cells along each direction of the external density array
 static double Stream_ExtDens_L;                       // physical box size of the external density array
@@ -12,7 +13,26 @@ static int    Stream_ExtDens_IntOrder;                // interpolation order on 
 
 static real  *Stream_ExtDens = NULL;                  // external density array
 static double Stream_ExtDens_dh;                      // cell size of the external density array
+
+// parameters of the Plummer model
+       int    Stream_Plummer_RSeed;                   // random seed for setting particle position and velocity
+       double Stream_Plummer_M;                       // total mass
+       double Stream_Plummer_R0;                      // scale radius
+       double Stream_Plummer_MaxR;                    // maximum radius of particles
+       double Stream_Plummer_Center[3];               // central coordinates
+       double Stream_Plummer_BulkVel[3];              // bulk velocity
+       int    Stream_Plummer_MassProfNBin;            // number of radial bins in the mass profile table
+
+       double Stream_Plummer_Rho0;                    // peak density
 // =======================================================================================
+
+// problem-specific function prototypes
+#ifdef PARTICLE
+void Par_Init_ByFunction_Stream( const long NPar_ThisRank, const long NPar_AllRank,
+                                 real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
+                                 real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
+                                 real *AllAttribute[PAR_NATT_TOTAL] );
+#endif
 
 
 
@@ -94,12 +114,23 @@ void SetParameter()
 // --> note that VARIABLE, DEFAULT, MIN, and MAX must have the same data type
 // --> some handy constants (e.g., Useless_bool, Eps_double, NoMin_int, ...) are defined in "include/ReadPara.h"
 // ********************************************************************************************************************************
-// ReadPara->Add( "KEY_IN_THE_FILE",            &VARIABLE,                 DEFAULT,       MIN,              MAX               );
+// ReadPara->Add( "KEY_IN_THE_FILE",             &VARIABLE,                      DEFAULT,       MIN,              MAX               );
 // ********************************************************************************************************************************
-   ReadPara->Add( "Stream_ExtDens_Filename",    Stream_ExtDens_Filename,   Useless_str,   Useless_str,      Useless_str       );
-   ReadPara->Add( "Stream_ExtDens_N",          &Stream_ExtDens_N,         -1,             1,                NoMax_int         );
-   ReadPara->Add( "Stream_ExtDens_L",          &Stream_ExtDens_L,         -1.0,           NoMin_double,     NoMax_double      );
-   ReadPara->Add( "Stream_ExtDens_IntOrder",   &Stream_ExtDens_IntOrder,   1,             0,                1                 );
+   ReadPara->Add( "Stream_ExtDens_Filename",      Stream_ExtDens_Filename,       Useless_str,   Useless_str,      Useless_str       );
+   ReadPara->Add( "Stream_ExtDens_N",            &Stream_ExtDens_N,             -1,             1,                NoMax_int         );
+   ReadPara->Add( "Stream_ExtDens_L",            &Stream_ExtDens_L,             -1.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Stream_ExtDens_IntOrder",     &Stream_ExtDens_IntOrder,       1,             0,                1                 );
+   ReadPara->Add( "Stream_Plummer_RSeed",        &Stream_Plummer_RSeed,          123,           0,                NoMax_int         );
+   ReadPara->Add( "Stream_Plummer_M",            &Stream_Plummer_M,             -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Stream_Plummer_R0",           &Stream_Plummer_R0,            -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Stream_Plummer_MaxR",         &Stream_Plummer_MaxR,          -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Stream_Plummer_CenterX",      &Stream_Plummer_Center[0],     -1.0,           0.0,              amr->BoxSize[0]   );
+   ReadPara->Add( "Stream_Plummer_CenterY",      &Stream_Plummer_Center[1],     -1.0,           0.0,              amr->BoxSize[1]   );
+   ReadPara->Add( "Stream_Plummer_CenterZ",      &Stream_Plummer_Center[2],     -1.0,           0.0,              amr->BoxSize[2]   );
+   ReadPara->Add( "Stream_Plummer_BulkVelX",     &Stream_Plummer_BulkVel[0],     0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Stream_Plummer_BulkVelY",     &Stream_Plummer_BulkVel[1],     0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Stream_Plummer_BulkVelZ",     &Stream_Plummer_BulkVel[2],     0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Stream_Plummer_MassProfNBin", &Stream_Plummer_MassProfNBin,   1000,          2,                NoMax_int         );
 
    ReadPara->Read( FileName );
 
@@ -112,7 +143,8 @@ void SetParameter()
 
 
 // (2) set the problem-specific derived parameters
-   Stream_ExtDens_dh = Stream_ExtDens_L / Stream_ExtDens_N;
+   Stream_ExtDens_dh   = Stream_ExtDens_L / Stream_ExtDens_N;
+   Stream_Plummer_Rho0 = Stream_Plummer_M / ( 4.0/3.0*M_PI*CUBE(Stream_Plummer_R0) );
 
 
 // (3) reset other general-purpose parameters
@@ -135,38 +167,55 @@ void SetParameter()
    if ( MPI_Rank == 0 )
    {
       Aux_Message( stdout, "=============================================================================\n" );
-      Aux_Message( stdout, "  test problem ID         = %d\n",     TESTPROB_ID             );
-      Aux_Message( stdout, "  Stream_ExtDens_Filename = %s\n",     Stream_ExtDens_Filename );
-      Aux_Message( stdout, "  Stream_ExtDens_N        = %d\n",     Stream_ExtDens_N        );
-      Aux_Message( stdout, "  Stream_ExtDens_L        = %13.7e\n", Stream_ExtDens_L        );
-      Aux_Message( stdout, "  Stream_ExtDens_IntOrder = %d\n",     Stream_ExtDens_IntOrder );
+      Aux_Message( stdout, "  test problem ID = %d\n", TESTPROB_ID );
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  Parameters of the external density array:\n" );
+      Aux_Message( stdout, "     Stream_ExtDens_Filename     = %s\n",     Stream_ExtDens_Filename );
+      Aux_Message( stdout, "     Stream_ExtDens_N            = %d\n",     Stream_ExtDens_N        );
+      Aux_Message( stdout, "     Stream_ExtDens_L            = %13.7e\n", Stream_ExtDens_L        );
+      Aux_Message( stdout, "     Stream_ExtDens_IntOrder     = %d\n",     Stream_ExtDens_IntOrder );
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  Parameters of the Plummer model:\n" );
+      Aux_Message( stdout, "     random seed                 = %d\n",     Stream_Plummer_RSeed         );
+      Aux_Message( stdout, "     total mass                  = %14.7e\n", Stream_Plummer_M             );
+      Aux_Message( stdout, "     peak density                = %14.7e\n", Stream_Plummer_Rho0          );
+      Aux_Message( stdout, "     scale radius                = %14.7e\n", Stream_Plummer_R0            );
+      Aux_Message( stdout, "     maximum radius of particles = %14.7e\n", Stream_Plummer_MaxR          );
+      for (int d=0; d<3; d++)
+      Aux_Message( stdout, "     central coordinate [%d]     = %14.7e\n", d, Stream_Plummer_Center[d]  );
+      for (int d=0; d<3; d++)
+      Aux_Message( stdout, "     bulk velocity [%d]          = %14.7e\n", d, Stream_Plummer_BulkVel[d] );
+      Aux_Message( stdout, "     mass profile bins           = %d\n",     Stream_Plummer_MassProfNBin  );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
 
 // (5) load the external density array
-// check file existence
-   if ( !Aux_CheckFileExist(Stream_ExtDens_Filename) )
-      Aux_Error( ERROR_INFO, "file \"%s\" does not exist !!\n", Stream_ExtDens_Filename );
+   if ( OPT__GRAVITY_EXTRA_MASS )
+   {
+//    check file existence
+      if ( !Aux_CheckFileExist(Stream_ExtDens_Filename) )
+         Aux_Error( ERROR_INFO, "file \"%s\" does not exist !!\n", Stream_ExtDens_Filename );
 
-// check file size
-   FILE *File = fopen( Stream_ExtDens_Filename, "rb" );
-   fseek( File, 0, SEEK_END );
-   const long N3         = CUBE( long(Stream_ExtDens_N) );
-   const long ExpectSize = N3*sizeof(real);
-   const long FileSize   = ftell( File );
-   if ( FileSize != ExpectSize )
-      Aux_Error( ERROR_INFO, "size of the file <%s> (%ld) != expect (%ld) !!\n", Stream_ExtDens_Filename, FileSize, ExpectSize );
-   MPI_Barrier( MPI_COMM_WORLD );
+//    check file size
+      FILE *File = fopen( Stream_ExtDens_Filename, "rb" );
+      fseek( File, 0, SEEK_END );
+      const long N3         = CUBE( long(Stream_ExtDens_N) );
+      const long ExpectSize = N3*sizeof(real);
+      const long FileSize   = ftell( File );
+      if ( FileSize != ExpectSize )
+         Aux_Error( ERROR_INFO, "size of the file <%s> (%ld) != expect (%ld) !!\n", Stream_ExtDens_Filename, FileSize, ExpectSize );
+      MPI_Barrier( MPI_COMM_WORLD );
 
-// allocate array
-   Stream_ExtDens = new real [N3];
+//    allocate array
+      Stream_ExtDens = new real [N3];
 
-// load data
-   rewind( File );
-   fread( Stream_ExtDens, sizeof(real), N3, File );
+//    load data
+      rewind( File );
+      fread( Stream_ExtDens, sizeof(real), N3, File );
 
-   fclose( File );
+      fclose( File );
+   } // if ( OPT__GRAVITY_EXTRA_MASS )
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Setting runtime parameters ... done\n" );
@@ -406,7 +455,7 @@ void Init_TestProb_ELBDM_Stream()
    Poi_AddExtraMassForGravity_Ptr = Poi_AddExtraMassForGravity_Stream;
 #  endif
 #  ifdef PARTICLE
-   Par_Init_ByFunction_Ptr        = NULL;
+   Par_Init_ByFunction_Ptr        = Par_Init_ByFunction_Stream;
    Par_Init_Attribute_User_Ptr    = NULL;
 #  endif
 #  endif // #if ( MODEL == ELBDM )
