@@ -15,3 +15,5 @@ Stream_Plummer_BulkVelX        0.0           # Plummer: bulk velocity in x [0.0]
 Stream_Plummer_BulkVelY        1.275         # Plummer: bulk velocity in y [0.0]
 Stream_Plummer_BulkVelZ        0.0           # Plummer: bulk velocity in z [0.0]
 Stream_Plummer_MassProfNBin    1000          # Plummer: number of radial bins in the mass profile table [1000]
+
+Stream_OutputWaveFunc          0             # Output wave function in the HDF5 files [1]

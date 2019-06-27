@@ -21,6 +21,8 @@ static void Check_SymConst ( const char *FileName, const int FormatVersion );
 static void Check_InputPara( const char *FileName, const int FormatVersion );
 static void ResetParameter( const char *FileName, double *EndT, long *EndStep );
 
+extern bool Stream_OutputWaveFunc;
+
 
 
 
@@ -622,6 +624,7 @@ void Init_ByRestart_HDF5( const char *FileName )
          H5_GroupID_GridData = H5Gopen( H5_FileID, "GridData", H5P_DEFAULT );
          if ( H5_GroupID_GridData < 0 )   Aux_Error( ERROR_INFO, "failed to open the group \"%s\" !!\n", "GridData" );
 
+         if ( Stream_OutputWaveFunc )
          for (int v=0; v<NCOMP_TOTAL; v++)
          {
             H5_SetID_Field[v] = H5Dopen( H5_GroupID_GridData, FieldName[v], H5P_DEFAULT );
@@ -726,6 +729,7 @@ void Init_ByRestart_HDF5( const char *FileName )
 #        endif // #ifdef LOAD_BALANCE ... else ...
 
 //       free resource
+         if ( Stream_OutputWaveFunc )
          for (int v=0; v<NCOMP_TOTAL; v++)      H5_Status = H5Dclose( H5_SetID_Field[v] );
          H5_Status = H5Gclose( H5_GroupID_GridData );
 
@@ -1131,12 +1135,22 @@ void LoadOnePatch( const hid_t H5_FileID, const int lv, const int GID, const boo
 
 
 // load field data from disk (potential data, if presented, are ignored and will be recalculated)
+   if ( Stream_OutputWaveFunc )
    for (int v=0; v<NCOMP_TOTAL; v++)
    {
       H5_Status = H5Dread( H5_SetID_Field[v], H5T_GAMER_REAL, H5_MemID_Field, H5_SpaceID_Field, H5P_DEFAULT,
                            amr->patch[0][lv][PID]->fluid[v] );
       if ( H5_Status < 0 )
          Aux_Error( ERROR_INFO, "failed to load a field variable (lv %d, GID %d, v %d) !!\n", lv, GID, v );
+   }
+
+   else
+   for (int v=0; v<NCOMP_TOTAL; v++)
+   {
+      for (int k=0; k<PS1; k++)
+      for (int j=0; j<PS1; j++)
+      for (int i=0; i<PS1; i++)
+         amr->patch[0][lv][PID]->fluid[v][k][j][i] = (real)0.0;
    }
 
 

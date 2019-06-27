@@ -24,6 +24,9 @@ static double Stream_ExtDens_dh;                      // cell size of the extern
        int    Stream_Plummer_MassProfNBin;            // number of radial bins in the mass profile table
 
        double Stream_Plummer_Rho0;                    // peak density
+
+// other parameters
+       bool   Stream_OutputWaveFunc;                  // whether or not to output wave function in the HDF5 files
 // =======================================================================================
 
 // problem-specific function prototypes
@@ -131,6 +134,7 @@ void SetParameter()
    ReadPara->Add( "Stream_Plummer_BulkVelY",     &Stream_Plummer_BulkVel[1],     0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Stream_Plummer_BulkVelZ",     &Stream_Plummer_BulkVel[2],     0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Stream_Plummer_MassProfNBin", &Stream_Plummer_MassProfNBin,   1000,          2,                NoMax_int         );
+   ReadPara->Add( "Stream_OutputWaveFunc",       &Stream_OutputWaveFunc,         true,          Useless_bool,     Useless_bool      );
 
    ReadPara->Read( FileName );
 
@@ -182,10 +186,13 @@ void SetParameter()
       Aux_Message( stdout, "     scale radius                = %14.7e\n", Stream_Plummer_R0            );
       Aux_Message( stdout, "     maximum radius of particles = %14.7e\n", Stream_Plummer_MaxR          );
       for (int d=0; d<3; d++)
-      Aux_Message( stdout, "     central coordinate [%d]     = %14.7e\n", d, Stream_Plummer_Center[d]  );
+      Aux_Message( stdout, "     central coordinate [%d]      = %14.7e\n", d, Stream_Plummer_Center[d]  );
       for (int d=0; d<3; d++)
-      Aux_Message( stdout, "     bulk velocity [%d]          = %14.7e\n", d, Stream_Plummer_BulkVel[d] );
+      Aux_Message( stdout, "     bulk velocity [%d]           = %14.7e\n", d, Stream_Plummer_BulkVel[d] );
       Aux_Message( stdout, "     mass profile bins           = %d\n",     Stream_Plummer_MassProfNBin  );
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  Other parameters:\n" );
+      Aux_Message( stdout, "     Stream_OutputWaveFunc       = %d\n",     Stream_OutputWaveFunc        );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 

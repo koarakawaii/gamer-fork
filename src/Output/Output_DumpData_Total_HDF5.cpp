@@ -14,6 +14,8 @@ static void GetCompound_Makefile ( hid_t &H5_TypeID );
 static void GetCompound_SymConst ( hid_t &H5_TypeID );
 static void GetCompound_InputPara( hid_t &H5_TypeID );
 
+extern bool Stream_OutputWaveFunc;
+
 
 
 /*======================================================================================================
@@ -707,7 +709,7 @@ void Output_DumpData_Total_HDF5( const char *FileName )
    real (*FieldData)[PS1][PS1][PS1] = NULL;
 
 // 5-0. determine variable indices
-   NFieldOut = NCOMP_TOTAL;
+   NFieldOut = ( Stream_OutputWaveFunc ) ? NCOMP_TOTAL : 0;
 
 #  ifdef GRAVITY
    int  PotDumpIdx = -1;
@@ -723,6 +725,7 @@ void Output_DumpData_Total_HDF5( const char *FileName )
 // 5-1. set the output field names
    FieldName = new char [NFieldOut][MAX_STRING];
 
+   if ( Stream_OutputWaveFunc )
    for (int v=0; v<NCOMP_TOTAL; v++)   sprintf( FieldName[v], FieldLabel[v] );
 
 #  ifdef GRAVITY
