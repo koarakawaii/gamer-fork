@@ -8,6 +8,8 @@ Default setup:
 ========================================
 1. Periodic BC for gravity
 2. Outflow BC for particles
+3. DT__PARVEL_MAX = 0.4
+4. MAX_LEVEL = 2
 
 
 Note:
