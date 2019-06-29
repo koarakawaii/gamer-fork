@@ -32,7 +32,7 @@ prefix    = args.prefix
 
 field         = ("deposit", "all_cic")
 colormap_dens = 'algae'
-center_mode   = 'c'
+#center        = 'c'
 dpi           = 150
 
 yt.enable_parallelism()
@@ -40,7 +40,10 @@ ts = yt.load( [ prefix+'/Data_%06d'%idx for idx in range(idx_start, idx_end+1, d
 
 for ds in ts.piter():
 
-   sz = yt.SlicePlot( ds, 'z', field, center=center_mode )
+   val, center = ds.find_max( field )
+   center[0:2] = ds.domain_center[0:2]
+
+   sz = yt.SlicePlot( ds, 'z', field, center=center )
 
 #  sz.set_zlim( field, 1.0e-7, 5.0e-2 )
    sz.set_cmap( field, colormap_dens )
