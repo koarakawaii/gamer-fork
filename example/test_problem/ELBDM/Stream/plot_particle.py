@@ -49,6 +49,6 @@ for ds in ts.piter():
    par.set_font( {'size':16} )
    par.set_axes_unit( 'code_length' )
    par.set_unit( field, 'code_mass' )
-   par.annotate_timestamp( time_unit='code_time', corner='upper_right', text_args={'color':'k'} )
+   par.annotate_timestamp( time_unit='code_time', corner='upper_right', text_args={'color':'w'} )
    par.save( mpl_kwargs={"dpi":dpi} )
 

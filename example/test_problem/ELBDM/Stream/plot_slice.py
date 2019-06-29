@@ -42,7 +42,7 @@ for ds in ts.piter():
 
    sz = yt.SlicePlot( ds, 'z', field, center=center_mode )
 
-   sz.set_zlim( field, 1.0e-7, 5.0e-2 )
+#  sz.set_zlim( field, 1.0e-7, 5.0e-2 )
    sz.set_cmap( field, colormap_dens )
    sz.set_axes_unit( 'code_length' )
    sz.set_unit( field, 'code_mass/code_length**3' )
