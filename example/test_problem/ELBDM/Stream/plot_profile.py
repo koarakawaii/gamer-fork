@@ -25,13 +25,15 @@ print( '' )
 print( '-------------------------------------------------------------------\n' )
 
 
-idx_start   = args.idx_start
-idx_end     = args.idx_end
-didx        = args.didx
-prefix      = args.prefix
+idx_start = args.idx_start
+idx_end   = args.idx_end
+didx      = args.didx
+prefix    = args.prefix
 
-center_mode = (356,256,256)   # hard-coded !!
-dpi         = 150
+field     = ("deposit", "all_cic")
+#center    = (356,256,256)
+radius    = 10.0
+dpi       = 150
 
 yt.enable_parallelism()
 
@@ -39,13 +41,14 @@ ts = yt.load( [ prefix+'/Data_%06d'%idx for idx in range(idx_start, idx_end+1, d
 
 for ds in ts.piter():
 
-   my_sphere = ds.sphere( center_mode, 0.5*ds.domain_width.to_value().max() )
+   val, center = ds.find_max( field )
+   my_sphere   = ds.sphere( center, radius )
 
-   for field in [("deposit", "all_cic"),]:
-      prof = yt.ProfilePlot( my_sphere, 'radius', field, weight_field='cell_volume', n_bins=32 )
-      prof.set_unit( 'radius', 'code_length' )
-      prof.set_unit( field, 'code_mass/code_length**3' )
-#     prof.set_xlim( 1.0e0, 1.0e2 )
-#     prof.set_ylim( field, 1.0e-6, 2.0e-2 )
-      prof.save( mpl_kwargs={"dpi":dpi} )
+   prof = yt.ProfilePlot( my_sphere, 'radius', field, weight_field='cell_volume', n_bins=32 )
+
+   prof.set_unit( 'radius', 'code_length' )
+   prof.set_unit( field, 'code_mass/code_length**3' )
+#  prof.set_xlim( 1.0e0, 1.0e2 )
+#  prof.set_ylim( field, 1.0e-6, 2.0e-2 )
+   prof.save( mpl_kwargs={"dpi":dpi} )
 
