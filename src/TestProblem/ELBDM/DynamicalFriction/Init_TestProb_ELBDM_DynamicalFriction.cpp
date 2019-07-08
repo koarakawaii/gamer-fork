@@ -9,6 +9,9 @@ double DynFri_CM_MaxR;           // maximum radius for determining CM
 double DynFri_CM_TolErrR;        // maximum allowed errors for determining CM
 double DynFri_CM_Init[3];        // initial guess of CM
 
+double DynFri_ProfM_MaxR;        // maximum radius for computing the mass profile
+double DynFri_ProfM_BinSize;     // bin size for computing the mass profile
+
 double DynFri_CM_Old[3];         // previous CM
 double DynFri_CM_New[3];         // new CM
 // =======================================================================================
@@ -77,13 +80,16 @@ void SetParameter()
 // (1-1) add parameters in the following format:
 // --> note that VARIABLE, DEFAULT, MIN, and MAX must have the same data type
 // --> some handy constants (e.g., Useless_bool, Eps_double, NoMin_int, ...) are defined in "include/ReadPara.h"
-// ReadPara->Add( "KEY_IN_THE_FILE",   &VARIABLE,                 DEFAULT,             MIN,              MAX               );
+// ReadPara->Add( "KEY_IN_THE_FILE",      &VARIABLE,                 DEFAULT,             MIN,              MAX               );
 // ********************************************************************************************************************************
-   ReadPara->Add( "DynFri_CM_InitX",   &DynFri_CM_Init[0],        -1.0,                NoMin_double,     NoMax_double      );
-   ReadPara->Add( "DynFri_CM_InitY",   &DynFri_CM_Init[1],        -1.0,                NoMin_double,     NoMax_double      );
-   ReadPara->Add( "DynFri_CM_InitZ",   &DynFri_CM_Init[2],        -1.0,                NoMin_double,     NoMax_double      );
-   ReadPara->Add( "DynFri_CM_MaxR",    &DynFri_CM_MaxR,           -1.0,                NoMin_double,     NoMax_double      );
-   ReadPara->Add( "DynFri_CM_TolErrR", &DynFri_CM_TolErrR,        -1.0,                NoMin_double,     NoMax_double      );
+   ReadPara->Add( "DynFri_CM_InitX",      &DynFri_CM_Init[0],        -1.0,                NoMin_double,     NoMax_double      );
+   ReadPara->Add( "DynFri_CM_InitY",      &DynFri_CM_Init[1],        -1.0,                NoMin_double,     NoMax_double      );
+   ReadPara->Add( "DynFri_CM_InitZ",      &DynFri_CM_Init[2],        -1.0,                NoMin_double,     NoMax_double      );
+   ReadPara->Add( "DynFri_CM_MaxR",       &DynFri_CM_MaxR,           -1.0,                NoMin_double,     NoMax_double      );
+   ReadPara->Add( "DynFri_CM_TolErrR",    &DynFri_CM_TolErrR,        -1.0,                NoMin_double,     NoMax_double      );
+
+   ReadPara->Add( "DynFri_ProfM_MaxR",    &DynFri_ProfM_MaxR,        -1.0,                Eps_double,       NoMax_double      );
+   ReadPara->Add( "DynFri_ProfM_BinSize", &DynFri_ProfM_BinSize,     -1.0,                Eps_double,       NoMax_double      );
 // ********************************************************************************************************************************
 
    ReadPara->Read( FileName );
@@ -122,12 +128,14 @@ void SetParameter()
    if ( MPI_Rank == 0 )
    {
       Aux_Message( stdout, "======================================================================================\n" );
-      Aux_Message( stdout, "  test problem ID = %d\n",     TESTPROB_ID       );
-      Aux_Message( stdout, "  CM_MaxR         = %13.7e\n", DynFri_CM_MaxR    );
-      Aux_Message( stdout, "  CM_TolErrR      = %13.7e\n", DynFri_CM_TolErrR );
-      Aux_Message( stdout, "  CM_InitX        = %13.7e\n", DynFri_CM_Init[0] );
-      Aux_Message( stdout, "  CM_InitY        = %13.7e\n", DynFri_CM_Init[1] );
-      Aux_Message( stdout, "  CM_InitZ        = %13.7e\n", DynFri_CM_Init[2] );
+      Aux_Message( stdout, "  test problem ID      = %d\n",     TESTPROB_ID          );
+      Aux_Message( stdout, "  CM_MaxR              = %13.7e\n", DynFri_CM_MaxR       );
+      Aux_Message( stdout, "  CM_TolErrR           = %13.7e\n", DynFri_CM_TolErrR    );
+      Aux_Message( stdout, "  CM_InitX             = %13.7e\n", DynFri_CM_Init[0]    );
+      Aux_Message( stdout, "  CM_InitY             = %13.7e\n", DynFri_CM_Init[1]    );
+      Aux_Message( stdout, "  CM_InitZ             = %13.7e\n", DynFri_CM_Init[2]    );
+      Aux_Message( stdout, "  DynFri_ProfM_MaxR    = %13.7e\n", DynFri_ProfM_MaxR    );
+      Aux_Message( stdout, "  DynFri_ProfM_BinSize = %13.7e\n", DynFri_ProfM_BinSize );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -353,7 +361,23 @@ void Aux_Record_DynamicalFriction()
    }
 
 
-// record the center of mass
+// compute the mass profile
+   Profile_t Prof;
+
+   const bool LogBin_No          = false;
+   const bool RemoveEmptyBin_Yes = true;
+
+   Aux_ComputeProfile( &Prof, DynFri_CM_New, DynFri_ProfM_MaxR, DynFri_ProfM_BinSize,
+                       LogBin_No, NULL_REAL, RemoveEmptyBin_Yes );
+
+   if ( MPI_Rank == 0 )
+   {
+      Prof.Data[0] *= Prof.Weight[0];
+      for (int b=1; b<Prof.NBin; b++)  Prof.Data[b] = Prof.Data[b-1] + Prof.Data[b]*Prof.Weight[b];
+   }
+
+
+// record the center of mass and the mass profile
    if ( MPI_Rank == 0 )
    {
       if ( dR2 > TolErrR2 )
