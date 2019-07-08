@@ -402,7 +402,7 @@ void Aux_Record_DynamicalFriction()
          for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "# %3d   %13.7e\n", b/DynFri_ProfM_OutBin, Prof.Radius[b] );
          fprintf( File, "#==============================================================================================\n" );
          fprintf( File, "#%12s  %9s  %5s  %13s  %13s  %13s", "Time", "Step", "NIter", "CM-x", "CM-y", "CM-z" );
-         for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "     M(%2d)", b/DynFri_ProfM_OutBin );
+         for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "       M(%2d)", b/DynFri_ProfM_OutBin );
          fprintf( File, "\n" );
          fclose( File );
 
@@ -412,7 +412,7 @@ void Aux_Record_DynamicalFriction()
       File = fopen( FileName, "a" );
       fprintf( File, "%13.7e  %9ld  %5d  %13.7e  %13.7e  %13.7e",
                Time[0], Step, NIter, DynFri_CM_New[0], DynFri_CM_New[1], DynFri_CM_New[2] );
-      for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "  %8.2e", Prof.Data[b] );
+      for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "  %10.4e", Prof.Data[b] );
       fprintf( File, "\n" );
       fclose( File );
    } // if ( MPI_Rank == 0 )
