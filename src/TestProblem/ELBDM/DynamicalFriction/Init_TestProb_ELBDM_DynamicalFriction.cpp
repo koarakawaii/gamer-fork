@@ -374,6 +374,13 @@ void Aux_Record_DynamicalFriction()
    {
       Prof.Data[0] *= Prof.Weight[0];
       for (int b=1; b<Prof.NBin; b++)  Prof.Data[b] = Prof.Data[b-1] + Prof.Data[b]*Prof.Weight[b];
+
+                     FILE *File = fopen( "Profile.txt", "w" );
+                     fprintf( File, "#%19s  %21s  %21s  %10s\n", "Radius", "Data", "Weight", "Cells" );
+                     for (int b=0; b<Prof.NBin; b++)
+                        fprintf( File, "%20.14e  %21.14e  %21.14e  %10ld\n",
+                                 Prof.Radius[b], Prof.Data[b], Prof.Weight[b], Prof.NCell[b] );
+                     fclose( File );
    }
 
 
