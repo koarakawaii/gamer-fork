@@ -11,6 +11,7 @@ double DynFri_CM_Init[3];        // initial guess of CM
 
 double DynFri_ProfM_MaxR;        // maximum radius for computing the mass profile
 double DynFri_ProfM_BinSize;     // bin size for computing the mass profile
+int    DynFri_ProfM_OutBin;      // record the mass profile every DynFri_ProfM_OutBin bins
 
 double DynFri_CM_Old[3];         // previous CM
 double DynFri_CM_New[3];         // new CM
@@ -90,6 +91,7 @@ void SetParameter()
 
    ReadPara->Add( "DynFri_ProfM_MaxR",    &DynFri_ProfM_MaxR,        -1.0,                Eps_double,       NoMax_double      );
    ReadPara->Add( "DynFri_ProfM_BinSize", &DynFri_ProfM_BinSize,     -1.0,                Eps_double,       NoMax_double      );
+   ReadPara->Add( "DynFri_ProfM_OutBin",  &DynFri_ProfM_OutBin,      -1,                  0,                NoMax_int         );
 // ********************************************************************************************************************************
 
    ReadPara->Read( FileName );
@@ -136,6 +138,7 @@ void SetParameter()
       Aux_Message( stdout, "  CM_InitZ             = %13.7e\n", DynFri_CM_Init[2]    );
       Aux_Message( stdout, "  DynFri_ProfM_MaxR    = %13.7e\n", DynFri_ProfM_MaxR    );
       Aux_Message( stdout, "  DynFri_ProfM_BinSize = %13.7e\n", DynFri_ProfM_BinSize );
+      Aux_Message( stdout, "  DynFri_ProfM_OutBin  = %d\n",     DynFri_ProfM_OutBin  );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -364,23 +367,16 @@ void Aux_Record_DynamicalFriction()
 // compute the mass profile
    Profile_t Prof;
 
-   const bool LogBin_No          = false;
-   const bool RemoveEmptyBin_Yes = true;
+   const bool LogBin_No         = false;
+   const bool RemoveEmptyBin_No = false;
 
    Aux_ComputeProfile( &Prof, DynFri_CM_New, DynFri_ProfM_MaxR, DynFri_ProfM_BinSize,
-                       LogBin_No, NULL_REAL, RemoveEmptyBin_Yes );
+                       LogBin_No, NULL_REAL, RemoveEmptyBin_No );
 
    if ( MPI_Rank == 0 )
    {
       Prof.Data[0] *= Prof.Weight[0];
       for (int b=1; b<Prof.NBin; b++)  Prof.Data[b] = Prof.Data[b-1] + Prof.Data[b]*Prof.Weight[b];
-
-                     FILE *File = fopen( "Profile.txt", "w" );
-                     fprintf( File, "#%19s  %21s  %21s  %10s\n", "Radius", "Data", "Weight", "Cells" );
-                     for (int b=0; b<Prof.NBin; b++)
-                        fprintf( File, "%20.14e  %21.14e  %21.14e  %10ld\n",
-                                 Prof.Radius[b], Prof.Data[b], Prof.Weight[b], Prof.NCell[b] );
-                     fclose( File );
    }
 
 
@@ -392,7 +388,6 @@ void Aux_Record_DynamicalFriction()
 
       const char FileName[] = "Record__CM";
       static bool FirstTime = true;
-
       FILE *File = NULL;
 
 //    header
@@ -402,15 +397,23 @@ void Aux_Record_DynamicalFriction()
             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", FileName );
 
          File = fopen( FileName, "a" );
-         fprintf( File, "#%12s   %9s   %5s   %13s   %13s   %13s\n", "Time", "Step", "NIter", "CM-x", "CM-y", "CM-z" );
+
+         fprintf( File, "# %3s   %13s\n", "Bin", "Radius" );
+         for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "# %3d   %13.7e\n", b/DynFri_ProfM_OutBin, Prof.Radius[b] );
+         fprintf( File, "#==============================================================================================\n" );
+         fprintf( File, "#%12s  %9s  %5s  %13s  %13s  %13s", "Time", "Step", "NIter", "CM-x", "CM-y", "CM-z" );
+         for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "     M(%2d)", b/DynFri_ProfM_OutBin );
+         fprintf( File, "\n" );
          fclose( File );
 
          FirstTime = false;
       }
 
       File = fopen( FileName, "a" );
-      fprintf( File, "%13.7e   %9ld   %5d   %13.7e   %13.7e   %13.7e\n",
+      fprintf( File, "%13.7e  %9ld  %5d  %13.7e  %13.7e  %13.7e",
                Time[0], Step, NIter, DynFri_CM_New[0], DynFri_CM_New[1], DynFri_CM_New[2] );
+      for (int b=0; b<Prof.NBin; b+=DynFri_ProfM_OutBin)    fprintf( File, "  %8.2e", Prof.Data[b] );
+      fprintf( File, "\n" );
       fclose( File );
    } // if ( MPI_Rank == 0 )
 

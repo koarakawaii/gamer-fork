@@ -6,3 +6,4 @@ DynFri_CM_MaxR       -1.0     # maximum radius for determining the center of mas
 DynFri_CM_TolErrR    -1.0     # maximum allowed errors when checking the center of mass convergence (<0=auto -> 1*dh_min) [-1.0]
 DynFri_ProfM_MaxR     4.0e1   # maximum radius for computing the mass profile
 DynFri_ProfM_BinSize  1.0e0   # bin size for computing the mass profile
+DynFri_ProfM_OutBin   5       # record the mass profile every DynFri_ProfM_OutBin bins
