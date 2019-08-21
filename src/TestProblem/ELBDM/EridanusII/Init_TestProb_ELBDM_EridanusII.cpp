@@ -17,6 +17,8 @@ static double   Soliton_ScaleL     = NULL;               // L/D: length/density 
                                                          //      (defined as the ratio between the core radii/peak
                                                          //      density of the target and reference soliton profiles)
 static double   Soliton_ScaleD     = NULL;
+static double   Soliton_CM_MaxR;                         // maximum radius for determining CM
+static double   Soliton_CM_TolErrR;                      // maximum allowed errors for determining CM
 // =======================================================================================
 
 
@@ -128,6 +130,8 @@ void SetParameter()
    ReadPara->Add( "Soliton_InputMode",         &Soliton_InputMode,          1,             1,                2                 );
    ReadPara->Add( "Soliton_OuterSlope",        &Soliton_OuterSlope,        -8.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  Useless_str,   Useless_str,      Useless_str       );
+   ReadPara->Add( "Soliton_CM_MaxR",           &Soliton_CM_MaxR,           -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Soliton_CM_TolErrR",        &Soliton_CM_TolErrR,        -1.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Star_RSeed",                &Star_RSeed,                 123,           0,                NoMax_int         );
    ReadPara->Add( "Star_SigmaMode",            &Star_SigmaMode,             0,             0,                1                 );
    ReadPara->Add( "Star_Rho0",                 &Star_Rho0,                 -1.0,           Eps_double,       NoMax_double      );
@@ -146,6 +150,7 @@ void SetParameter()
    delete ReadPara;
 
 // (1-2) set the default values
+   if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
    if ( FixDM  &&  OPT__FIXUP_FLUX )   Aux_Error( ERROR_INFO, "must disable OPT__FIXUP_FLUX for FixDM !!\n" );
@@ -223,6 +228,8 @@ void SetParameter()
       else if ( Soliton_InputMode == 1 ) {
       Aux_Message( stdout, "  density profile filename                  = %s\n",     Soliton_DensProf_Filename  );
       Aux_Message( stdout, "  number of bins of the density profile     = %d\n",     Soliton_DensProf_NBin      ); }
+      Aux_Message( stdout, "  soliton CM max radius                     = %13.6e\n", Soliton_CM_MaxR            );
+      Aux_Message( stdout, "  soliton CM tolerated error                = %13.6e\n", Soliton_CM_TolErrR         );
       Aux_Message( stdout, "\n" );
       Aux_Message( stdout, "  star cluster properties:\n" );
       Aux_Message( stdout, "  random seed for setting particle position = %d\n",     Star_RSeed );
@@ -371,6 +378,154 @@ void BC_EridanusII( real fluid[], const double x, const double y, const double z
 
 
 //-------------------------------------------------------------------------------------------------------
+// Function    :  GetCenterOfMass
+// Description :  Record the center of mass (CM)
+//
+// Note        :  1. Invoked by Record_EridanusII() recursively
+//                2. Only include cells within CM_MaxR from CM_Old[] when updating CM
+//
+// Parameter   :  CM_Old[] : Previous CM
+//                CM_New[] : New CM to be returned
+//                CM_MaxR  : Maximum radius to compute CM
+//
+// Return      :  CM_New[]
+//-------------------------------------------------------------------------------------------------------
+void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_MaxR )
+{
+
+   const double CM_MaxR2          = SQR( CM_MaxR );
+   const double HalfBox[3]        = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
+   const bool   Periodic          = ( OPT__BC_FLU[0] == BC_FLU_PERIODIC );
+   const bool   IntPhase_No       = false;
+   const real   MinDens_No        = -1.0;
+   const real   MinPres_No        = -1.0;
+   const bool   DE_Consistency_No = false;
+#  ifdef PARTICLE
+   const bool   TimingSendPar_No  = false;
+   const bool   PredictParPos_No  = false;
+   const bool   JustCountNPar_No  = false;
+#  ifdef LOAD_BALANCE
+   const bool   SibBufPatch       = true;
+   const bool   FaSibBufPatch     = true;
+#  else
+   const bool   SibBufPatch       = NULL_BOOL;
+   const bool   FaSibBufPatch     = NULL_BOOL;
+#  endif
+#  endif // #ifdef PARTICLE
+
+   int   *PID0List = NULL;
+   double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
+   real (*TotalDens)[PS1][PS1][PS1];
+
+   M_ThisRank = 0.0;
+   for (int d=0; d<3; d++)    MR_ThisRank[d] = 0.0;
+
+
+   for (int lv=0; lv<NLEVEL; lv++)
+   {
+//    initialize the particle density array (rho_ext) and collect particles to the target level
+#     ifdef PARTICLE
+      Prepare_PatchData_InitParticleDensityArray( lv );
+
+      Par_CollectParticle2OneLevel( lv, PredictParPos_No, NULL_REAL, SibBufPatch, FaSibBufPatch, JustCountNPar_No,
+                                    TimingSendPar_No );
+#     endif
+
+//    get the total density on grids
+      TotalDens = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
+      PID0List  = new int  [ amr->NPatchComma[lv][1]/8 ];
+
+      for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
+
+      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS,
+                         OPT__RHO_INT_SCHEME, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
+                         MinDens_No, MinPres_No, DE_Consistency_No );
+
+      delete [] PID0List;
+
+
+//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext)
+#     ifdef PARTICLE
+      Par_CollectParticle2OneLevel_FreeMemory( lv, SibBufPatch, FaSibBufPatch );
+
+      Prepare_PatchData_FreeParticleDensityArray( lv );
+#     endif
+
+
+//    calculate the center of mass
+      const double dh = amr->dh[lv];
+      const double dv = CUBE( dh );
+
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      {
+//       skip non-leaf patches
+         if ( amr->patch[0][lv][PID]->son != -1 )  continue;
+
+         const double x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh;
+         const double y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
+         const double z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
+
+         double x, y, z, dx, dy, dz;
+
+         for (int k=0; k<PS1; k++)  {  z = z0 + k*dh;  dz = z - CM_Old[2];
+                                       if ( Periodic ) {
+                                          if      ( dz > +HalfBox[2] )  {  z -= amr->BoxSize[2];  dz -= amr->BoxSize[2];  }
+                                          else if ( dz < -HalfBox[2] )  {  z += amr->BoxSize[2];  dz += amr->BoxSize[2];  }
+                                       }
+         for (int j=0; j<PS1; j++)  {  y = y0 + j*dh;  dy = y - CM_Old[1];
+                                       if ( Periodic ) {
+                                          if      ( dy > +HalfBox[1] )  {  y -= amr->BoxSize[1];  dy -= amr->BoxSize[1];  }
+                                          else if ( dy < -HalfBox[1] )  {  y += amr->BoxSize[1];  dy += amr->BoxSize[1];  }
+                                       }
+         for (int i=0; i<PS1; i++)  {  x = x0 + i*dh;  dx = x - CM_Old[0];
+                                       if ( Periodic ) {
+                                          if      ( dx > +HalfBox[0] )  {  x -= amr->BoxSize[0];  dx -= amr->BoxSize[0];  }
+                                          else if ( dx < -HalfBox[0] )  {  x += amr->BoxSize[0];  dx += amr->BoxSize[0];  }
+                                       }
+
+//          only include cells within CM_MaxR
+            const double R2 = SQR(dx) + SQR(dy) + SQR(dz);
+            if ( R2 < CM_MaxR2 )
+            {
+               const double dm = TotalDens[PID][k][j][i]*dv;
+
+               M_ThisRank     += dm;
+               MR_ThisRank[0] += dm*x;
+               MR_ThisRank[1] += dm*y;
+               MR_ThisRank[2] += dm*z;
+            }
+         }}}
+      } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+
+      delete [] TotalDens;
+   } // for (int lv=0; lv<NLEVEL; lv++)
+
+
+// collect data from all ranks to calculate the CM
+// --> note that all ranks will get CM_New[]
+   MPI_Allreduce( &M_ThisRank, &M_AllRank, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+   MPI_Allreduce( MR_ThisRank, MR_AllRank, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+
+   for (int d=0; d<3; d++)    CM_New[d] = MR_AllRank[d] / M_AllRank;
+
+// map the new CM back to the simulation domain
+   if ( Periodic )
+   for (int d=0; d<3; d++)
+   {
+      if      ( CM_New[d] >= amr->BoxSize[d] )  CM_New[d] -= amr->BoxSize[d];
+      else if ( CM_New[d] < 0.0              )  CM_New[d] += amr->BoxSize[d];
+
+   }
+
+   for (int d=0; d<3; d++)
+      if ( CM_New[d] >= amr->BoxSize[d]  ||  CM_New[d] < 0.0 )
+         Aux_Error( ERROR_INFO, "CM_New[%d] = %14.7e lies outside the domain !!\n", d, CM_New[d] );
+
+} // FUNCTION : GetCenterOfMass
+
+
+
+//-------------------------------------------------------------------------------------------------------
 // Function    :  Record_EridanusII
 // Description :  Record the maximum density and center coordinates
 //
@@ -446,13 +601,13 @@ void Record_EridanusII()
 
 
 // record the maximum density and center coordinates
+   double max_dens      = -__FLT_MAX__;
+   double min_pote      = +__FLT_MAX__;
+   int    max_dens_rank = -1;
+   int    min_pote_rank = -1;
+
    if ( MPI_Rank == 0 )
    {
-      double max_dens      = -__FLT_MAX__;
-      double min_pote      = +__FLT_MAX__;
-      int    max_dens_rank = -1;
-      int    min_pote_rank = -1;
-
       for (int r=0; r<MPI_NRank; r++)
       {
          if ( recv[r][0] > max_dens )
@@ -492,9 +647,9 @@ void Record_EridanusII()
          else
          {
             FILE *file_center = fopen( filename_center, "w" );
-            fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s\n",
+            fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
                      "Time", "Step", "Dens", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
-                     "CM_x", "CM_y", "CM_z" );
+                     "NIter", "CM_x", "CM_y", "CM_z" );
             fclose( file_center );
          }
 
@@ -507,12 +662,50 @@ void Record_EridanusII()
       fclose( file_max_dens );
 
       FILE *file_center = fopen( filename_center, "a" );
-      fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e\n",
+      fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
                Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][3], recv[max_dens_rank][4], recv[max_dens_rank][5],
-                              recv[min_pote_rank][6], recv[min_pote_rank][7], recv[min_pote_rank][8], recv[min_pote_rank][9],
-                              0.0, 0.0, 0.0 );
+                              recv[min_pote_rank][6], recv[min_pote_rank][7], recv[min_pote_rank][8], recv[min_pote_rank][9] );
       fclose( file_center );
    } // if ( MPI_Rank == 0 )
+
+
+// compute the center of mass until convergence
+   const double TolErrR2 = SQR( Soliton_CM_TolErrR );
+   const int    NIterMax = 10;
+
+   double dR2, CM_Old[3], CM_New[3];
+   int NIter = 0;
+
+// set an initial guess by the peak density position
+   if ( MPI_Rank == 0 )
+      for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
+
+   MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+   while ( true )
+   {
+      GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR );
+
+      dR2 = SQR( CM_Old[0] - CM_New[0] )
+          + SQR( CM_Old[1] - CM_New[1] )
+          + SQR( CM_Old[2] - CM_New[2] );
+      NIter ++;
+
+      if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
+         break;
+      else
+         memcpy( CM_Old, CM_New, sizeof(double)*3 );
+   }
+
+   if ( MPI_Rank == 0 )
+   {
+      if ( dR2 > TolErrR2 )
+         Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
+
+      FILE *file_center = fopen( filename_center, "a" );
+      fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e\n", NIter, CM_New[0], CM_New[1], CM_New[2] );
+      fclose( file_center );
+   }
 
 
    delete [] recv;
