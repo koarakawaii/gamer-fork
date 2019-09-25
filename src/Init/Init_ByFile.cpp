@@ -10,15 +10,16 @@ void (*Init_ByFile_User_Ptr)( real fluid_out[], const real fluid_in[], const int
                               const double x, const double y, const double z, const double Time,
                               const int lv, double AuxArray[] ) = Init_ByFile_Default;
 
-static void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const int UM_NVar, const int UM_LoadNRank,
-                                    const UM_IC_Format_t UM_Format );
+static void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char UM_Filename_Flu[], const int UM_lv,
+                                    const int UM_NVar_Flu, const int UM_LoadNRank, const UM_IC_Format_t UM_Format_Flu,
+                                    const OptInitMag_t InitMethod_Mag, const char UM_Filename_Mag[] );
 
 
 
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Init_ByFile
-// Description :  Set up initial condition from an input uniform-mesh array
+// Description :  Set up initial condition from input uniform-mesh array(s)
 //
 // Note        :  1. Create levels from 0 to OPT__UM_IC_LEVEL
 //                   --> No levels above OPT__UM_IC_LEVEL will be created unless OPT__UM_IC_REFINE is enabled,
@@ -28,11 +29,14 @@ static void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, c
 //                       the simulation domain will be fully refined to level OPT__UM_IC_LEVEL.
 //                       --> But if OPT__UM_IC_DOWNGRADE is enabled, patches on levels 1~OPT__UM_IC_LEVEL
 //                           may be removed if not satisfying the refinement criteria
-//                2. The uniform-mesh input file must be named as "UM_IC"
-//                3. This function can load any number of input variables per cell (from 1 to NCOMP_TOTAL)
+//                2. Filenames of the input uniform-mesh data are currently fixed
+//                   --> Fluid data       : "UM_IC"
+//                       Magnetic field   : "UM_IC_BFIELD"
+//                       Vector potential : "UM_IC_VEC_POT"
+//                3. This function can load any number of input fluid variables per cell (from 1 to NCOMP_TOTAL)
 //                   --> Determined by the input parameter "OPT__UM_IC_NVAR"
 //                   --> If "OPT__UM_IC_NVAR < NCOMP_TOTAL", one must specify the way to assign values to all
-//                       variables using the function pointer Init_ByFile_User_Ptr()
+//                       fluid variables using the function pointer Init_ByFile_User_Ptr()
 //                       --> Two exceptions:
 //                           (1) When enabling DUAL_ENERGY, we will calculate the dual-energy field
 //                               (e.g., entropy) directly instead of load it from the disk
@@ -46,6 +50,10 @@ static void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, c
 //                5. Does not work with rectangular domain decomposition anymore
 //                   --> Must enable either SERIAL or LOAD_BALANCE
 //                6. OpenMP is not supported yet
+//                7. For MHD, the fluid and magnetic field data can be assigned with different methods
+//                   --> For example, one can assign fluid data using a user-defined function
+//                      (i.e., OPT__INIT=INIT_BY_FUNCTION) and assign magnetic field with an input uniform-mesh array
+//                      (i.e., OPT__INIT_MAG=INIT_MAG_BY_FILE_BFIELD/VEC_POT) or vice versa
 //
 // Parameter   :  None
 //-------------------------------------------------------------------------------------------------------
@@ -55,10 +63,17 @@ void Init_ByFile()
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
 
 
-   const char UM_Filename[] = "UM_IC";
-   const long UM_Size3D[3]  = { NX0_TOT[0]*(1<<OPT__UM_IC_LEVEL),
-                                NX0_TOT[1]*(1<<OPT__UM_IC_LEVEL),
-                                NX0_TOT[2]*(1<<OPT__UM_IC_LEVEL) };
+   const char        *UM_Filename_Flu  = "UM_IC";
+#  ifdef MHD
+   const char        *UM_Filename_Mag  = ( OPT__INIT_MAG == INIT_MAG_BY_FILE_BFIELD  ) ? "UM_IC_BFIELD"  :
+                                         ( OPT__INIT_MAG == INIT_MAG_BY_FILE_VEC_POT ) ? "UM_IC_VEC_POT" : NULL;
+#  else
+   const char        *UM_Filename_Mag  = NULL;
+   const OptInitMag_t OPT__INIT_MAG    = INIT_MAG_BY_NONE;
+#  endif
+   const long         UM_Size3D_Flu[3] = { NX0_TOT[0]*(1<<OPT__UM_IC_LEVEL),
+                                           NX0_TOT[1]*(1<<OPT__UM_IC_LEVEL),
+                                           NX0_TOT[2]*(1<<OPT__UM_IC_LEVEL) };
 
 // check
 #  if ( !defined SERIAL  &&  !defined LOAD_BALANCE )
@@ -68,24 +83,58 @@ void Init_ByFile()
    if ( OPT__UM_IC_LEVEL < 0  ||  OPT__UM_IC_LEVEL > TOP_LEVEL )
       Aux_Error( ERROR_INFO, "OPT__UM_IC_LEVEL (%d) > TOP_LEVEL (%d) !!\n", OPT__UM_IC_LEVEL, TOP_LEVEL );
 
-   if ( OPT__UM_IC_NVAR < 1  ||  OPT__UM_IC_NVAR > NCOMP_TOTAL )
+   if (  OPT__INIT == INIT_BY_FILE  &&  ( OPT__UM_IC_NVAR < 1 || OPT__UM_IC_NVAR > NCOMP_TOTAL )  )
       Aux_Error( ERROR_INFO, "invalid OPT__UM_IC_NVAR = %d (accepeted range: %d ~ %d) !!\n",
                  OPT__UM_IC_NVAR, 1, NCOMP_TOTAL );
 
-   if ( !Aux_CheckFileExist(UM_Filename) )
-      Aux_Error( ERROR_INFO, "file \"%s\" does not exist !!\n", UM_Filename );
-
 // check file size
-   FILE *FileTemp = fopen( UM_Filename, "rb" );
+   FILE *FileTemp = NULL;
+   long ExpectSize, FileSize;
 
-   fseek( FileTemp, 0, SEEK_END );
+   if ( OPT__INIT == INIT_BY_FILE )
+   {
+      if ( !Aux_CheckFileExist(UM_Filename_Flu)  )
+         Aux_Error( ERROR_INFO, "file \"%s\" does not exist !!\n", UM_Filename_Flu );
 
-   const long ExpectSize = long(OPT__UM_IC_NVAR)*UM_Size3D[0]*UM_Size3D[1]*UM_Size3D[2]*sizeof(real);
-   const long FileSize   = ftell( FileTemp );
-   if ( FileSize != ExpectSize )
-      Aux_Error( ERROR_INFO, "size of the file <%s> (%ld) != expect (%ld) !!\n", UM_Filename, FileSize, ExpectSize );
+      FileTemp = fopen( UM_Filename_Flu, "rb" );
+      fseek( FileTemp, 0, SEEK_END );
 
-   fclose( FileTemp );
+      ExpectSize = long(OPT__UM_IC_NVAR)*UM_Size3D_Flu[0]*UM_Size3D_Flu[1]*UM_Size3D_Flu[2]*sizeof(real);
+      FileSize   = ftell( FileTemp );
+
+      if ( FileSize != ExpectSize )
+         Aux_Error( ERROR_INFO, "size of the file <%s> (%ld) != expect (%ld) !!\n",
+                    UM_Filename_Flu, FileSize, ExpectSize );
+
+      fclose( FileTemp );
+   } // if ( OPT__INIT == INIT_BY_FILE )
+
+#  ifdef MHD
+   if ( OPT__INIT_MAG == INIT_MAG_BY_FILE_BFIELD  ||  OPT__INIT_MAG == INIT_MAG_BY_FILE_VEC_POT )
+   {
+      if ( !Aux_CheckFileExist(UM_Filename_Mag)  )
+         Aux_Error( ERROR_INFO, "file \"%s\" does not exist !!\n", UM_Filename_Mag );
+
+      FileTemp = fopen( UM_Filename_Mag, "rb" );
+      fseek( FileTemp, 0, SEEK_END );
+
+      if      ( OPT__INIT_MAG == INIT_MAG_BY_FILE_BFIELD )
+         ExpectSize = (  (UM_Size3D_Flu[0]+1)*(UM_Size3D_Flu[1]  )*(UM_Size3D_Flu[2]  )
+                       + (UM_Size3D_Flu[0]  )*(UM_Size3D_Flu[1]+1)*(UM_Size3D_Flu[2]  )
+                       + (UM_Size3D_Flu[0]  )*(UM_Size3D_Flu[1]  )*(UM_Size3D_Flu[2]+1)  )*sizeof(real);
+
+      else if ( OPT__INIT_MAG == INIT_MAG_BY_FILE_VEC_POT )
+         ExpectSize = (UM_Size3D_Flu[0]+2)*(UM_Size3D_Flu[1]+2)*(UM_Size3D_Flu[2]+2)*sizeof(real);
+
+      FileSize = ftell( FileTemp );
+
+      if ( FileSize != ExpectSize )
+         Aux_Error( ERROR_INFO, "size of the file <%s> (%ld) != expect (%ld) !!\n",
+                    UM_Filename_Mag, FileSize, ExpectSize );
+
+      fclose( FileTemp );
+   } // if ( OPT__INIT_MAG == INIT_MAG_BY_FILE_BFIELD  ||  OPT__INIT_MAG == INIT_MAG_BY_FILE_VEC_POT )
+#  endif // #ifdef MHD
 
    MPI_Barrier( MPI_COMM_WORLD );
 
@@ -171,8 +220,10 @@ void Init_ByFile()
 
 
 
-// 3. assign data on level OPT__UM_IC_LEVEL by the input file UM_IC
-   Init_ByFile_AssignData( UM_Filename, OPT__UM_IC_LEVEL, OPT__UM_IC_NVAR, OPT__UM_IC_LOAD_NRANK, OPT__UM_IC_FORMAT );
+// 3. assign data on level OPT__UM_IC_LEVEL from the input file(s)
+   if ( OPT__INIT == INIT_BY_FILE  ||  OPT__INIT_MAG == INIT_MAG_BY_FILE_BFIELD  ||  OPT__INIT_MAG == INIT_MAG_BY_FILE_VEC_POT )
+   Init_ByFile_AssignData( OPT__INIT, UM_Filename_Flu, OPT__UM_IC_LEVEL, OPT__UM_IC_NVAR, OPT__UM_IC_LOAD_NRANK, OPT__UM_IC_FORMAT,
+                           OPT__INIT_MAG, UM_Filename_Mag );
 
 #  ifdef LOAD_BALANCE
    Buf_GetBufferData( OPT__UM_IC_LEVEL, amr->FluSg[OPT__UM_IC_LEVEL], amr->MagSg[OPT__UM_IC_LEVEL], NULL_INT,
@@ -302,46 +353,79 @@ void Init_ByFile()
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Init_ByFile_AssignData
-// Description :  Use the input uniform-mesh array stored in the file "UM_Filename" to assign data to all
-//                real patches on level "UM_lv"
+// Description :  Use the input uniform-mesh array(s) to assign data to all real patches on level "UM_lv"
 //
 // Note        :  1. The function pointer Init_ByFile_User_Ptr() points to Init_ByFile_Default() by default
 //                   but may be overwritten by various test problem initializers
+//                2. Data format of the magnetic field array is fixed to [field][z][y][x] in a row-major order
+//                   (so unlike the fluid array whose data format is set by "UM_Format_Flu")
+//                   --> Also note that the magnetic field is defind at the face center and thus the array size
+//                   should be
+//                      Bx: [NZ  ][NY  ][NX+1]
+//                      By: [NZ  ][NY+1][NX  ]
+//                      Bz: [NZ+1][NY  ][NX  ]
+//                   where NX, NY, NZ are the size of the fluid array
 //
-// Parameter   :  UM_Filename  : Target file name
-//                UM_lv        : Target AMR level
-//                UM_NVar      : Number of variables
-//                UM_LoadNRank : Number of parallel I/O
-//                UM_Format    : Data format of the file "UM_Filename"
-//                               --> UM_IC_FORMAT_VZYX: [field][z][y][x] in a row-major order
-//                                   UM_IC_FORMAT_ZYXV: [z][y][x][field] in a row-major order
+// Parameter   :  InitMethod_Flu  : Initialization method for the fluid data (i.e., OPT__INIT)
+//                UM_Filename_Flu : Target filename for the fluid data
+//                UM_lv           : Target AMR level
+//                UM_NVar_Flu     : Number of fluid variables
+//                UM_LoadNRank    : Number of parallel I/O
+//                UM_Format_Flu   : Data format of the file "UM_Filename_Flu"
+//                                  --> UM_IC_FORMAT_VZYX: [field][z][y][x] in a row-major order
+//                                      UM_IC_FORMAT_ZYXV: [z][y][x][field] in a row-major order
+//                MHD-only parameters:
+//                InitMethod_Mag  : Initialization method for the magnetic field (i.e., OPT__INIT_MAG)
+//                UM_Filename_Mag : Target filename for the B field
 //
-// Return      :  amr->patch->fluid
+// Return      :  amr->patch->fluid[] and amr->patch->magnetic[]
 //-------------------------------------------------------------------------------------------------------
-void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const int UM_NVar, const int UM_LoadNRank,
-                             const UM_IC_Format_t UM_Format )
+void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char UM_Filename_Flu[], const int UM_lv,
+                             const int UM_NVar_Flu, const int UM_LoadNRank, const UM_IC_Format_t UM_Format_Flu,
+                             const OptInitMag_t InitMethod_Mag, const char UM_Filename_Mag[] )
 {
+
+   const bool LoadFlu = ( InitMethod_Flu == INIT_BY_FILE ) ? true : false;
+#  ifdef MHD
+   const bool LoadMag = ( InitMethod_Mag == INIT_MAG_BY_FILE_BFIELD  ||
+                          InitMethod_Mag == INIT_MAG_BY_FILE_VEC_POT ) ? true : false;
+#  else
+   const bool LoadMag = false;
+#  endif
+
+
+// nothing to do if neither fluid nor magnetic field will be loaded from the disk
+   if ( !LoadFlu  &&  !LoadMag )    return;
+
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Loading data from the input file ...\n" );
 
 
 // check
-   if ( Init_ByFile_User_Ptr == NULL )  Aux_Error( ERROR_INFO, "Init_ByFile_User_Ptr == NULL !!\n" );
+   if ( LoadFlu  &&  Init_ByFile_User_Ptr == NULL )
+      Aux_Error( ERROR_INFO, "Init_ByFile_User_Ptr == NULL !!\n" );
+
+   if ( InitMethod_Mag == INIT_MAG_BY_FILE_VEC_POT )
+      Aux_Error( ERROR_INFO, "INIT_MAG_BY_FILE_VEC_POT is NOT supported yet !!\n" );
 
 
-   const long   UM_Size3D[3] = { NX0_TOT[0]*(1<<UM_lv),
-                                 NX0_TOT[1]*(1<<UM_lv),
-                                 NX0_TOT[2]*(1<<UM_lv) };
-   const long   UM_Size1v    =  UM_Size3D[0]*UM_Size3D[1]*UM_Size3D[2];
-   const int    NVarPerLoad  = ( UM_Format == UM_IC_FORMAT_ZYXV ) ? UM_NVar : 1;
-   const int    scale        = amr->scale[UM_lv];
-   const double dh           = amr->dh[UM_lv];
-
-   long   Offset3D_File0[3], Offset_File0, Offset_File, Offset_PG;
-   real   fluid_in[UM_NVar], fluid_out[NCOMP_TOTAL];
-   double x, y, z;
-
-   real *PG_Data = new real [ CUBE(PS2)*UM_NVar ];
+   const int    scale                       = amr->scale[UM_lv];
+   const double dh                          = amr->dh[UM_lv];
+   const long   UM_Size3D_Flu[3]            = { NX0_TOT[0]*(1<<UM_lv),
+                                                NX0_TOT[1]*(1<<UM_lv),
+                                                NX0_TOT[2]*(1<<UM_lv) };
+   const long   UM_Size1v_Flu               =  UM_Size3D_Flu[0]*UM_Size3D_Flu[1]*UM_Size3D_Flu[2];
+   const int    NVarPerLoad_Flu             = ( UM_Format_Flu == UM_IC_FORMAT_ZYXV ) ? UM_NVar_Flu : 1;
+#  ifdef MHD
+   const long   UM_Size3D_Mag[NCOMP_MAG][3] = {  { UM_Size3D_Flu[0]+1, UM_Size3D_Flu[1],   UM_Size3D_Flu[2]   },
+                                                 { UM_Size3D_Flu[0],   UM_Size3D_Flu[1]+1, UM_Size3D_Flu[2]   },
+                                                 { UM_Size3D_Flu[0],   UM_Size3D_Flu[1],   UM_Size3D_Flu[2]+1 }  };
+   const long   UM_Size1v_Mag[NCOMP_MAG]    = { UM_Size3D_Mag[MAGX][0]*UM_Size3D_Mag[MAGX][1]*UM_Size3D_Mag[MAGX][2],
+                                                UM_Size3D_Mag[MAGY][0]*UM_Size3D_Mag[MAGY][1]*UM_Size3D_Mag[MAGY][2],
+                                                UM_Size3D_Mag[MAGZ][0]*UM_Size3D_Mag[MAGZ][1]*UM_Size3D_Mag[MAGZ][2] };
+   const long   PGSize_Mag[NCOMP_MAG][3]    = {  { PS2P1, PS2, PS2 }, { PS2, PS2P1, PS2 }, { PS2, PS2, PS2P1 }  };
+   const long   PSize_Mag [NCOMP_MAG][3]    = {  { PS1P1, PS1, PS1 }, { PS1, PS1P1, PS1 }, { PS1, PS1, PS1P1 }  };
+#  endif
 
 
 // load data with UM_LoadNRank ranks at a time
@@ -352,80 +436,170 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
          if ( MPI_Rank == TRank0 )  Aux_Message( stdout, "      Loading ranks %4d -- %4d ... ",
                                                  TRank0, MIN(TRank0+UM_LoadNRank-1, MPI_NRank-1) );
 
-         FILE *File = fopen( UM_Filename, "rb" );
-
-//       load one patch group at a time
-         for (int PID0=0; PID0<amr->NPatchComma[UM_lv][1]; PID0+=8)
+//       1. load magnetic field
+//          --> must do it BEFORE loading the fluid data since we need B field to compute the total energy density later
+#        ifdef MHD
+         if ( LoadMag )
          {
-//          calculate the file offset of the target patch group
-            for (int d=0; d<3; d++)    Offset3D_File0[d] = amr->patch[0][UM_lv][PID0]->corner[d] / scale;
+            real (*PG_Data_Mag)[ PS2P1*SQR(PS2) ] = new real [NCOMP_MAG][ PS2P1*SQR(PS2) ];
+            FILE *File_Mag                        = fopen( UM_Filename_Mag, "rb" );
 
-            Offset_File0  = IDX321( Offset3D_File0[0], Offset3D_File0[1], Offset3D_File0[2], UM_Size3D[0], UM_Size3D[1] );
-            Offset_File0 *= (long)NVarPerLoad*sizeof(real);
+            long Idx_Mag[3], Offset_File0_Mag[NCOMP_MAG], Offset_File_Mag, Offset_PG_Mag;
 
-
-//          load data from the disk (one row at a time)
-            Offset_PG = 0;
-
-            for (int v=0; v<UM_NVar; v+=NVarPerLoad )
+//          load one patch group at a time
+            for (int PID0=0; PID0<amr->NPatchComma[UM_lv][1]; PID0+=8)
             {
-               for (int k=0; k<PS2; k++)
-               for (int j=0; j<PS2; j++)
+//             1-1. calculate the file offset of the target patch group
+               for (int d=0; d<3; d++)    Idx_Mag[d] = amr->patch[0][UM_lv][PID0]->corner[d] / scale;
+
+               Offset_File0_Mag[MAGX] = 0;
+               Offset_File0_Mag[MAGY] = Offset_File0_Mag[MAGX] + sizeof(real)*UM_Size1v_Mag[MAGX];
+               Offset_File0_Mag[MAGZ] = Offset_File0_Mag[MAGY] + sizeof(real)*UM_Size1v_Mag[MAGY];
+
+               Offset_File0_Mag[MAGX] += sizeof(real)*IDX321( Idx_Mag[0], Idx_Mag[1], Idx_Mag[2], UM_Size3D_Mag[MAGX][0], UM_Size3D_Mag[MAGX][1] );
+               Offset_File0_Mag[MAGY] += sizeof(real)*IDX321( Idx_Mag[0], Idx_Mag[1], Idx_Mag[2], UM_Size3D_Mag[MAGY][0], UM_Size3D_Mag[MAGY][1] );
+               Offset_File0_Mag[MAGZ] += sizeof(real)*IDX321( Idx_Mag[0], Idx_Mag[1], Idx_Mag[2], UM_Size3D_Mag[MAGZ][0], UM_Size3D_Mag[MAGZ][1] );
+
+
+//             1-2. load one row of one component at a time
+               for (int v=0; v<NCOMP_MAG; v++)
                {
-                  Offset_File = Offset_File0 + (long)NVarPerLoad*sizeof(real)*( ((long)k*UM_Size3D[1] + j)*UM_Size3D[0] )
-                                + v*UM_Size1v*sizeof(real);
+                  Offset_PG_Mag = 0;
 
-                  fseek( File, Offset_File, SEEK_SET );
-                  fread( PG_Data+Offset_PG, sizeof(real), NVarPerLoad*PS2, File );
-
-//                verify that the file size is not exceeded
-                  if ( feof(File) )   Aux_Error( ERROR_INFO, "reaching the end of the file \"%s\" !!\n", UM_Filename );
-
-                  Offset_PG += NVarPerLoad*PS2;
-               }
-            }
-
-
-//          copy data to each patch
-            for (int LocalID=0; LocalID<8; LocalID++)
-            {
-               const int PID    = PID0 + LocalID;
-               const int Disp_i = TABLE_02( LocalID, 'x', 0, PS1 );
-               const int Disp_j = TABLE_02( LocalID, 'y', 0, PS1 );
-               const int Disp_k = TABLE_02( LocalID, 'z', 0, PS1 );
-
-               for (int k=0; k<PS1; k++)  {  z = amr->patch[0][UM_lv][PID]->EdgeL[2] + (k+0.5)*dh;
-               for (int j=0; j<PS1; j++)  {  y = amr->patch[0][UM_lv][PID]->EdgeL[1] + (j+0.5)*dh;
-               for (int i=0; i<PS1; i++)  {  x = amr->patch[0][UM_lv][PID]->EdgeL[0] + (i+0.5)*dh;
-
-                  Offset_PG = (long)NVarPerLoad*IDX321( i+Disp_i, j+Disp_j, k+Disp_k, PS2, PS2 );
-
-                  if ( UM_Format == UM_IC_FORMAT_ZYXV )
-                     memcpy( fluid_in, PG_Data+Offset_PG, UM_NVar*sizeof(real) );
-
-                  else
+                  for (int k=0; k<PGSize_Mag[v][2]; k++)
+                  for (int j=0; j<PGSize_Mag[v][1]; j++)
                   {
-                     for (int v=0; v<UM_NVar; v++)
-                        fluid_in[v] = *( PG_Data + Offset_PG + v*CUBE(PS2) );
+                     Offset_File_Mag = Offset_File0_Mag[v] + (long)sizeof(real)*( ((long)k*UM_Size3D_Mag[v][1] + j)*UM_Size3D_Mag[v][0] );
+
+                     fseek( File_Mag, Offset_File_Mag, SEEK_SET );
+                     fread( PG_Data_Mag[v]+Offset_PG_Mag, sizeof(real), PGSize_Mag[v][0], File_Mag );
+
+//                   verify that the file size is not exceeded
+                     if ( feof(File_Mag) )   Aux_Error( ERROR_INFO, "reaching the end of the file \"%s\" !!\n", UM_Filename_Mag );
+
+                     Offset_PG_Mag += PGSize_Mag[v][0];
                   }
+               } // for (int v=0; v<NCOMP_MAG; v++)
 
-                  Init_ByFile_User_Ptr( fluid_out, fluid_in, UM_NVar, x, y, z, Time[UM_lv], UM_lv, NULL );
 
-                  for (int v=0; v<NCOMP_TOTAL; v++)
-                     amr->patch[ amr->FluSg[UM_lv] ][UM_lv][PID]->fluid[v][k][j][i] = fluid_out[v];
-               }}}
-            } // for (int LocalID=0; LocalID<8; LocalID++)
-         } // for (int PID0=0; PID0<amr->NPatchComma[UM_lv][1]; PID0+=8)
+//             1-3. copy data to each patch
+               for (int LocalID=0; LocalID<8; LocalID++)
+               {
+                  const int PID    = PID0 + LocalID;
+                  const int Disp_i = TABLE_02( LocalID, 'x', 0, PS1 );
+                  const int Disp_j = TABLE_02( LocalID, 'y', 0, PS1 );
+                  const int Disp_k = TABLE_02( LocalID, 'z', 0, PS1 );
 
-         fclose( File );
+                  for (int v=0; v<NCOMP_MAG; v++)
+                  {
+                     int idx_in, idx_out=0;
+
+                     for (int k=Disp_k; k<Disp_k+PSize_Mag[v][2]; k++)
+                     for (int j=Disp_j; j<Disp_j+PSize_Mag[v][1]; j++)
+                     for (int i=Disp_i; i<Disp_i+PSize_Mag[v][0]; i++)
+                     {
+                        idx_in = IDX321( i, j, k, PGSize_Mag[v][0], PGSize_Mag[v][1] );
+
+                        amr->patch[ amr->MagSg[UM_lv] ][UM_lv][PID]->magnetic[v][ idx_out ++ ] = PG_Data_Mag[v][idx_in];
+                     }
+                  } // for (int v=0; v<NCOMP_MAG; v++)
+               } // for (int LocalID=0; LocalID<8; LocalID++)
+            } // for (int PID0=0; PID0<amr->NPatchComma[UM_lv][1]; PID0+=8)
+
+            fclose( File_Mag );
+            delete [] PG_Data_Mag;
+         } // if ( LoadMag )
+#        endif // #ifdef MHD
+
+
+//       2. load fluid
+         if ( LoadFlu )
+         {
+            real *PG_Data_Flu = new real [ CUBE(PS2)*UM_NVar_Flu ];
+            FILE *File_Flu    = fopen( UM_Filename_Flu, "rb" );
+
+            long   Idx_Flu[3], Offset_File0_Flu, Offset_File_Flu, Offset_PG_Flu;
+            real   fluid_in[UM_NVar_Flu], fluid_out[NCOMP_TOTAL];
+            double x, y, z;
+
+//          load one patch group at a time
+            for (int PID0=0; PID0<amr->NPatchComma[UM_lv][1]; PID0+=8)
+            {
+//             2-1. calculate the file offset of the target patch group
+               for (int d=0; d<3; d++)    Idx_Flu[d] = amr->patch[0][UM_lv][PID0]->corner[d] / scale;
+
+               Offset_File0_Flu  = IDX321( Idx_Flu[0], Idx_Flu[1], Idx_Flu[2], UM_Size3D_Flu[0], UM_Size3D_Flu[1] );
+               Offset_File0_Flu *= (long)NVarPerLoad_Flu*sizeof(real);
+
+
+//             2-2. load one row at a time
+               Offset_PG_Flu = 0;
+
+               for (int v=0; v<UM_NVar_Flu; v+=NVarPerLoad_Flu )
+               {
+                  for (int k=0; k<PS2; k++)
+                  for (int j=0; j<PS2; j++)
+                  {
+                     Offset_File_Flu = Offset_File0_Flu + v*UM_Size1v_Flu*sizeof(real)
+                                       + (long)NVarPerLoad_Flu*sizeof(real)*( ((long)k*UM_Size3D_Flu[1] + j)*UM_Size3D_Flu[0] );
+
+                     fseek( File_Flu, Offset_File_Flu, SEEK_SET );
+                     fread( PG_Data_Flu+Offset_PG_Flu, sizeof(real), NVarPerLoad_Flu*PS2, File_Flu );
+
+//                   verify that the file size is not exceeded
+                     if ( feof(File_Flu) )   Aux_Error( ERROR_INFO, "reaching the end of the file \"%s\" !!\n", UM_Filename_Flu );
+
+                     Offset_PG_Flu += NVarPerLoad_Flu*PS2;
+                  }
+               }
+
+
+//             2-3. copy data to each patch
+               for (int LocalID=0; LocalID<8; LocalID++)
+               {
+                  const int PID    = PID0 + LocalID;
+                  const int Disp_i = TABLE_02( LocalID, 'x', 0, PS1 );
+                  const int Disp_j = TABLE_02( LocalID, 'y', 0, PS1 );
+                  const int Disp_k = TABLE_02( LocalID, 'z', 0, PS1 );
+
+                  for (int k=0; k<PS1; k++)  {  z = amr->patch[0][UM_lv][PID]->EdgeL[2] + (k+0.5)*dh;
+                  for (int j=0; j<PS1; j++)  {  y = amr->patch[0][UM_lv][PID]->EdgeL[1] + (j+0.5)*dh;
+                  for (int i=0; i<PS1; i++)  {  x = amr->patch[0][UM_lv][PID]->EdgeL[0] + (i+0.5)*dh;
+
+                     Offset_PG_Flu = (long)NVarPerLoad_Flu*IDX321( i+Disp_i, j+Disp_j, k+Disp_k, PS2, PS2 );
+
+                     if ( UM_Format_Flu == UM_IC_FORMAT_ZYXV )
+                        memcpy( fluid_in, PG_Data_Flu+Offset_PG_Flu, UM_NVar_Flu*sizeof(real) );
+
+                     else
+                     {
+                        for (int v=0; v<UM_NVar_Flu; v++)
+                           fluid_in[v] = *( PG_Data_Flu + Offset_PG_Flu + v*CUBE(PS2) );
+                     }
+
+                     Init_ByFile_User_Ptr( fluid_out, fluid_in, UM_NVar_Flu, x, y, z, Time[UM_lv], UM_lv, NULL );
+
+//                   add the magnetic energy
+#                    ifdef MHD
+                     fluid_out[ENGY] += MHD_GetCellCenteredBEnergyInPatch( UM_lv, PID, i, j, k, amr->MagSg[UM_lv] );
+#                    endif
+
+                     for (int v=0; v<NCOMP_TOTAL; v++)
+                        amr->patch[ amr->FluSg[UM_lv] ][UM_lv][PID]->fluid[v][k][j][i] = fluid_out[v];
+
+                  }}}
+               } // for (int LocalID=0; LocalID<8; LocalID++)
+            } // for (int PID0=0; PID0<amr->NPatchComma[UM_lv][1]; PID0+=8)
+
+            fclose( File_Flu );
+            delete [] PG_Data_Flu;
+         } // if ( LoadFlu )
 
          if ( MPI_Rank == TRank0 )  Aux_Message( stdout, "done\n" );
       } // if ( MPI_Rank >= TRank0  &&  MPI_Rank < TRank0+UM_LoadNRank )
 
       MPI_Barrier( MPI_COMM_WORLD );
    } // for (int TRank0=0; TRank0<MPI_NRank; TRank0+=UM_LoadNRank)
-
-   delete [] PG_Data;
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Loading data from the input file ... done\n" );
@@ -500,11 +674,8 @@ void Init_ByFile_Default( real fluid_out[], const real fluid_in[], const int nva
 
 // calculate the dual-energy field for HYDRO
 #  if   ( MODEL == HYDRO )
-
 #  ifdef MHD
-#  warning : WAIT MHD !!!
-   Aux_Error( ERROR_INFO, "MHD is NOT supported yet !!\n" );
-   const real EngyB = NULL_REAL;
+   const real EngyB = (real)0.0; // B field energy is currently NOT included in the loaded fluid energy density
 #  else
    const real EngyB = NULL_REAL;
 #  endif
@@ -518,6 +689,6 @@ void Init_ByFile_Default( real fluid_out[], const real fluid_in[], const int nva
 // calculate the density field for ELBDM
 #  elif ( MODEL == ELBDM )
    fluid_out[DENS] = SQR( fluid_out[REAL] ) + SQR( fluid_out[IMAG] );
-#  endif
+#  endif // MODEL
 
 } // Init_ByFile_Default

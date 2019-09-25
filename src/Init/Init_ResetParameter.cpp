@@ -723,6 +723,17 @@ void Init_ResetParameter()
 #  endif
 
 
+// set magnetic field initialization to INIT_MAG_BY_RESTART for restart
+#  ifdef MHD
+   if ( OPT__INIT == INIT_BY_RESTART  &&  OPT__INIT_MAG != INIT_MAG_BY_RESTART )
+   {
+      OPT__INIT_MAG = INIT_MAG_BY_RESTART;
+
+      PRINT_WARNING( OPT__INIT_MAG, FORMAT_INT, "for restart" );
+   }
+#  endif
+
+
 // set particle initialization to PAR_INIT_BY_RESTART for restart
 #  ifdef PARTICLE
    if ( OPT__INIT == INIT_BY_RESTART  &&  amr->Par->Init != PAR_INIT_BY_RESTART )

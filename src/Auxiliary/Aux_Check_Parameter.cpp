@@ -808,6 +808,9 @@ void Aux_Check_Parameter()
    if ( OPT__OVERLAP_MPI )
       Aux_Error( ERROR_INFO, "\"OPT__OVERLAP_MPI\" is NOT supported for MHD !!\n" );
 
+   if ( OPT__INIT != INIT_BY_RESTART  &&  OPT__INIT_MAG == INIT_MAG_BY_RESTART )
+      Aux_Error( ERROR_INFO, "OPT__INIT_MAG == RESTART but OPT__INIT != RESTART !!\n" );
+
    if ( !OPT__FIXUP_RESTRICT )
       Aux_Message( stderr, "WARNING : disabling \"OPT__FIXUP_RESTRICT\" in MHD will break the divergence-free constraint !!\n" );
 

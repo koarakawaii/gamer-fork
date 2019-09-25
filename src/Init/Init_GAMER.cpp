@@ -175,14 +175,31 @@ void Init_GAMER( int *argc, char ***argv )
 // initialize the AMR structure and fluid field
    switch ( OPT__INIT )
    {
-      case INIT_BY_FUNCTION :    Init_ByFunction();   break;
+//    invoke Init_ByFile() when at least one of INIT_BY_FILE and INIT_MAG_BY_FILE is adopted
+      case INIT_BY_FUNCTION :
+#        ifdef MHD
+         if      ( OPT__INIT_MAG == INIT_MAG_BY_FUNCTION )
+            Init_ByFunction();
+         else if ( OPT__INIT_MAG == INIT_MAG_BY_FILE_BFIELD  ||
+                   OPT__INIT_MAG == INIT_MAG_BY_FILE_VEC_POT )
+            Init_ByFile();
+         else
+            Aux_Error( ERROR_INFO, "unsupported OPT__INIT_MAG (%d) !!\n", OPT__INIT_MAG );
+#        else
+         Init_ByFunction();
+#        endif
+         break;
 
-      case INIT_BY_RESTART :     Init_ByRestart();    break;
+      case INIT_BY_RESTART :
+         Init_ByRestart();
+         break;
 
-      case INIT_BY_FILE :        Init_ByFile();       break;
+      case INIT_BY_FILE :
+         Init_ByFile();
+         break;
 
       default : Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "OPT__INIT", OPT__INIT );
-   }
+   } // switch ( OPT__INIT )
 
 
 // user-defined initialization

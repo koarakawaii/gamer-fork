@@ -62,6 +62,16 @@ const OptInit_t
    INIT_BY_FILE     = 3;
 
 
+// initialization options of the magnetic field
+typedef int OptInitMag_t;
+const OptInitMag_t
+   INIT_MAG_BY_NONE         = 0,
+   INIT_MAG_BY_FUNCTION     = 1,
+   INIT_MAG_BY_RESTART      = 2,
+   INIT_MAG_BY_FILE_BFIELD  = 3,
+   INIT_MAG_BY_FILE_VEC_POT = 4;
+
+
 // data format for OPT__INIT=INIT_BY_FILE
 typedef int UM_IC_Format_t;
 const UM_IC_Format_t
