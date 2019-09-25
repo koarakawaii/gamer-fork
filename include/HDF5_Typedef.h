@@ -511,6 +511,9 @@ struct InputPara_t
 
 // initialization
    int    Opt__Init;
+#  ifdef MHD
+   int    Opt__InitMag;
+#  endif
    int    RestartLoadNRank;
    int    Opt__RestartReset;
    int    Opt__UM_IC_Level;

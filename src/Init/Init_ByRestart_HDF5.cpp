@@ -1887,6 +1887,9 @@ void Check_InputPara( const char *FileName, const int FormatVersion )
 
 // initialization
    LoadField( "Opt__Init",               &RS.Opt__Init,               SID, TID, NonFatal, &RT.Opt__Init,                1, NonFatal );
+#  ifdef MHD
+   LoadField( "Opt__InitMag",            &RS.Opt__InitMag,            SID, TID, NonFatal, &RT.Opt__InitMag,             1, NonFatal );
+#  endif
    LoadField( "RestartLoadNRank",        &RS.RestartLoadNRank,        SID, TID, NonFatal, &RT.RestartLoadNRank,         1, NonFatal );
    LoadField( "Opt__RestartReset",       &RS.Opt__RestartReset,       SID, TID, NonFatal, &RT.Opt__RestartReset,        1, NonFatal );
    LoadField( "Opt__UM_IC_Level",        &RS.Opt__UM_IC_Level,        SID, TID, NonFatal, &RT.Opt__UM_IC_Level,         1, NonFatal );
