@@ -1,6 +1,6 @@
 #include "GAMER.h"
 
-void Init_ByFunction_AssignData( const int lv );
+void Init_ByFunction_AssignData( const int lv, const bool SetFlu, const bool SetMag );
 
 
 
@@ -32,7 +32,9 @@ void Init_ByFunction()
       if ( lv == 0 )
       Init_BaseLevel();
 
-      Init_ByFunction_AssignData( lv );
+      const bool SetFlu_Yes = true;
+      const bool SetMag_Yes = true;
+      Init_ByFunction_AssignData( lv, SetFlu_Yes, SetMag_Yes );
 
       Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_NO );
 
@@ -78,18 +80,23 @@ void Init_ByFunction()
 // Function    :  Init_ByFunction_AssignData
 // Description :  Construct the initial condition in different models
 //
-// Note        :  Work for the option "OPT__INIT == INIT_BY_FUNCTION"
+// Note        :  1. Work for the option "OPT__INIT == INIT_BY_FUNCTION"
+//                   --> But it is also used for "OPT__INIT == INIT_BY_FILE" if
+//                       "OPT__INIT_MAG == INIT_MAG_BY_FUNCITON" or vice versa
+//                2. Invoked by Init_ByFunction(), LB_Init_ByFunction(), and Init_ByFile()
 //
-// Parameter   :  lv : Target refinement level
+// Parameter   :  lv     : Target refinement level
+//                SetFlu : Set the fluid field
+//                SetMag : Set the magnetic field
 //-------------------------------------------------------------------------------------------------------
-void Init_ByFunction_AssignData( const int lv )
+void Init_ByFunction_AssignData( const int lv, const bool SetFlu, const bool SetMag )
 {
 
 #  if   ( MODEL == HYDRO )
-   Hydro_Init_ByFunction_AssignData( lv );
+   Hydro_Init_ByFunction_AssignData( lv, SetFlu, SetMag );
 
 #  elif ( MODEL == ELBDM )
-   ELBDM_Init_ByFunction_AssignData( lv );
+   ELBDM_Init_ByFunction_AssignData( lv, SetFlu, SetMag );
 
 #  else
 #  error : unsupported MODEL !!

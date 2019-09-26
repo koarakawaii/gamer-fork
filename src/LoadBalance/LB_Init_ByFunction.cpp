@@ -2,7 +2,7 @@
 
 #ifdef LOAD_BALANCE
 
-void Init_ByFunction_AssignData( const int lv );
+void Init_ByFunction_AssignData( const int lv, const bool SetFlu, const bool SetMag );
 
 
 
@@ -56,7 +56,9 @@ void LB_Init_ByFunction()
       Mis_GetTotalPatchNumber( lv );
 
 //    assign initial condition on grids
-      Init_ByFunction_AssignData( lv );
+      const bool SetFlu_Yes = true;
+      const bool SetMag_Yes = true;
+      Init_ByFunction_AssignData( lv, SetFlu_Yes, SetMag_Yes );
 
 //    load balance
       LB_Init_LoadBalance( Redistribute_Yes, Par_Weight, ResetLB_Yes, lv );

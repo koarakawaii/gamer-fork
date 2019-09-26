@@ -14,6 +14,8 @@ static void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char U
                                     const int UM_NVar_Flu, const int UM_LoadNRank, const UM_IC_Format_t UM_Format_Flu,
                                     const OptInitMag_t InitMethod_Mag, const char UM_Filename_Mag[] );
 
+void Init_ByFunction_AssignData( const int lv, const bool SetFlu, const bool SetMag );
+
 
 
 
@@ -86,6 +88,12 @@ void Init_ByFile()
    if (  OPT__INIT == INIT_BY_FILE  &&  ( OPT__UM_IC_NVAR < 1 || OPT__UM_IC_NVAR > NCOMP_TOTAL )  )
       Aux_Error( ERROR_INFO, "invalid OPT__UM_IC_NVAR = %d (accepeted range: %d ~ %d) !!\n",
                  OPT__UM_IC_NVAR, 1, NCOMP_TOTAL );
+
+   if ( OPT__INIT != INIT_BY_FILE )
+#  ifdef MHD
+   if ( OPT__INIT_MAG != INIT_MAG_BY_FILE_BFIELD  &&  OPT__INIT_MAG != INIT_MAG_BY_FILE_VEC_POT )
+#  endif
+      Aux_Error( ERROR_INFO, "nothing to do here !!\n" );
 
 // check file size
    FILE *FileTemp = NULL;
@@ -293,6 +301,20 @@ void Init_ByFile()
    } // for (int lv=OPT__UM_IC_LEVEL-1; lv>=0; lv--)
 
 
+// reset either fluid or magnetic field on levels < OPT__UM_IC_LEVEL by a user-defined function, if applicable
+// --> data restriction will be performed at the end of this routine
+   if ( OPT__INIT == INIT_BY_FUNCTION  ||  OPT__INIT_MAG == INIT_MAG_BY_FUNCTION )
+   for (int lv=0; lv<OPT__UM_IC_LEVEL; lv++)
+   {
+      Init_ByFunction_AssignData( lv, (OPT__INIT==INIT_BY_FUNCTION), (OPT__INIT_MAG==INIT_MAG_BY_FUNCTION) );
+
+#     ifdef LOAD_BALANCE
+      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL,
+                         _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
+#     endif
+   }
+
+
 
 // 7. refine the uniform-mesh data from levels OPT__UM_IC_LEVEL to MAX_LEVEL-1
    if ( OPT__UM_IC_REFINE )
@@ -304,12 +326,19 @@ void Init_ByFile()
 
       Refine( lv, UseLB );
 
+//    reset either fluid or magnetic field on lv+1 by a user-defined function, if applicable
+//    --> data restriction will be performed at the end of this routine
+      if ( OPT__INIT == INIT_BY_FUNCTION  ||  OPT__INIT_MAG == INIT_MAG_BY_FUNCTION )
+         Init_ByFunction_AssignData( lv+1, (OPT__INIT==INIT_BY_FUNCTION), (OPT__INIT_MAG==INIT_MAG_BY_FUNCTION) );
+
 #     ifdef LOAD_BALANCE
-//    no need to exchange potential since we haven't calculated it yet
-      Buf_GetBufferData( lv,   amr->FluSg[lv  ], amr->MagSg[lv  ], NULL_INT, DATA_AFTER_REFINE,
+//    (a) use DATA_GENERAL instead of DATA_AFTER_REFINE since invoking Init_ByFunction_AssignData() above
+//        will overwrite the fluid/magnetic field data
+//    (b) no need to exchange potential since we haven't calculated it yet
+      Buf_GetBufferData( lv,   amr->FluSg[lv  ], amr->MagSg[lv  ], NULL_INT, DATA_GENERAL,
                          _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
 
-      Buf_GetBufferData( lv+1, amr->FluSg[lv+1], amr->MagSg[lv+1], NULL_INT, DATA_AFTER_REFINE,
+      Buf_GetBufferData( lv+1, amr->FluSg[lv+1], amr->MagSg[lv+1], NULL_INT, DATA_GENERAL,
                          _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
 
       LB_Init_LoadBalance( Redistribute_Yes, Par_Weight, ResetLB_Yes, lv+1 );
@@ -320,11 +349,14 @@ void Init_ByFile()
 
 
 
-// 8. restrict data
-//    --> for bitwise reproducibility only
-//    --> strictly speaking, it is only necessary for C-binary output (i.e., OPT__OUTPUT_TOTAL=2)
-//        since that output format does not store non-leaf patch data
-#  ifdef BITWISE_REPRODUCIBILITY
+// 8. restrict data for two purposes
+//    (1) for bitwise reproducibility
+//        --> strictly speaking, it is only necessary for C-binary output (i.e., OPT__OUTPUT_TOTAL=2)
+//            since that output format does not store non-leaf patch data
+//    (2) for ensuring consistency between different levels when adopting either OPT__INIT == INIT_BY_FUNCTION
+//        or OPT__INIT_MAG == INIT_MAG_BY_FUNCTION
+//        --> necessary because we have not restricted data after invoking Init_ByFunction_AssignData() above
+//            to overwrite the fluid/magnetic field data
    for (int lv=MAX_LEVEL-1; lv>=0; lv--)
    {
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Restricting level %d ... ", lv );
@@ -332,7 +364,8 @@ void Init_ByFile()
       if ( NPatchTotal[lv+1] == 0 )    continue;
 
 //    no need to restrict potential since it will be recalculated later
-      Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT, _TOTAL, _MAG );
+      Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT,
+                          _TOTAL, _MAG );
 
 #     ifdef LOAD_BALANCE
       LB_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT, _TOTAL, _MAG, NULL_INT );
@@ -342,7 +375,6 @@ void Init_ByFile()
 
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
    }
-#  endif // # ifdef BITWISE_REPRODUCIBILITY
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
@@ -394,14 +426,13 @@ void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char UM_Filen
 #  endif
 
 
-// nothing to do if neither fluid nor magnetic field will be loaded from the disk
-   if ( !LoadFlu  &&  !LoadMag )    return;
-
-
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Loading data from the input file ...\n" );
 
 
 // check
+   if ( !LoadFlu  &&  !LoadMag )
+      Aux_Error( ERROR_INFO, "nothing to do here !!\n" );
+
    if ( LoadFlu  &&  Init_ByFile_User_Ptr == NULL )
       Aux_Error( ERROR_INFO, "Init_ByFile_User_Ptr == NULL !!\n" );
 
@@ -509,6 +540,16 @@ void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char UM_Filen
             fclose( File_Mag );
             delete [] PG_Data_Mag;
          } // if ( LoadMag )
+
+         else
+         {
+            if ( InitMethod_Mag != INIT_MAG_BY_FUNCTION )
+               Aux_Error( ERROR_INFO, "InitMethod_Mag (%d) != INIT_MAG_BY_FUNCTION !!\n", InitMethod_Mag );
+
+            const bool SetFlu_No  = false;
+            const bool SetMag_Yes = true;
+            Init_ByFunction_AssignData( UM_lv, SetFlu_No, SetMag_Yes );
+         } // if ( LoadMag ) ... else ...
 #        endif // #ifdef MHD
 
 
@@ -594,6 +635,16 @@ void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char UM_Filen
             fclose( File_Flu );
             delete [] PG_Data_Flu;
          } // if ( LoadFlu )
+
+         else
+         {
+            if ( InitMethod_Flu != INIT_BY_FUNCTION )
+               Aux_Error( ERROR_INFO, "InitMethod_Flu (%d) != INIT_BY_FUNCTION !!\n", InitMethod_Flu );
+
+            const bool SetFlu_Yes = true;
+            const bool SetMag_No  = false;
+            Init_ByFunction_AssignData( UM_lv, SetFlu_Yes, SetMag_No );
+         } // if ( LoadFlu ) ... else ...
 
          if ( MPI_Rank == TRank0 )  Aux_Message( stdout, "done\n" );
       } // if ( MPI_Rank >= TRank0  &&  MPI_Rank < TRank0+UM_LoadNRank )
