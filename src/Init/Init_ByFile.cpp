@@ -14,6 +14,7 @@ static void Init_ByFile_AssignData( const OptInit_t InitMethod_Flu, const char U
                                     const int UM_NVar_Flu, const int UM_LoadNRank, const UM_IC_Format_t UM_Format_Flu,
                                     const OptInitMag_t InitMethod_Mag, const char UM_Filename_Mag[] );
 
+static void OverwriteByFunction( const int lv, const bool SetFlu, const bool SetMag );
 void Init_ByFunction_AssignData( const int lv, const bool SetFlu, const bool SetMag );
 
 
@@ -306,7 +307,7 @@ void Init_ByFile()
    if ( OPT__INIT == INIT_BY_FUNCTION  ||  OPT__INIT_MAG == INIT_MAG_BY_FUNCTION )
    for (int lv=0; lv<OPT__UM_IC_LEVEL; lv++)
    {
-      Init_ByFunction_AssignData( lv, (OPT__INIT==INIT_BY_FUNCTION), (OPT__INIT_MAG==INIT_MAG_BY_FUNCTION) );
+      OverwriteByFunction( lv, (OPT__INIT==INIT_BY_FUNCTION), (OPT__INIT_MAG==INIT_MAG_BY_FUNCTION) );
 
 #     ifdef LOAD_BALANCE
       Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL,
@@ -329,10 +330,10 @@ void Init_ByFile()
 //    reset either fluid or magnetic field on lv+1 by a user-defined function, if applicable
 //    --> data restriction will be performed at the end of this routine
       if ( OPT__INIT == INIT_BY_FUNCTION  ||  OPT__INIT_MAG == INIT_MAG_BY_FUNCTION )
-         Init_ByFunction_AssignData( lv+1, (OPT__INIT==INIT_BY_FUNCTION), (OPT__INIT_MAG==INIT_MAG_BY_FUNCTION) );
+         OverwriteByFunction( lv+1, (OPT__INIT==INIT_BY_FUNCTION), (OPT__INIT_MAG==INIT_MAG_BY_FUNCTION) );
 
 #     ifdef LOAD_BALANCE
-//    (a) use DATA_GENERAL instead of DATA_AFTER_REFINE since invoking Init_ByFunction_AssignData() above
+//    (a) use DATA_GENERAL instead of DATA_AFTER_REFINE since invoking OverwriteByFunction() above
 //        will overwrite the fluid/magnetic field data
 //    (b) no need to exchange potential since we haven't calculated it yet
       Buf_GetBufferData( lv,   amr->FluSg[lv  ], amr->MagSg[lv  ], NULL_INT, DATA_GENERAL,
@@ -355,7 +356,7 @@ void Init_ByFile()
 //            since that output format does not store non-leaf patch data
 //    (2) for ensuring consistency between different levels when adopting either OPT__INIT == INIT_BY_FUNCTION
 //        or OPT__INIT_MAG == INIT_MAG_BY_FUNCTION
-//        --> necessary because we have not restricted data after invoking Init_ByFunction_AssignData() above
+//        --> necessary because we have not restricted data after invoking OverwriteByFunction() above
 //            to overwrite the fluid/magnetic field data
    for (int lv=MAX_LEVEL-1; lv>=0; lv--)
    {
@@ -743,3 +744,70 @@ void Init_ByFile_Default( real fluid_out[], const real fluid_in[], const int nva
 #  endif // MODEL
 
 } // Init_ByFile_Default
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  OverwriteByFunction
+// Description :  Overwrite the fluid or magnetic field data with a user-defined function
+//
+// Note        :  1. Invoked by Init_ByFile()
+//                2. Invoke Init_ByFunction_AssignData() to overwrite the data
+//                3. When overwritting the magnetic field, this function assumes that the fluid field has
+//                   been set in advance and will update the total fluid energy further to make it consistent
+//                   with the updated magnetic field
+//                4. When overwritting the fluid field, this function assumes that the magnetic field has
+//                   been set in advance and will add the magnetic energy to the total fluid energy automatically
+//
+// Parameter   :  lv     : Target refinement level
+//                SetFlu : Set the fluid field
+//                SetMag : Set the magnetic field
+//
+// Return      :  patch->fluid[] and patch->magnetic
+//-------------------------------------------------------------------------------------------------------
+void OverwriteByFunction( const int lv, const bool SetFlu, const bool SetMag )
+{
+
+// check: this function should update either fluid or magnetic field
+   if (  ( SetFlu && SetMag )  ||  ( !SetFlu && !SetMag )  )
+      Aux_Error( ERROR_INFO, "SetFlu %d, SetMag %d --> something is wrong !!\n" );
+
+
+// 1. remove the magnetic energy from the total fluid energy before overwritting the magnetic field
+#  ifdef MHD
+   if ( SetMag )
+   {
+#     pragma omp parallel for schedule( runtime )
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      for (int k=0; k<PS1; k++)
+      for (int j=0; j<PS1; j++)
+      for (int i=0; i<PS1; i++)
+      {
+         const real EngyB = MHD_GetCellCenteredBEnergyInPatch( lv, PID, i, j, k, amr->MagSg[lv] );
+         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[ENGY][k][j][i] -= EngyB;
+      }
+   }
+#  endif
+
+
+// 2. reset either fluid or magnetic field
+   Init_ByFunction_AssignData( lv, SetFlu, SetMag );
+
+
+// 3. add the updated magnetic energy back to the total fluid energy
+#  ifdef MHD
+   if ( SetMag )
+   {
+#     pragma omp parallel for schedule( runtime )
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      for (int k=0; k<PS1; k++)
+      for (int j=0; j<PS1; j++)
+      for (int i=0; i<PS1; i++)
+      {
+         const real EngyB = MHD_GetCellCenteredBEnergyInPatch( lv, PID, i, j, k, amr->MagSg[lv] );
+         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[ENGY][k][j][i] += EngyB;
+      }
+   }
+#  endif
+
+} // FUNCTION : OverwriteByFunction
