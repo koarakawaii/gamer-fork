@@ -8,6 +8,10 @@ extern double ExtPot_AuxArray[EXT_POT_NAUX_MAX];
 static real GetMaxPot( const int lv );
 
 
+extern double Tidal_CutoffR;
+extern double Tidal_CM[3];
+
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -65,9 +69,12 @@ real GetMaxPot( const int lv )
    int    SibPID;
    bool   Skip;
 
+const double Tidal_CutoffR2 = SQR( Tidal_CutoffR );
+double dr[3], r2;
+
 
 // get the maximum potential in this rank
-#  pragma omp parallel for private( PotG, PotS, PotE, Pot, x0, y0, z0, x, y, z, SibPID, Skip ) reduction( max:MaxPot ) schedule( runtime )
+#  pragma omp parallel for private( PotG, PotS, PotE, Pot, x0, y0, z0, x, y, z, SibPID, Skip, dr, r2 ) reduction( max:MaxPot )
    for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
    {
 //    skip all non-leaf patches not adjacent to any coarse-fine boundaries (since their data are useless)
@@ -110,6 +117,15 @@ real GetMaxPot( const int lv )
       for (int k=0; k<PATCH_SIZE; k++) {  z = z0 + (double)k*dh;
       for (int j=0; j<PATCH_SIZE; j++) {  y = y0 + (double)j*dh;
       for (int i=0; i<PATCH_SIZE; i++) {  x = x0 + (double)i*dh;
+
+
+// skip cells outside the cut-off radius
+dr[0] = x - Tidal_CM[0];
+dr[1] = y - Tidal_CM[1];
+dr[2] = z - Tidal_CM[2];
+r2    = dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2];
+if ( r2 > Tidal_CutoffR2 )    continue;
+
 
          PotG   = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
 #        ifdef QUARTIC_SELF_INTERACTION

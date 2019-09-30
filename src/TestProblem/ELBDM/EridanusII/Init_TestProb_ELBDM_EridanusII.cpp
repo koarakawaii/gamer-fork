@@ -19,6 +19,17 @@ static double   Soliton_ScaleL     = NULL;               // L/D: length/density 
 static double   Soliton_ScaleD     = NULL;
 static double   Soliton_CM_MaxR;                         // maximum radius for determining CM
 static double   Soliton_CM_TolErrR;                      // maximum allowed errors for determining CM
+
+
+static double   Tidal_Mass;                              // point mass
+static double   Tidal_R;                                 // point mass distance
+static bool     Tidal_FixedPos;                          // Fix the point mass position
+static bool     Tidal_Centrifugal;                       // Add the centrifugal pseudo force
+       double   Tidal_CutoffR;                           // Cut-off radius
+
+static double   Tidal_Vrot;                              // rotational velocity due to the point mass
+       double   Tidal_CM[3] = { __DBL_MAX__, __DBL_MAX__, __DBL_MAX__ }; // Center of mass of the satellite
+// =======================================================================================
 // =======================================================================================
 
 
@@ -142,12 +153,22 @@ void SetParameter()
    ReadPara->Add( "Star_CenterZ",              &Star_Center[2],             amr->BoxCenter[2], NoMin_double, NoMax_double      );
    ReadPara->Add( "Star_MassProfNBin",         &Star_MassProfNBin,          1000,          2,                NoMax_int         );
    ReadPara->Add( "Star_AddParForRestart",     &Star_AddParForRestart,      false,         Useless_bool,     Useless_bool      );
-   ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar, -1L,           NoMin_long,       NoMax_long        );
+   ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar,-1L,            NoMin_long,       NoMax_long        );
    ReadPara->Add( "Star_AddParForRestart_PeakRho", &Star_AddParForRestart_PeakRho, -1.0,   NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Tidal_Mass",                &Tidal_Mass,                -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Tidal_R",                   &Tidal_R,                   -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Tidal_FixedPos",            &Tidal_FixedPos,             false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Tidal_Centrifugal",         &Tidal_Centrifugal,          true,          Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Tidal_CutoffR",             &Tidal_CutoffR,              __DBL_MAX__,   0.0,              NoMax_double      );
 
    ReadPara->Read( FileName );
 
    delete ReadPara;
+
+// convert to code units
+   Tidal_Mass    *= Const_Msun / UNIT_M;
+   Tidal_R       *= Const_kpc  / UNIT_L;
+   Tidal_CutoffR *= Const_kpc  / UNIT_L;
 
 // (1-2) set the default values
    if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
@@ -155,10 +176,15 @@ void SetParameter()
 // (1-3) check the runtime parameters
    if ( FixDM  &&  OPT__FIXUP_FLUX )   Aux_Error( ERROR_INFO, "must disable OPT__FIXUP_FLUX for FixDM !!\n" );
 
+   if ( !OPT__RECORD_USER )   Aux_Error( ERROR_INFO, "must enable OPT__RECORD_USER !!\n" );
+
+
 // (2) set the problem-specific derived parameters
 #  ifdef GRAVITY
    Star_FreeT = sqrt( (3.0*M_PI*pow(2.0,1.5)) / (32.0*NEWTON_G*Star_Rho0) );
 #  endif
+
+   Tidal_Vrot = sqrt( NEWTON_G * Tidal_Mass / Tidal_R );
 
 
 // (3) load the reference soliton density profile and evaluate the scale factors
@@ -245,6 +271,12 @@ void SetParameter()
       Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );
       Aux_Message( stdout, "     number of particles to be added        = %ld\n",    Star_AddParForRestart_NPar );
       Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
+      Aux_Message( stdout, "  Tidal_Mass        = %13.7e Msun\n", Tidal_Mass*UNIT_M/Const_Msun   );
+      Aux_Message( stdout, "  Tidal_R           = %13.7e kpc\n",  Tidal_R*UNIT_L/Const_kpc       );
+      Aux_Message( stdout, "  Tidal_FixedPos    = %d\n",          Tidal_FixedPos                 );
+      Aux_Message( stdout, "  Tidal_Centrifugal = %d\n",          Tidal_Centrifugal              );
+      Aux_Message( stdout, "  Tidal_CutoffR     = %13.7e kpc\n",  Tidal_CutoffR*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Tidal_Vrot        = %13.7e km/s\n", Tidal_Vrot*UNIT_V/(Const_km)   );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -545,8 +577,8 @@ void Record_EridanusII()
    const char filename_center  [] = "Record__Center";
    const int  CountMPI            = 10;
 
-   double dens, max_dens_loc=-__FLT_MAX__, max_dens_pos_loc[3], real_loc, imag_loc;
-   double pote, min_pote_loc=+__FLT_MAX__, min_pote_pos_loc[3];
+   double dens, max_dens_loc=-__DBL_MAX__, max_dens_pos_loc[3], real_loc, imag_loc;
+   double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
    double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
 
 
@@ -601,8 +633,8 @@ void Record_EridanusII()
 
 
 // record the maximum density and center coordinates
-   double max_dens      = -__FLT_MAX__;
-   double min_pote      = +__FLT_MAX__;
+   double max_dens      = -__DBL_MAX__;
+   double min_pote      = +__DBL_MAX__;
    int    max_dens_rank = -1;
    int    min_pote_rank = -1;
 
@@ -708,9 +740,80 @@ void Record_EridanusII()
    }
 
 
+   for (int d=0; d<3; d++)    Tidal_CM[d] = CM_New[d];
+
+
    delete [] recv;
 
 } // FUNCTION : Record_EridanusII
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Init_ExtPot
+// Description :  Set the array "ExtPot_AuxArray" used by the external potential routines
+//                "CUPOT_ExternalPot.cu / CPU_ExternalPot.cpp"
+//
+// Note        :  1. Linked to the function pointer "Init_ExternalPot_Ptr"
+//                2. Enabled by the runtime option "OPT__EXTERNAL_POT"
+//
+// Parameter   :  None
+//-------------------------------------------------------------------------------------------------------
+void Init_ExtPot()
+{
+
+// ExtPot_AuxArray has the size of EXT_POT_NAUX_MAX (default = 10)
+   ExtPot_AuxArray[0] = Tidal_CM[0];
+   ExtPot_AuxArray[1] = Tidal_CM[1];
+   ExtPot_AuxArray[2] = Tidal_CM[2];
+   ExtPot_AuxArray[3] = NEWTON_G*Tidal_Mass;
+   ExtPot_AuxArray[4] = Tidal_R;
+   ExtPot_AuxArray[5] = Tidal_Vrot;
+   ExtPot_AuxArray[6] = ( Tidal_FixedPos ) ? +1.0 : -1.0;
+   ExtPot_AuxArray[7] = ( Tidal_Centrifugal ) ? +1.0 : -1.0;
+
+} // FUNCTION : Init_ExtPot
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Reset
+// Description :  Reset the wave function outside a specific sphere to be zero
+//
+// Note        :  1. Linked to the function pointer "Flu_ResetByUser_Func_Ptr"
+//
+// Parameter   :  fluid    : Fluid array storing both the input (origial) and reset values
+//                           --> Including both active and passive variables
+//                x/y/z    : Target physical coordinates
+//                Time     : Target physical time
+//                lv       : Target refinement level
+//                AuxArray : Auxiliary array
+//
+// Return      :  true  : This cell has been reset
+//                false : This cell has not been reset
+//-------------------------------------------------------------------------------------------------------
+bool Reset( real fluid[], const double x, const double y, const double z, const double Time,
+            const int lv, double AuxArray[] )
+{
+
+   const real dr[3]     = { x-Tidal_CM[0], y-Tidal_CM[1], z-Tidal_CM[2] };
+   const real r         = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
+   const real WaveFloor = 1.0e-3;
+   const real DensFloor = SQR(WaveFloor);
+
+   if ( r > Tidal_CutoffR )
+   {
+      fluid[REAL] = WaveFloor;
+      fluid[IMAG] = (real)0.0;
+      fluid[DENS] = DensFloor;
+
+      return true;
+   }
+
+   else
+      return false;
+
+} // FUNCTION : Reset
 #endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 
@@ -749,12 +852,12 @@ void Init_TestProb_ELBDM_EridanusII()
    Flag_User_Ptr            = NULL;
    Mis_GetTimeStep_User_Ptr = NULL;
    BC_User_Ptr              = BC_EridanusII;
-   Flu_ResetByUser_Func_Ptr = NULL;
+   Flu_ResetByUser_Func_Ptr = Reset;
    Output_User_Ptr          = NULL;
    Aux_Record_User_Ptr      = Record_EridanusII;
    End_User_Ptr             = End_EridanusII;
    Init_ExternalAcc_Ptr     = NULL;
-   Init_ExternalPot_Ptr     = NULL;
+   Init_ExternalPot_Ptr     = Init_ExtPot;
 #  ifdef PARTICLE
    Par_Init_ByFunction_Ptr  = Par_Init_ByFunction_EridanusII;
 #  endif

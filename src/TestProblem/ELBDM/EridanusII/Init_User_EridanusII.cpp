@@ -29,6 +29,8 @@ static RandomNumber_t *RNG = NULL;
 static double MassProf_Star( const double r );
 static void   RanVec_FixRadius( const double r, double RanVec[] );
 
+extern void (*Aux_Record_User_Ptr)();
+
 
 
 
@@ -44,6 +46,15 @@ static void   RanVec_FixRadius( const double r, double RanVec[] );
 //-------------------------------------------------------------------------------------------------------
 void Init_User_EridanusII()
 {
+
+   if ( OPT__RECORD_USER  &&  Aux_Record_User_Ptr != NULL )
+   {
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Setting initial central coordinates ... " );
+      Aux_Record_User_Ptr();
+      Init_ExternalAccPot();
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
+   }
+
 
    if ( amr->Par->Init != PAR_INIT_BY_RESTART  ||  !OPT__RESTART_RESET  ||  !Star_AddParForRestart )
       return;
