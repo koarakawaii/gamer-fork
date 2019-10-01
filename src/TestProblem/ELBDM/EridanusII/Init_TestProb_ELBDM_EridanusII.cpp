@@ -29,6 +29,12 @@ static bool     Tidal_Centrifugal;                       // Add the centrifugal 
 
 static double   Tidal_Vrot;                              // rotational velocity due to the point mass
        double   Tidal_CM[3] = { __DBL_MAX__, __DBL_MAX__, __DBL_MAX__ }; // Center of mass of the satellite
+
+static bool     Sponge_Enabled;                          // true/false: sponge/truncation BC
+static double   Sponge_Width;                            // sponge width
+static double   Sponge_Amp;                              // sponge amplitude
+
+       double   Sponge_dt = 0.0;                         // evolution time-step
 // =======================================================================================
 // =======================================================================================
 
@@ -161,6 +167,10 @@ void SetParameter()
    ReadPara->Add( "Tidal_Centrifugal",         &Tidal_Centrifugal,          true,          Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_CutoffR",             &Tidal_CutoffR,              __DBL_MAX__,   0.0,              NoMax_double      );
 
+   ReadPara->Add( "Sponge_Enabled",            &Sponge_Enabled,             false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Sponge_Width",              &Sponge_Width,               10.0,          Eps_double,       NoMax_double      );
+   ReadPara->Add( "Sponge_Amp",                &Sponge_Amp,                 1.0,           0.0,              NoMax_double      );
+
    ReadPara->Read( FileName );
 
    delete ReadPara;
@@ -169,6 +179,8 @@ void SetParameter()
    Tidal_Mass    *= Const_Msun / UNIT_M;
    Tidal_R       *= Const_kpc  / UNIT_L;
    Tidal_CutoffR *= Const_kpc  / UNIT_L;
+   Sponge_Width  *= Const_kpc  / UNIT_L;
+   Sponge_Amp    *= (1.0/Const_Gyr) / (1.0/UNIT_T);
 
 // (1-2) set the default values
    if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
@@ -271,12 +283,16 @@ void SetParameter()
       Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );
       Aux_Message( stdout, "     number of particles to be added        = %ld\n",    Star_AddParForRestart_NPar );
       Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
-      Aux_Message( stdout, "  Tidal_Mass        = %13.7e Msun\n", Tidal_Mass*UNIT_M/Const_Msun   );
-      Aux_Message( stdout, "  Tidal_R           = %13.7e kpc\n",  Tidal_R*UNIT_L/Const_kpc       );
-      Aux_Message( stdout, "  Tidal_FixedPos    = %d\n",          Tidal_FixedPos                 );
-      Aux_Message( stdout, "  Tidal_Centrifugal = %d\n",          Tidal_Centrifugal              );
-      Aux_Message( stdout, "  Tidal_CutoffR     = %13.7e kpc\n",  Tidal_CutoffR*UNIT_L/Const_kpc );
-      Aux_Message( stdout, "  Tidal_Vrot        = %13.7e km/s\n", Tidal_Vrot*UNIT_V/(Const_km)   );
+      Aux_Message( stdout, "  Tidal_Mass        = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
+      Aux_Message( stdout, "  Tidal_R           = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
+      Aux_Message( stdout, "  Tidal_FixedPos    = %d\n",            Tidal_FixedPos                 );
+      Aux_Message( stdout, "  Tidal_Centrifugal = %d\n",            Tidal_Centrifugal              );
+      Aux_Message( stdout, "  Tidal_CutoffR     = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Tidal_Vrot        = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   );
+      Aux_Message( stdout, "  Sponge_Enabled    = %d\n",            Sponge_Enabled                 );
+      if ( Sponge_Enabled ) {
+      Aux_Message( stdout, "  Sponge_Width      = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
+      Aux_Message( stdout, "  Sponge_Amp        = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -796,22 +812,40 @@ bool Reset( real fluid[], const double x, const double y, const double z, const 
             const int lv, double AuxArray[] )
 {
 
-   const real dr[3]     = { x-Tidal_CM[0], y-Tidal_CM[1], z-Tidal_CM[2] };
-   const real r         = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
-   const real WaveFloor = 1.0e-3;
-   const real DensFloor = SQR(WaveFloor);
+   const real dr[3] = { x-Tidal_CM[0], y-Tidal_CM[1], z-Tidal_CM[2] };
+   const real r     = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
 
-   if ( r > Tidal_CutoffR )
+// sponge BC
+   if ( Sponge_Enabled )
    {
-      fluid[REAL] = WaveFloor;
-      fluid[IMAG] = (real)0.0;
-      fluid[DENS] = DensFloor;
+      const double v    = 0.5*Sponge_Amp*(  1.0 + tanh( (r-Tidal_CutoffR)/Sponge_Width )  );
+      const double damp = exp( -v*Sponge_dt );
+
+      fluid[REAL] *= damp;
+      fluid[IMAG] *= damp;
+      fluid[DENS]  = SQR( fluid[REAL] ) + SQR( fluid[IMAG] );
 
       return true;
    }
 
+// truncation BC
    else
-      return false;
+   {
+      const real WaveFloor = 1.0e-3;
+      const real DensFloor = SQR(WaveFloor);
+
+      if ( r > Tidal_CutoffR )
+      {
+         fluid[REAL] = WaveFloor;
+         fluid[IMAG] = (real)0.0;
+         fluid[DENS] = DensFloor;
+
+         return true;
+      }
+
+      else
+         return false;
+   }
 
 } // FUNCTION : Reset
 #endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )

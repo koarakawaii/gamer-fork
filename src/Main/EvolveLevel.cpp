@@ -16,6 +16,7 @@ extern Timer_t *Timer_Par_2Sib   [NLEVEL];
 extern Timer_t *Timer_Par_2Son   [NLEVEL];
 #endif
 
+extern double Sponge_dt;
 
 
 
@@ -113,6 +114,8 @@ void EvolveLevel( const int lv, const double dTime_FaLv )
       dt_SubStep = Mis_dTime2dt( Time[lv], dTime_SubStep );
       TimeOld    = Time[lv];
       TimeNew    = Time[lv] + dTime_SubStep;
+
+      Sponge_dt  = dt_SubStep;
 
 //    synchronize the time array to avoid the round-off errors
 //    --> it's better to use dTime_SoFar+dTime_SubStep instead of Time[lv]+dTime_SubStep to check the synchronization
