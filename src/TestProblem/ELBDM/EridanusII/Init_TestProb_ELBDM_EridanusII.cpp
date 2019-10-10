@@ -20,7 +20,7 @@ static double   Soliton_ScaleD     = NULL;
 static double   Soliton_CM_MaxR;                         // maximum radius for determining CM
 static double   Soliton_CM_TolErrR;                      // maximum allowed errors for determining CM
 
-
+static bool     Tidal_RotatingFrame;                     // true/false --> rotating/inertial frame
 static double   Tidal_Mass;                              // point mass
 static double   Tidal_R;                                 // point mass distance
 static bool     Tidal_FixedPos;                          // Fix the point mass position
@@ -161,6 +161,7 @@ void SetParameter()
    ReadPara->Add( "Star_AddParForRestart",     &Star_AddParForRestart,      false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar,-1L,            NoMin_long,       NoMax_long        );
    ReadPara->Add( "Star_AddParForRestart_PeakRho", &Star_AddParForRestart_PeakRho, -1.0,   NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Tidal_RotatingFrame",       &Tidal_RotatingFrame,        true,          Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_Mass",                &Tidal_Mass,                -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_R",                   &Tidal_R,                   -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_FixedPos",            &Tidal_FixedPos,             false,         Useless_bool,     Useless_bool      );
@@ -283,16 +284,17 @@ void SetParameter()
       Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );
       Aux_Message( stdout, "     number of particles to be added        = %ld\n",    Star_AddParForRestart_NPar );
       Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
-      Aux_Message( stdout, "  Tidal_Mass        = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
-      Aux_Message( stdout, "  Tidal_R           = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
-      Aux_Message( stdout, "  Tidal_FixedPos    = %d\n",            Tidal_FixedPos                 );
-      Aux_Message( stdout, "  Tidal_Centrifugal = %d\n",            Tidal_Centrifugal              );
-      Aux_Message( stdout, "  Tidal_CutoffR     = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
-      Aux_Message( stdout, "  Tidal_Vrot        = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   );
-      Aux_Message( stdout, "  Sponge_Enabled    = %d\n",            Sponge_Enabled                 );
+      Aux_Message( stdout, "  Tidal_RotatingFrame = %d\n",            Tidal_RotatingFrame            );
+      Aux_Message( stdout, "  Tidal_Mass          = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
+      Aux_Message( stdout, "  Tidal_R             = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
+      Aux_Message( stdout, "  Tidal_FixedPos      = %d\n",            Tidal_FixedPos                 );
+      Aux_Message( stdout, "  Tidal_Centrifugal   = %d\n",            Tidal_Centrifugal              );
+      Aux_Message( stdout, "  Tidal_CutoffR       = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Tidal_Vrot          = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   );
+      Aux_Message( stdout, "  Sponge_Enabled      = %d\n",            Sponge_Enabled                 );
       if ( Sponge_Enabled ) {
-      Aux_Message( stdout, "  Sponge_Width      = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
-      Aux_Message( stdout, "  Sponge_Amp        = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
+      Aux_Message( stdout, "  Sponge_Width        = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
+      Aux_Message( stdout, "  Sponge_Amp          = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -832,14 +834,20 @@ void Init_ExtPot()
 {
 
 // ExtPot_AuxArray has the size of EXT_POT_NAUX_MAX (default = 10)
+   if ( Tidal_RotatingFrame ) {
    ExtPot_AuxArray[0] = Tidal_CM[0];
    ExtPot_AuxArray[1] = Tidal_CM[1];
-   ExtPot_AuxArray[2] = Tidal_CM[2];
+   ExtPot_AuxArray[2] = Tidal_CM[2]; }
+   else {
+   ExtPot_AuxArray[0] = amr->BoxCenter[0];
+   ExtPot_AuxArray[1] = amr->BoxCenter[1];
+   ExtPot_AuxArray[2] = amr->BoxCenter[2]; }
    ExtPot_AuxArray[3] = NEWTON_G*Tidal_Mass;
    ExtPot_AuxArray[4] = Tidal_R;
    ExtPot_AuxArray[5] = Tidal_Vrot;
    ExtPot_AuxArray[6] = ( Tidal_FixedPos ) ? +1.0 : -1.0;
    ExtPot_AuxArray[7] = ( Tidal_Centrifugal ) ? +1.0 : -1.0;
+   ExtPot_AuxArray[8] = ( Tidal_RotatingFrame ) ? +1.0 : -1.0;
 
 } // FUNCTION : Init_ExtPot
 
