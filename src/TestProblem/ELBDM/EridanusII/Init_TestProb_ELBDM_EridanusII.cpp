@@ -35,6 +35,9 @@ static double   Sponge_Width;                            // sponge width
 static double   Sponge_Amp;                              // sponge amplitude
 
        double   Sponge_dt = 0.0;                         // evolution time-step
+
+       double   ParCM_Dis[3];                            // particle CM position displacement
+       double   ParCM_Vel[3];                            // particle CM velocity
 // =======================================================================================
 // =======================================================================================
 
@@ -172,6 +175,13 @@ void SetParameter()
    ReadPara->Add( "Sponge_Width",              &Sponge_Width,               10.0,          Eps_double,       NoMax_double      );
    ReadPara->Add( "Sponge_Amp",                &Sponge_Amp,                 1.0,           0.0,              NoMax_double      );
 
+   ReadPara->Add( "ParCM_DisX",                &ParCM_Dis[0],               0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ParCM_DisY",                &ParCM_Dis[1],               0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ParCM_DisZ",                &ParCM_Dis[2],               0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ParCM_VelX",                &ParCM_Vel[0],               0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ParCM_VelY",                &ParCM_Vel[1],               0.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ParCM_VelZ",                &ParCM_Vel[2],               0.0,           NoMin_double,     NoMax_double      );
+
    ReadPara->Read( FileName );
 
    delete ReadPara;
@@ -182,6 +192,11 @@ void SetParameter()
    Tidal_CutoffR *= Const_kpc  / UNIT_L;
    Sponge_Width  *= Const_kpc  / UNIT_L;
    Sponge_Amp    *= (1.0/Const_Gyr) / (1.0/UNIT_T);
+   for (int d=0; d<3; d++)
+   {
+      ParCM_Dis[d] *= Const_kpc        / UNIT_L;
+      ParCM_Vel[d] *= Const_km/Const_s / (UNIT_L/UNIT_T);
+   }
 
 // (1-2) set the default values
    if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
@@ -295,6 +310,12 @@ void SetParameter()
       if ( Sponge_Enabled ) {
       Aux_Message( stdout, "  Sponge_Width        = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
       Aux_Message( stdout, "  Sponge_Amp          = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
+      Aux_Message( stdout, "  Particle CM displacement x = %14.7e kpc\n",  ParCM_Dis[0]*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Particle CM displacement y = %14.7e kpc\n",  ParCM_Dis[1]*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Particle CM displacement z = %14.7e kpc\n",  ParCM_Dis[2]*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Particle CM velocity x     = %14.7e km/s\n", ParCM_Vel[0]*(UNIT_L/UNIT_T)/(Const_km/Const_s) );
+      Aux_Message( stdout, "  Particle CM velocity y     = %14.7e km/s\n", ParCM_Vel[1]*(UNIT_L/UNIT_T)/(Const_km/Const_s) );
+      Aux_Message( stdout, "  Particle CM velocity z     = %14.7e km/s\n", ParCM_Vel[2]*(UNIT_L/UNIT_T)/(Const_km/Const_s) );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 

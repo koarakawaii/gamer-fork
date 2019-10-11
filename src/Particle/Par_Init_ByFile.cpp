@@ -2,6 +2,9 @@
 
 #ifdef PARTICLE
 
+extern double ParCM_Dis[3];
+extern double ParCM_Vel[3];
+
 
 
 
@@ -146,6 +149,19 @@ void Par_Init_ByFile()
 //    synchronize all particles to the physical time at the base level
       amr->Par->Time[p] = Time[0];
    }
+
+
+// add displacement and velocity shift
+   for (long p=0; p<NParThisRank; p++)
+   {
+      amr->Par->Attribute[PAR_POSX][p] += ParCM_Dis[0];
+      amr->Par->Attribute[PAR_POSY][p] += ParCM_Dis[1];
+      amr->Par->Attribute[PAR_POSZ][p] += ParCM_Dis[2];
+      amr->Par->Attribute[PAR_VELX][p] += ParCM_Vel[0];
+      amr->Par->Attribute[PAR_VELY][p] += ParCM_Vel[1];
+      amr->Par->Attribute[PAR_VELZ][p] += ParCM_Vel[2];
+   }
+
 
    delete [] ParData_ThisRank;
    delete [] ParData1;
