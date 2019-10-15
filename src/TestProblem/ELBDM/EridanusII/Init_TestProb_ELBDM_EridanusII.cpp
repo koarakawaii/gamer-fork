@@ -23,6 +23,7 @@ static double   Soliton_CM_TolErrR;                      // maximum allowed erro
 
 static double   Tidal_Mass;                              // point mass
 static double   Tidal_R;                                 // point mass distance
+static double   Tidal_Angle0;                            // initial angle of the point mass
 static bool     Tidal_FixedPos;                          // Fix the point mass position
 static bool     Tidal_Centrifugal;                       // Add the centrifugal pseudo force
        double   Tidal_CutoffR;                           // Cut-off radius
@@ -163,6 +164,7 @@ void SetParameter()
    ReadPara->Add( "Star_AddParForRestart_PeakRho", &Star_AddParForRestart_PeakRho, -1.0,   NoMin_double,     NoMax_double      );
    ReadPara->Add( "Tidal_Mass",                &Tidal_Mass,                -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_R",                   &Tidal_R,                   -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Tidal_Angle0",              &Tidal_Angle0,               0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Tidal_FixedPos",            &Tidal_FixedPos,             false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_Centrifugal",         &Tidal_Centrifugal,          true,          Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_CutoffR",             &Tidal_CutoffR,              __DBL_MAX__,   0.0,              NoMax_double      );
@@ -285,6 +287,7 @@ void SetParameter()
       Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
       Aux_Message( stdout, "  Tidal_Mass        = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
       Aux_Message( stdout, "  Tidal_R           = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
+      Aux_Message( stdout, "  Tidal_Angle0      = %13.7e\n",        Tidal_Angle0                   );
       Aux_Message( stdout, "  Tidal_FixedPos    = %d\n",            Tidal_FixedPos                 );
       Aux_Message( stdout, "  Tidal_Centrifugal = %d\n",            Tidal_Centrifugal              );
       Aux_Message( stdout, "  Tidal_CutoffR     = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
@@ -787,6 +790,7 @@ void Init_ExtPot()
    ExtPot_AuxArray[5] = Tidal_Vrot;
    ExtPot_AuxArray[6] = ( Tidal_FixedPos ) ? +1.0 : -1.0;
    ExtPot_AuxArray[7] = ( Tidal_Centrifugal ) ? +1.0 : -1.0;
+   ExtPot_AuxArray[8] = Tidal_Angle0;
 
 } // FUNCTION : Init_ExtPot
 

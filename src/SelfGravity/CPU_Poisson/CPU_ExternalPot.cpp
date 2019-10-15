@@ -38,6 +38,7 @@ real ExternalPot( const double x, const double y, const double z, const double T
    const real   Vrot        = UserArray[5];
    const bool   FixedPos    = ( UserArray[6] > 0.0 ) ? true : false;
    const bool   Centrifugal = ( UserArray[7] > 0.0 ) ? true : false;
+   const real   Angle0      = UserArray[8];
 
    real dx, dy, dz, dr2, _R, theta, Rx, Ry, Rz, tmp, phi;
 
@@ -50,7 +51,7 @@ real ExternalPot( const double x, const double y, const double z, const double T
 // calculate the relative coordinates between the MW center and the center of mass of the satellite
 // --> assuming a circular orbit on the xy plane with an initial azimuthal angle of theta=0, where theta=acos(Rx/R)
    _R    = (real)1.0 / R;
-   theta = ( FixedPos ) ? (real)0.0 : Vrot*Time*_R;
+   theta = ( FixedPos ) ? Angle0 : Vrot*Time*_R + Angle0;
    Rx    = R*COS( theta );
    Ry    = R*SIN( theta );
    Rz    = (real)0.0;
