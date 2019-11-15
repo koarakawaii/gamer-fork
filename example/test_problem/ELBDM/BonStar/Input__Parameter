@@ -19,7 +19,7 @@ NX0_TOT_X                     128         # number of base-level cells along x
 NX0_TOT_Y                     128         # number of base-level cells along y
 NX0_TOT_Z                     128         # number of base-level cells along z
 OMP_NTHREAD                   3           # number of OpenMP threads (<=0=auto -> omp_get_max_threads) [-1] ##OPENMP ONLY##
-END_T                         1.0e4       # end physical time (<0=auto -> must be set by test problems or restart) [-1.0]
+END_T                         1.0e3       # end physical time (<0=auto -> must be set by test problems or restart) [-1.0]
 END_STEP                      999999      # end step (<0=auto -> must be set by test problems or restart) [-1]
 
 
@@ -157,7 +157,7 @@ INT_MONO_COEFF                2.0         # coefficient for ensuring the interpo
 OPT__OUTPUT_TOTAL             1           # output the simulation snapshot: (0=off, 1=HDF5, 2=C-binary) [1]
 OPT__OUTPUT_PART              0           # output a single line or slice: (0=off, 1=xy, 2=yz, 3=xz, 4=x, 5=y, 6=z, 7=diag) [0]
 OPT__OUTPUT_USER              0           # output the user-specified data -> edit "Output_User.cpp" [0]
-OPT__OUTPUT_PAR_TEXT          1           # output the particle text file [0] ##PARTICLE ONLY##
+OPT__OUTPUT_PAR_TEXT          0           # output the particle text file [0] ##PARTICLE ONLY##
 OPT__OUTPUT_BASEPS            0           # output the base-level power spectrum [0]
 OPT__OUTPUT_BASE              0           # only output the base-level data [0] ##OPT__OUTPUT_PART ONLY##
 OPT__OUTPUT_POT               0           # output gravitational potential [0] ##OPT__OUTPUT_TOTAL ONLY##

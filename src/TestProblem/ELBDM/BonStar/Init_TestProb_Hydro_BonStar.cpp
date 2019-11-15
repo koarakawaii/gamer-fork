@@ -5,10 +5,12 @@
 
 // problem-specific global variables
 // =======================================================================================
-int    BonStar_RSeed;      // random seed for setting particle position and velocity
-double BonStar_MaxR;       // maximum radius for particles
-double BonStar_Rzero;      // radius at which the dark matter velocity dispersion is zero
-int    BonStar_ProfNBin;   // number of radial bins in the mass profile table
+int    BonStar_RSeed;            // random seed for setting particle position and velocity
+double BonStar_MaxR;             // maximum radius for particles
+double BonStar_Rzero;            // radius at which the dark matter velocity dispersion is zero
+int    BonStar_ProfNBin;         // number of radial bins in the mass profile table
+bool   BonStar_OutputWaveFunc;   // whether or not to output wave function in the HDF5 files
+
 // =======================================================================================
 
 // problem-specific function prototypes
@@ -107,12 +109,14 @@ void SetParameter()
 // --> note that VARIABLE, DEFAULT, MIN, and MAX must have the same data type
 // --> some handy constants (e.g., Useless_bool, Eps_double, NoMin_int, ...) are defined in "include/ReadPara.h"
 // ********************************************************************************************************************************
-// ReadPara->Add( "KEY_IN_THE_FILE",      &VARIABLE,              DEFAULT,       MIN,              MAX               );
+// ReadPara->Add( "KEY_IN_THE_FILE",         &VARIABLE,              DEFAULT,       MIN,              MAX               );
 // ********************************************************************************************************************************
-   ReadPara->Add( "BonStar_RSeed",        &BonStar_RSeed,         123,           0,                NoMax_int         );
-   ReadPara->Add( "BonStar_MaxR",         &BonStar_MaxR,          220.0,         Eps_double,       NoMax_double      );
-   ReadPara->Add( "BonStar_Rzero",        &BonStar_Rzero,         1.0e5,         Eps_double,       NoMax_double      );
-   ReadPara->Add( "BonStar_ProfNBin",     &BonStar_ProfNBin,      10000,         2,                NoMax_int         );
+   ReadPara->Add( "BonStar_RSeed",           &BonStar_RSeed,         123,           0,                NoMax_int         );
+   ReadPara->Add( "BonStar_MaxR",            &BonStar_MaxR,          220.0,         Eps_double,       NoMax_double      );
+   ReadPara->Add( "BonStar_Rzero",           &BonStar_Rzero,         1.0e5,         Eps_double,       NoMax_double      );
+   ReadPara->Add( "BonStar_ProfNBin",        &BonStar_ProfNBin,      10000,         2,                NoMax_int         );
+   ReadPara->Add( "BonStar_OutputWaveFunc",  &BonStar_OutputWaveFunc,false,         Useless_bool,     Useless_bool      );
+
 
    ReadPara->Read( FileName );
 
@@ -149,6 +153,7 @@ void SetParameter()
       Aux_Message( stdout, "  random seed for setting particle position = %d\n",     BonStar_RSeed );
       Aux_Message( stdout, "  maximum radius of particles               = %13.7e\n", BonStar_MaxR );
       Aux_Message( stdout, "  number of radial bins in the mass profile = %d\n",     BonStar_ProfNBin );
+      Aux_Message( stdout, "  output wave function                      = %d\n",     BonStar_OutputWaveFunc );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
