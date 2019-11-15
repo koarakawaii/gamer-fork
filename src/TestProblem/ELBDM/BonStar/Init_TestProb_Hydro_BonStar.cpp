@@ -197,6 +197,78 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    fluid[DENS] = 0.0;
 
 } // FUNCTION : SetGridIC
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Output_OrbitPar
+// Description :  Output the orbiting particle
+//
+// Note        :  1. Identify the orbiting particle by its mass (i.e., BonStar_OrbitParM)
+//                2. Output filename is "OrbitParticle"
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void Output_OrbitPar()
+{
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s (DumpID = %d) ...\n", __FUNCTION__, DumpID );
+
+
+   char *FileName = "OrbitParticle";
+
+
+// header
+   static bool FirstTime = true;
+
+   if ( MPI_Rank == 0  &&  FirstTime )
+   {
+      if ( Aux_CheckFileExist(FileName) )
+         Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", FileName );
+
+      else
+      {
+         FILE *File = fopen( FileName, "w" );
+         fprintf( File, "#%19s  %13s", "Time", "Step" );
+         for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21s", ParAttLabel[v] );
+         fclose( File );
+      }
+
+      FirstTime = false;
+   }
+
+
+// data
+   for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
+   {
+      if ( MPI_Rank == TargetMPIRank )
+      {
+         FILE *File = fopen( FileName, "a" );
+
+         for (long p=0; p<amr->Par->NPar_AcPlusInac; p++)
+         {
+//          identify the orbiting particle
+            if (  Mis_CompareRealValue( amr->Par->Mass[p], (real)BonStar_OrbitParM, NULL, false )  )
+            {
+               fprintf( File, "%20.14e  %13ld", Time[0], Step );
+               for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->Attribute[v][p] );
+               fprintf( File, "\n" );
+            }
+         }
+
+         fclose( File );
+      } // if ( MPI_Rank == TargetMPIRank )
+
+      MPI_Barrier( MPI_COMM_WORLD );
+   } // for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
+
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s (DumpID = %d) ... done\n", __FUNCTION__, DumpID );
+
+
+} // FUNCTION : Output_OrbitPar
 #endif // #if ( MODEL == ELBDM )
 
 
@@ -232,7 +304,7 @@ void Init_TestProb_ELBDM_BonStar()
    Mis_GetTimeStep_User_Ptr = NULL;
    BC_User_Ptr              = SetGridIC;
    Flu_ResetByUser_Func_Ptr = NULL;
-   Output_User_Ptr          = NULL;
+   Output_User_Ptr          = Output_OrbitPar;
    Aux_Record_User_Ptr      = NULL;
    End_User_Ptr             = NULL;
 #  ifdef GRAVITY
