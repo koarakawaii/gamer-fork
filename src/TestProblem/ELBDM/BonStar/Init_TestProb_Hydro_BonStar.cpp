@@ -10,7 +10,8 @@ double BonStar_MaxR;             // maximum radius for particles
 double BonStar_Rzero;            // radius at which the dark matter velocity dispersion is zero
 int    BonStar_ProfNBin;         // number of radial bins in the mass profile table
 bool   BonStar_OutputWaveFunc;   // whether or not to output wave function in the HDF5 files
-
+double BonStar_OrbitParM;        // mass of the orbiting particle (<0.0 --> disable)
+double BonStar_OrbitParR;        // orbital radius of the orbiting particle
 // =======================================================================================
 
 // problem-specific function prototypes
@@ -116,6 +117,8 @@ void SetParameter()
    ReadPara->Add( "BonStar_Rzero",           &BonStar_Rzero,         1.0e5,         Eps_double,       NoMax_double      );
    ReadPara->Add( "BonStar_ProfNBin",        &BonStar_ProfNBin,      10000,         2,                NoMax_int         );
    ReadPara->Add( "BonStar_OutputWaveFunc",  &BonStar_OutputWaveFunc,false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "BonStar_OrbitParM",       &BonStar_OrbitParM,    -1.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "BonStar_OrbitParR",       &BonStar_OrbitParR,     2.0e2,         NoMin_double,     NoMax_double      );
 
 
    ReadPara->Read( FileName );
@@ -154,6 +157,8 @@ void SetParameter()
       Aux_Message( stdout, "  maximum radius of particles               = %13.7e\n", BonStar_MaxR );
       Aux_Message( stdout, "  number of radial bins in the mass profile = %d\n",     BonStar_ProfNBin );
       Aux_Message( stdout, "  output wave function                      = %d\n",     BonStar_OutputWaveFunc );
+      Aux_Message( stdout, "  orbiting particle mass                    = %14.7e\n", BonStar_OrbitParM );
+      Aux_Message( stdout, "  orbiting particle radius                  = %14.7e\n", BonStar_OrbitParR );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 

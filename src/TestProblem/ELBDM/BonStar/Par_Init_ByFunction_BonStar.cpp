@@ -13,13 +13,15 @@ extern int    BonStar_RSeed;
 extern double BonStar_MaxR;
 extern double BonStar_Rzero;
 extern int    BonStar_ProfNBin;
+extern double BonStar_OrbitParM;
+extern double BonStar_OrbitParR;
 
 static RandomNumber_t *RNG = NULL;
 
 
 static double DensProf( const double r );
 static double MassProf( const double r );
-static void GetSigmaProf( const int NBin, const double *r, double *Sigma );
+static void   GetSigmaProf( const int NBin, const double *r, double *Sigma );
 static void   RanVec_FixRadius( const double r, double RanVec[] );
 static double GSL_IntFunc_SigmaProf( double r, void *IntPara );
 
@@ -202,6 +204,30 @@ void Par_Init_ByFunction_BonStar( const long NPar_ThisRank, const long NPar_AllR
       Aux_Message( stdout, "   Total enclosed mass within MaxR  = %13.7e\n",  TotM );
       Aux_Message( stdout, "   Particle mass                    = %13.7e\n",  ParM );
       Aux_Message( stdout, "   Maximum mass interpolation error = %13.7e\n",  ErrM_Max );
+
+
+//    reset the 0th particle by the input orbital parameter
+      if ( BonStar_OrbitParM >= 0.0 )
+      {
+         if ( NPar_AllRank <= 0 )   Aux_Error( ERROR_INFO, "NPar_AllRank = %d <= 0 !!\n", NPar_AllRank );
+
+         const int    OrbitParID = 0;
+         const double OrbitParV  = SQRT( NEWTON_G*MassProf(BonStar_OrbitParR)/BonStar_OrbitParR );
+
+         Mass_AllRank  [OrbitParID] = BonStar_OrbitParM;
+         Pos_AllRank[0][OrbitParID] = amr->BoxCenter[0] + BonStar_OrbitParR;
+         Pos_AllRank[1][OrbitParID] = amr->BoxCenter[1];
+         Pos_AllRank[2][OrbitParID] = amr->BoxCenter[2];
+         Vel_AllRank[0][OrbitParID] = 0.0;
+         Vel_AllRank[1][OrbitParID] = OrbitParV;
+         Vel_AllRank[2][OrbitParID] = 0.0;
+
+         Aux_Message( stdout, "   Orbital Info:\n" );
+         Aux_Message( stdout, "   Radius        = %13.7e\n", BonStar_OrbitParR );
+         Aux_Message( stdout, "   Enclosed mass = %13.7e\n", MassProf(BonStar_OrbitParR) );
+         Aux_Message( stdout, "   Velocity      = %13.7e\n", OrbitParV );
+         Aux_Message( stdout, "   Period        = %13.7e\n", 2.0*M_PI*BonStar_OrbitParR/OrbitParV );
+      }
 
 
 //    free memory
