@@ -33,14 +33,14 @@ COMPILE_VERBOSE := 0
 # physical model: HYDRO/MHD/ELBDM/PAR_ONLY (ELBDM: wave dark matter; PAR_ONLY: particle-only)
 # --> must be set in any cases; PAR_ONLY is not supported yet;
 #     MHD and ELBDM are not publicly available yet but will be released soon
-SIMU_OPTION += -DMODEL=HYDRO
+SIMU_OPTION += -DMODEL=ELBDM
 
 # enable gravity
-#SIMU_OPTION += -DGRAVITY
+SIMU_OPTION += -DGRAVITY
 
 # enable particles
 # --> must enable GRAVITY
-#SIMU_OPTION += -DPARTICLE
+SIMU_OPTION += -DPARTICLE
 
 # support Grackle, a chemistry and radiative cooling library
 # --> must set NCOMP_PASSIVE_USER according to the primordial chemistry network set by GRACKLE_PRIMORDIAL
@@ -83,10 +83,10 @@ else ifeq "$(filter -DMODEL=MHD, $(SIMU_OPTION))" "-DMODEL=MHD"
 # ------------------------------------------------------------------------------------
 else ifeq "$(filter -DMODEL=ELBDM, $(SIMU_OPTION))" "-DMODEL=ELBDM"
 # enforce the mass conservation
-SIMU_OPTION += -DCONSERVE_MASS
+#SIMU_OPTION += -DCONSERVE_MASS
 
 # 4-th order Laplacian
-SIMU_OPTION += -DLAPLACIAN_4TH
+#SIMU_OPTION += -DLAPLACIAN_4TH
 
 # include the quartic self-interaction potential
 # --> must turn on GRAVITY; does not support COMOVING
@@ -113,7 +113,7 @@ SIMU_OPTION += -DSTORE_POT_GHOST
 
 # use unsplitting method to couple gravity to the target model (recommended)
 # --> for HYDRO and MHD only; ELBDM is not supported yet
-SIMU_OPTION += -DUNSPLIT_GRAVITY
+#SIMU_OPTION += -DUNSPLIT_GRAVITY
 
 # comoving frame for cosmological simulations
 # --> not supported for PARTICLE
@@ -149,10 +149,10 @@ SIMU_OPTION += -DMAX_PATCH=1000000
 
 # GPU acceleration
 # --> must set GPU_ARCH as well
-#SIMU_OPTION += -DGPU
+SIMU_OPTION += -DGPU
 
 # GPU architecture: FERMI/KEPLER/MAXWELL/PASCAL/VOLTA
-SIMU_OPTION += -DGPU_ARCH=KEPLER
+SIMU_OPTION += -DGPU_ARCH=FERMI
 
 # debug mode
 #SIMU_OPTION += -DGAMER_DEBUG
@@ -172,11 +172,11 @@ SIMU_OPTION += -DTIMING
 
 # serial mode (in which no MPI libraries are required)
 # --> must disable LOAD_BALANCE
-SIMU_OPTION += -DSERIAL
+#SIMU_OPTION += -DSERIAL
 
 # load-balance parallelization: HILBERT
 # --> must disable SERIAL
-#SIMU_OPTION += -DLOAD_BALANCE=HILBERT
+SIMU_OPTION += -DLOAD_BALANCE=HILBERT
 
 # overlap MPI communication with computation
 # --> NOT supported yet; must enable LOAD_BALANCE
@@ -189,10 +189,10 @@ SIMU_OPTION += -DOPENMP
 #SIMU_OPTION += -DLAOHU
 
 # support HDF5 format
-#SIMU_OPTION += -DSUPPORT_HDF5
+SIMU_OPTION += -DSUPPORT_HDF5
 
 # support GNU scientific library
-#SIMU_OPTION += -DSUPPORT_GSL
+SIMU_OPTION += -DSUPPORT_GSL
 
 # support yt inline analysis
 #SIMU_OPTION += -DSUPPORT_LIBYT
@@ -211,52 +211,52 @@ SIMU_OPTION += -DRANDOM_NUMBER=RNG_GNU_EXT
 
 # intel
 # -------------------------------------------------------------------------------
-# CXX         = icpc                                      # serial compiler
-##CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
-##CXX         = CC                                        # cray wrapper script
-# CXXFLAG     = -g -O3                                    # general flags
-##CXXFLAG     = -g -O3 -std=c++11 #-gxx-name=YOUR_G++
-##CXXFLAG     = -g -fast
-# CXXFLAG    += -w1                                       # warning flags
-# OPENMPFLAG  = -fopenmp                                  # openmp flag
-# LIB         = -limf                                     # libraries and linker flags
-#
-## for debug only
-#ifeq "$(filter -DGAMER_DEBUG, $(SIMU_OPTION))" "-DGAMER_DEBUG"
-##CXXFLAG    += -fstack-protector-all
-##LIB        += -lssp
-#endif
-#
-## suppress warning when OpenMP is disabled
-#ifeq "$(filter -DOPENMP, $(SIMU_OPTION))" ""
-# CXXFLAG    += -Wno-unknown-pragmas -diag-disable 3180
-#endif
-
-
-# gnu
-# -------------------------------------------------------------------------------
- CXX         = g++                                       # serial compiler
-#CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
+#CXX         = icpc                                      # serial compiler
+ CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 #CXX         = CC                                        # cray wrapper script
  CXXFLAG     = -g -O3                                    # general flags
-#CXXFLAG     = -g -O3 -std=c++11
-#CXXFLAG     = -g -Ofast
- CXXFLAG    += -Wall -Wextra                             # warning flags
- CXXFLAG    += -Wno-unused-variable -Wno-unused-parameter \
-               -Wno-maybe-uninitialized -Wno-unused-but-set-variable \
-               -Wno-unused-result -Wno-unused-function
+#CXXFLAG     = -g -O3 -std=c++11 #-gxx-name=YOUR_G++
+#CXXFLAG     = -g -fast
+ CXXFLAG    += -w1                                       # warning flags
  OPENMPFLAG  = -fopenmp                                  # openmp flag
- LIB         =                                           # libraries and linker flags
+ LIB         = -limf                                     # libraries and linker flags
 
 # for debug only
 ifeq "$(filter -DGAMER_DEBUG, $(SIMU_OPTION))" "-DGAMER_DEBUG"
 #CXXFLAG    += -fstack-protector-all
+#LIB        += -lssp
 endif
 
 # suppress warning when OpenMP is disabled
 ifeq "$(filter -DOPENMP, $(SIMU_OPTION))" ""
- CXXFLAG    += -Wno-unknown-pragmas
+ CXXFLAG    += -Wno-unknown-pragmas -diag-disable 3180
 endif
+
+
+# gnu
+# -------------------------------------------------------------------------------
+# CXX         = g++                                       # serial compiler
+##CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
+##CXX         = CC                                        # cray wrapper script
+# CXXFLAG     = -g -O3                                    # general flags
+##CXXFLAG     = -g -O3 -std=c++11
+##CXXFLAG     = -g -Ofast
+# CXXFLAG    += -Wall -Wextra                             # warning flags
+# CXXFLAG    += -Wno-unused-variable -Wno-unused-parameter \
+#               -Wno-maybe-uninitialized -Wno-unused-but-set-variable \
+#               -Wno-unused-result -Wno-unused-function
+# OPENMPFLAG  = -fopenmp                                  # openmp flag
+# LIB         =                                           # libraries and linker flags
+#
+## for debug only
+#ifeq "$(filter -DGAMER_DEBUG, $(SIMU_OPTION))" "-DGAMER_DEBUG"
+##CXXFLAG    += -fstack-protector-all
+#endif
+#
+## suppress warning when OpenMP is disabled
+#ifeq "$(filter -DOPENMP, $(SIMU_OPTION))" ""
+# CXXFLAG    += -Wno-unknown-pragmas
+#endif
 
 
 # CUDA
@@ -323,15 +323,15 @@ LIBYT_PATH   :=
 #LIBYT_PATH   := /home/hyschive/project/libyt/libyt.dev/libyt
 
 # NTU-hulk (openmpi-intel-qlc)
-#CUDA_PATH    := /opt/gpu/cuda/4.2
+CUDA_PATH    := /opt/gpu/cuda/4.2
 #FFTW_PATH    := /opt/math/fftw/2.1.5-intel-openmpi-1.4.3-qlc
 #MPI_PATH     := /usr/mpi/intel/openmpi-1.4.3-qlc
-#HDF5_PATH    := /opt/hdf5/1.8.20
+HDF5_PATH    := /opt/hdf5/1.8.20
 #GRACKLE_PATH := /work1/fish/Software/grackle
-#GSL_PATH     := /opt/math/gsl/2.5
+GSL_PATH     := /opt/math/gsl/2.5
 #LIBYT_PATH   := /project/fish/libyt/libyt
-#FFTW_PATH    := /opt/math/fftw/2.1.5-intel-openmpi-1.6.0-qlc
-#MPI_PATH     := /opt/mpi/openmpi/1.6.0-intel-qlc
+FFTW_PATH    := /opt/math/fftw/2.1.5-intel-openmpi-1.6.0-qlc
+MPI_PATH     := /opt/mpi/openmpi/1.6.0-intel-qlc
 #FFTW_PATH    := /opt/math/fftw/2.1.5-intel-openmpi-2.1.5-qlc
 #MPI_PATH     := /opt/mpi/openmpi/2.1.5-intel-qlc
 #CUDA_PATH    := /usr/local/cuda-7.5
