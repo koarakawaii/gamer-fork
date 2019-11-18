@@ -233,6 +233,7 @@ void Output_OrbitPar()
          FILE *File = fopen( FileName, "w" );
          fprintf( File, "#%19s  %13s", "Time", "Step" );
          for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21s", ParAttLabel[v] );
+         fprintf( File, "\n" );
          fclose( File );
       }
 
