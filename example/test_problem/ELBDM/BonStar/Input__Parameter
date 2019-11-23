@@ -14,13 +14,13 @@
 
 
 # simulation scale
-BOX_SIZE                      1024.0      # box size along the longest side (in Mpc/h if COMOVING is adopted)
+BOX_SIZE                      128.0       # box size along the longest side (in Mpc/h if COMOVING is adopted)
 NX0_TOT_X                     128         # number of base-level cells along x
 NX0_TOT_Y                     128         # number of base-level cells along y
 NX0_TOT_Z                     128         # number of base-level cells along z
 OMP_NTHREAD                   1           # number of OpenMP threads (<=0=auto -> omp_get_max_threads) [-1] ##OPENMP ONLY##
-END_T                         1.5e3       # end physical time (<0=auto -> must be set by test problems or restart) [-1.0]
-END_STEP                      999999      # end step (<0=auto -> must be set by test problems or restart) [-1]
+END_T                         2.0e2       # end physical time (<0=auto -> must be set by test problems or restart) [-1.0]
+END_STEP                      99999999    # end step (<0=auto -> must be set by test problems or restart) [-1]
 
 
 # test problems
@@ -33,13 +33,13 @@ OPT__UNIT                     0           # specify code units -> must set exact
 
 
 # boundary conditions
-OPT__BC_FLU_XM                4           # fluid boundary condition at the -x face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
-OPT__BC_FLU_XP                4           # fluid boundary condition at the +x face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
-OPT__BC_FLU_YM                4           # fluid boundary condition at the -y face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
-OPT__BC_FLU_YP                4           # fluid boundary condition at the +y face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
-OPT__BC_FLU_ZM                4           # fluid boundary condition at the -z face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
-OPT__BC_FLU_ZP                4           # fluid boundary condition at the +z face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
-OPT__BC_POT                   2           # gravity boundary condition: (1=periodic, 2=isolated)
+OPT__BC_FLU_XM                1           # fluid boundary condition at the -x face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
+OPT__BC_FLU_XP                1           # fluid boundary condition at the +x face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
+OPT__BC_FLU_YM                1           # fluid boundary condition at the -y face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
+OPT__BC_FLU_YP                1           # fluid boundary condition at the +y face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
+OPT__BC_FLU_ZM                1           # fluid boundary condition at the -z face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
+OPT__BC_FLU_ZP                1           # fluid boundary condition at the +z face: (1=periodic, 2=outflow, 3=reflecting, 4=user)
+OPT__BC_POT                   1           # gravity boundary condition: (1=periodic, 2=isolated)
 GFUNC_COEFF0                 -1.0         # Green's function coefficient at the origin for the isolated BC (<0=auto) [-1.0]
 
 
@@ -165,7 +165,7 @@ OPT__OUTPUT_PAR_DENS          1           # output the particle or total mass de
                                           # (0=off, 1=particle mass density, 2=total mass density) [1] ##OPT__OUTPUT_TOTAL ONLY##
 OPT__OUTPUT_MODE              2           # (1=const step, 2=const dt, 3=dump table) -> edit "Input__DumpTable" for 3
 OUTPUT_STEP                   5           # output data every OUTPUT_STEP step ##OPT__OUTPUT_MODE==1 ONLY##
-OUTPUT_DT                     1.0e2       # output data every OUTPUT_DT time interval ##OPT__OUTPUT_MODE==2 ONLY##
+OUTPUT_DT                     2.0e0       # output data every OUTPUT_DT time interval ##OPT__OUTPUT_MODE==2 ONLY##
 OUTPUT_PART_X                -1.0         # x coordinate for OPT__OUTPUT_PART [-1.0]
 OUTPUT_PART_Y                -1.0         # y coordinate for OPT__OUTPUT_PART [-1.0]
 OUTPUT_PART_Z                -1.0         # z coordinate for OPT__OUTPUT_PART [-1.0]

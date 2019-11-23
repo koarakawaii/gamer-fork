@@ -27,7 +27,7 @@ static double GSL_IntFunc_SigmaProf( double r, void *IntPara );
 
 
 // density profile parameters
-#define ANAL_FORM 2
+#define ANAL_FORM 3
 
 // analytical form 1
 #if ( ANAL_FORM == 1 )
@@ -44,6 +44,11 @@ const double rho0   = 2.0e-4;
 const double r_core = 2.5e2;
 const double pow1   = 2.0;
 const double pow2   = 4.0;
+
+#elif ( ANAL_FORM == 3 )
+const double rho0   = 2.0e-6;
+const double sigma0 = 4.0e-1;
+const double v0     = 1.0e0;
 
 #else
 #  error: ERROR : unsupported ANAL_FORM !!
@@ -156,7 +161,9 @@ void Par_Init_ByFunction_BonStar( const long NPar_ThisRank, const long NPar_AllR
          Prof_M[b] = MassProf( Prof_R[b] );
       }
 
+#     if ( ANAL_FORM != 3 )
       GetSigmaProf( BonStar_ProfNBin, Prof_R, Prof_S );
+#     endif
 
 
 //    set particle attributes
@@ -180,21 +187,28 @@ void Par_Init_ByFunction_BonStar( const long NPar_ThisRank, const long NPar_AllR
          RanVec_FixRadius( RanR, RanVec );
          for (int d=0; d<3; d++)    Pos_AllRank[d][p] = RanVec[d] + amr->BoxCenter[d];
 
-//       check periodicity
+//       remove particles outside the simulation domain
          for (int d=0; d<3; d++)
          {
-            if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+            if ( Pos_AllRank[d][p] < (real)0.0  ||  Pos_AllRank[d][p] >= amr->BoxSize[d] )
+            {
+               Mass_AllRank[p] = -1.0;
+               break;
+            }
          }
 
 
 //       (3) velocity
 //       interpolate velocity dispersion at the particle position
+#        if ( ANAL_FORM == 3 )
+         Sigma = sigma0;
+#        else
          Sigma = Mis_InterpolateFromTable( BonStar_ProfNBin, Prof_R, Prof_S, RanR );
 
 //       RanR must already lie within the interpolation table since it is returned from the table of mass profile
          if ( Sigma == NULL_REAL )
             Aux_Error( ERROR_INFO, "cannot determine velocity dispersion (target radius = %20.14e) !!\n", RanR );
+#        endif
 
 //       assume velocity distribution is isotropic and Gaussian with a standard deviation of Sigma
          for (int d=0; d<3; d++)    Vel_AllRank[d][p] = gsl_ran_gaussian( GSL_RNG, Sigma );
@@ -212,15 +226,25 @@ void Par_Init_ByFunction_BonStar( const long NPar_ThisRank, const long NPar_AllR
          if ( NPar_AllRank <= 0 )   Aux_Error( ERROR_INFO, "NPar_AllRank = %d <= 0 !!\n", NPar_AllRank );
 
          const int    OrbitParID = 0;
+#        if ( ANAL_FORM == 3 )
+         const double OrbitParV  = v0;
+#        else
          const double OrbitParV  = SQRT( NEWTON_G*MassProf(BonStar_OrbitParR)/BonStar_OrbitParR );
+#        endif
 
          Mass_AllRank  [OrbitParID] = BonStar_OrbitParM;
          Pos_AllRank[0][OrbitParID] = amr->BoxCenter[0] + BonStar_OrbitParR;
          Pos_AllRank[1][OrbitParID] = amr->BoxCenter[1];
          Pos_AllRank[2][OrbitParID] = amr->BoxCenter[2];
+#        if ( ANAL_FORM == 3 )
+         Vel_AllRank[0][OrbitParID] = OrbitParV;
+         Vel_AllRank[1][OrbitParID] = 0.0;
+         Vel_AllRank[2][OrbitParID] = 0.0;
+#        else
          Vel_AllRank[0][OrbitParID] = 0.0;
          Vel_AllRank[1][OrbitParID] = OrbitParV;
          Vel_AllRank[2][OrbitParID] = 0.0;
+#        endif
 
          Aux_Message( stdout, "   Orbital Info:\n" );
          Aux_Message( stdout, "   Radius        = %13.7e\n", BonStar_OrbitParR );
@@ -366,6 +390,9 @@ double MassProf( const double r )
    M = rho0*4.0*M_PI*(  CUBE(r_core)*atan(r/r_core)/16.0 +
                      ( 3.0*POW4(r_core)*POW5(r) + 8.0*POW6(r_core)*CUBE(r) - 3.0*POW8(r_core)*r ) /
                      ( 48.0*POW6(r) + 144.0*SQR(r_core)*POW4(r) + 144.0*POW4(r_core)*SQR(r) + 48.0*POW6(r_core) )  );
+
+#  elif ( ANAL_FORM == 3 )
+   M = rho0*4.0/3.0*M_PI*CUBE(r);
 #  endif
 
    return M;
@@ -396,6 +423,9 @@ double DensProf( const double r )
 
 #  elif ( ANAL_FORM == 2 )
    rho = rho0/pow( 1.0 + pow(r/r_core,pow1), pow2 );
+
+#  elif ( ANAL_FORM == 3 )
+   rho = rho0;
 #  endif
 
    return rho;

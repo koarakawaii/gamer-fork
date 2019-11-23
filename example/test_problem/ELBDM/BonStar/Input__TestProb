@@ -1,8 +1,8 @@
 # problem-specific runtime parameters
 BonStar_RSeed           123      # random seed for setting particle position and velocity (>=0) [123]
-BonStar_MaxR            440.0    # maximum radius for particles [220.0]
+BonStar_MaxR            1.2e2    # maximum radius for particles [220.0]
 BonStar_Rzero           1.0e5    # radius at which the velocity dispersion is zero [1e5]
 BonStar_MassProfNBin    10000    # number of radial bins in the mass profile table [10000]
 BonStar_OutputWaveFunc  0        # output wave function in the HDF5 dump [0]
-BonStar_OrbitParM       1.0      # mass of the orbiting particle (<0.0 --> disable) [-1.0]
-BonStar_OrbitParR       2.0e2    # orbital radius of the orbiting particle [2.0e2]
+BonStar_OrbitParM       1.0e1    # mass of the orbiting particle (<0.0 --> disable) [-1.0]
+BonStar_OrbitParR       0.0      # orbital radius of the orbiting particle [2.0e2]
