@@ -1,11 +1,29 @@
 # problem-specific runtime parameters
-Soliton_CoreRadius          1.0e0                              # soliton core radius (in code unit)
-Soliton_InputMode           1                                  # soliton input mode (1/2 -> table/approximate analytical form) [1]
-Soliton_OuterSlope         -8.0                                # soliton outer slope (only used by Soliton_InputMode=2) [-8.0]
-Soliton_DensProf_Filename   SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
-Star_RSeed                  123                                # random seed for setting particle position and velocity (>=0) [123]
-Star_SigmaMode              1                                  # velocity dispersion assignment (0/1 -> self-bound/soliton) [0]
-Star_Rho0                   1.1e8                              # peak density
-Star_R0                     1.3e-2                             # scale radius
-Star_MaxR                   1.0e-1                             # maximum radius for particles
-Star_MassProfNBin           1000                               # number of radial bins in the mass profile table [1000]
+FixDM                             0                                  # do not evolve psidm at all [0]
+Soliton_CoreRadius                6.5e-1                             # soliton core radius (in code unit)
+Soliton_InputMode                 2                                  # soliton input mode (1/2 -> table/approximate analytical form) [1]
+Soliton_OuterSlope               -8.5                                # soliton outer slope (only used by Soliton_InputMode=2) [-8.0]
+Soliton_DensProf_Filename         SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
+Soliton_CM_MaxR            	  1.2e-3                             # maximum radius for determining the center of mass [-1.0]
+Soliton_CM_TolErrR         	 -1.0                                # maximum allowed errors when checking the center of mass convergence (<0=auto -> 1*dh_min) [-1.0]
+Star_RSeed                        123                                # random seed for setting particle position and velocity (>=0) [123]
+Star_SigmaMode                    0                                  # velocity dispersion assignment (0/1 -> self-bound/soliton) [0]
+Star_Rho0                         5.8e6                              # peak density
+Star_R0                           1.5e-5                             # scale radius
+Star_MaxR                         3.5e-5                             # maximum radius for particles
+#Star_CenterX                      9.2333633e-02                      # central coordinate x/y/z [box center]
+#Star_CenterY                      8.9157312e-02                      #
+#Star_CenterZ                      9.1019408e-02                      #
+Star_MassProfNBin                 1000                               # number of radial bins in the mass profile table [1000]
+Star_AddParForRestart             1                                  # add particles after restart [0]
+Star_AddParForRestart_NPar        200000                             # number of particles for Star_AddParForRestart
+Star_AddParForRestart_PeakRho    -1.0                                # Peak density for Star_AddParForRestart and Star_SigmaMode=1
+Tidal_Mass                        1.0e12                             # point mass (Msun)
+Tidal_R                           1.0e2                              # point mass distance (kpc)
+Tidal_Angle0                      0.0                                # initial angle of the point mass [0.0]
+Tidal_FixedPos                    0                                  # fix the point mass position (for testing the tidal force implementation only) [0]
+Tidal_Centrifugal                 0                                  # add the centrifugal pseudo force
+Tidal_CutoffR                     5.0e1                              # Cut-off radius (kpc)
+Sponge_Enabled                    0                                  # true/false: sponge/truncation BC
+Sponge_Width                      5.0e0                              # sponge width (in kpc) [10.0]
+Sponge_Amp                        5.0e0                              # sponge amplitude (in Gyr^-1) [1.0]
