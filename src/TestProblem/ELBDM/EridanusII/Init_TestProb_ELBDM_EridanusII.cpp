@@ -190,7 +190,7 @@ void SetParameter()
 // (1-3) check the runtime parameters
    if ( FixDM  &&  OPT__FIXUP_FLUX )   Aux_Error( ERROR_INFO, "must disable OPT__FIXUP_FLUX for FixDM !!\n" );
 
-   if ( !OPT__RECORD_USER )   Aux_Error( ERROR_INFO, "must enable OPT__RECORD_USER !!\n" );
+   if ( !OPT__RECORD_USER  &&  OPT__EXTERNAL_POT )    Aux_Error( ERROR_INFO, "must enable OPT__RECORD_USER for OPT__EXTERNAL_POT !!\n" );
 
 
 // (2) set the problem-specific derived parameters
