@@ -166,7 +166,7 @@ void SetParameter()
    ReadPara->Add( "Tidal_R",                   &Tidal_R,                   -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_Angle0",              &Tidal_Angle0,               0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Tidal_FixedPos",            &Tidal_FixedPos,             false,         Useless_bool,     Useless_bool      );
-   ReadPara->Add( "Tidal_Centrifugal",         &Tidal_Centrifugal,          true,          Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Tidal_Centrifugal",         &Tidal_Centrifugal,          false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_CutoffR",             &Tidal_CutoffR,              __DBL_MAX__,   0.0,              NoMax_double      );
 
    ReadPara->Add( "Sponge_Enabled",            &Sponge_Enabled,             false,         Useless_bool,     Useless_bool      );

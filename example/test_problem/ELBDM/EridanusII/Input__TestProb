@@ -22,7 +22,7 @@ Tidal_Mass                        1.0e12                             # point mas
 Tidal_R                           1.0e2                              # point mass distance (kpc)
 Tidal_Angle0                      0.0                                # initial angle of the point mass [0.0]
 Tidal_FixedPos                    0                                  # fix the point mass position (for testing the tidal force implementation only) [0]
-Tidal_Centrifugal                 0                                  # add the centrifugal pseudo force
+Tidal_Centrifugal                 0                                  # add the centrifugal pseudo force (THIS IS WRONG AND SHOULD NEVER TO USED) [0]
 Tidal_CutoffR                     5.0e1                              # Cut-off radius (kpc)
 Sponge_Enabled                    0                                  # true/false: sponge/truncation BC
 Sponge_Width                      5.0e0                              # sponge width (in kpc) [10.0]
