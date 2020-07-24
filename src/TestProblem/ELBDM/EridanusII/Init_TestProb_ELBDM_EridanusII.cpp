@@ -20,7 +20,7 @@ static double   Soliton_ScaleD     = NULL;
 static double   Soliton_CM_MaxR;                         // maximum radius for determining CM
 static double   Soliton_CM_TolErrR;                      // maximum allowed errors for determining CM
 
-
+static bool     Tidal_RotatingFrame;                     // true/false --> rotating/inertial frame
 static double   Tidal_Mass;                              // point mass
 static double   Tidal_R;                                 // point mass distance
 static double   Tidal_Angle0;                            // initial angle of the point mass
@@ -66,6 +66,12 @@ void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_A
                                      real *AllAttribute[PAR_NATT_TOTAL] );
 void Init_User_EridanusII();
 #endif
+
+// external potential routines
+void SetCPUExtPot_EridanusII( ExtPot_t &CPUExtPot_Ptr );
+# ifdef GPU
+void SetGPUExtPot_EridanusII( ExtPot_t &GPUExtPot_Ptr );
+# endif
 
 
 
@@ -162,6 +168,7 @@ void SetParameter()
    ReadPara->Add( "Star_AddParForRestart",     &Star_AddParForRestart,      false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar,-1L,            NoMin_long,       NoMax_long        );
    ReadPara->Add( "Star_AddParForRestart_PeakRho", &Star_AddParForRestart_PeakRho, -1.0,   NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Tidal_RotatingFrame",       &Tidal_RotatingFrame,        true,          Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_Mass",                &Tidal_Mass,                -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_R",                   &Tidal_R,                   -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_Angle0",              &Tidal_Angle0,               0.0,           NoMin_double,     NoMax_double      );
@@ -285,17 +292,18 @@ void SetParameter()
       Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );
       Aux_Message( stdout, "     number of particles to be added        = %ld\n",    Star_AddParForRestart_NPar );
       Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
-      Aux_Message( stdout, "  Tidal_Mass        = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
-      Aux_Message( stdout, "  Tidal_R           = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
-      Aux_Message( stdout, "  Tidal_Angle0      = %13.7e\n",        Tidal_Angle0                   );
-      Aux_Message( stdout, "  Tidal_FixedPos    = %d\n",            Tidal_FixedPos                 );
-      Aux_Message( stdout, "  Tidal_Centrifugal = %d\n",            Tidal_Centrifugal              );
-      Aux_Message( stdout, "  Tidal_CutoffR     = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
-      Aux_Message( stdout, "  Tidal_Vrot        = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   );
-      Aux_Message( stdout, "  Sponge_Enabled    = %d\n",            Sponge_Enabled                 );
+      Aux_Message( stdout, "  Tidal_RotatingFrame = %d\n",            Tidal_RotatingFrame            );
+      Aux_Message( stdout, "  Tidal_Mass          = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
+      Aux_Message( stdout, "  Tidal_R             = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
+      Aux_Message( stdout, "  Tidal_Angle0        = %13.7e\n",        Tidal_Angle0                   );
+      Aux_Message( stdout, "  Tidal_FixedPos      = %d\n",            Tidal_FixedPos                 );
+      Aux_Message( stdout, "  Tidal_Centrifugal   = %d\n",            Tidal_Centrifugal              );
+      Aux_Message( stdout, "  Tidal_CutoffR       = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
+      Aux_Message( stdout, "  Tidal_Vrot          = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   );
+      Aux_Message( stdout, "  Sponge_Enabled      = %d\n",            Sponge_Enabled                 );
       if ( Sponge_Enabled ) {
-      Aux_Message( stdout, "  Sponge_Width      = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
-      Aux_Message( stdout, "  Sponge_Amp        = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
+      Aux_Message( stdout, "  Sponge_Width        = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
+      Aux_Message( stdout, "  Sponge_Amp          = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -769,29 +777,52 @@ void Record_EridanusII()
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Init_ExtPot_EridanusII
-// Description :  Set the array "ExtPot_AuxArray" used by the external potential routines
-//                "CUPOT_ExternalPot.cu / CPU_ExternalPot.cpp"
+// Function    :  Init_ExtPotAuxArray_EridanusII
+// Description :  Set the auxiliary array ExtPot_AuxArray[] used by ExtPot_EridanusII()
 //
-// Note        :  1. Linked to the function pointer "Init_ExternalPot_Ptr"
-//                2. Enabled by the runtime option "OPT__EXTERNAL_POT"
+// Note        :  1. To adopt this routine, link to the function pointer "Init_ExtPotAuxArray_Ptr"
+//                   in a test problem initializer as follows:
 //
-// Parameter   :  None
+//                      void Init_ExtPotAuxArray_EridanusII( double AuxArray[] );
+//
+//                      ...
+//
+//                      Init_ExtPotAuxArray_Ptr = Init_ExtPotAuxArray_EridanusII;
+//
+//                   --> Then it will be invoked by Init_ExtAccPot()
+//                2. AuxArray[] has the size of EXT_POT_NAUX_MAX defined in Macro.h (default = 10)
+//
+// Parameter   :  AuxArray : Array to be filled up
+//
+// Return      :  AuxArray[]
 //-------------------------------------------------------------------------------------------------------
-void Init_ExtPot_EridanusII( double AuxArray[] )
+void Init_ExtPotAuxArray_EridanusII( double AuxArray[] )
 {
 
-   AuxArray[0] = Tidal_CM[0];
-   AuxArray[1] = Tidal_CM[1];
-   AuxArray[2] = Tidal_CM[2];
+// ExtPot_AuxArray has the size of EXT_POT_NAUX_MAX (default = 10)
+   if ( Tidal_RotatingFrame )
+   {
+      AuxArray[0] = Tidal_CM[0];
+      AuxArray[1] = Tidal_CM[1];
+      AuxArray[2] = Tidal_CM[2];
+   }
+
+   else
+   {
+      AuxArray[0] = amr->BoxCenter[0];
+      AuxArray[1] = amr->BoxCenter[1];
+      AuxArray[2] = amr->BoxCenter[2];
+   }
+
    AuxArray[3] = NEWTON_G*Tidal_Mass;
    AuxArray[4] = Tidal_R;
    AuxArray[5] = Tidal_Vrot;
    AuxArray[6] = ( Tidal_FixedPos ) ? +1.0 : -1.0;
    AuxArray[7] = ( Tidal_Centrifugal ) ? +1.0 : -1.0;
    AuxArray[8] = Tidal_Angle0;
+   AuxArray[9] = ( Tidal_RotatingFrame ) ? +1.0 : -1.0;
 
-} // FUNCTION : Init_ExtPot_EridanusII
+} // FUNCTION : Init_ExtPotAuxArray_EridanusII
 
 
 
@@ -894,15 +925,10 @@ void Init_TestProb_ELBDM_EridanusII()
    Aux_Record_User_Ptr      = Record_EridanusII;
    End_User_Ptr             = End_EridanusII;
 #  ifdef GRAVITY
-   Init_ExtAccAuxArray_Ptr  = NULL;
-   SetCPUExtAcc_Ptr         = NULL;
+   Init_ExtPotAuxArray_Ptr  = Init_ExtPotAuxArray_EridanusII;
+   SetCPUExtPot_Ptr         = SetCPUExtPot_EridanusII;
 #  ifdef GPU
-   SetGPUExtAcc_Ptr         = NULL;
-#  endif
-   Init_ExtPotAuxArray_Ptr  = Init_ExtPot_EridanusII;
-   SetCPUExtPot_Ptr         = NULL;
-#  ifdef GPU
-   SetGPUExtPot_Ptr         = NULL;
+   SetGPUExtPot_Ptr         = SetGPUExtPot_EridanusII;
 #  endif
 #  endif // #ifdef GRAVITY
 #  ifdef PARTICLE
