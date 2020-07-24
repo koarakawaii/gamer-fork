@@ -51,7 +51,7 @@ void Init_User_EridanusII()
    {
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "Setting initial central coordinates ... " );
       Aux_Record_User_Ptr();
-      Init_ExternalAccPot();
+      Init_ExtAccPot();
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
    }
 
@@ -266,9 +266,9 @@ void Init_User_EridanusII()
 
 #     ifdef LOAD_BALANCE
 //    no need to exchange potential since we haven't calculated it yet
-      Buf_GetBufferData( lv,   amr->FluSg[lv  ], NULL_INT, DATA_AFTER_REFINE, _TOTAL, Flu_ParaBuf, USELB_YES );
+      Buf_GetBufferData( lv,   amr->FluSg[lv  ], NULL_INT, NULL_INT, DATA_AFTER_REFINE, _TOTAL, _NONE, Flu_ParaBuf, USELB_YES );
 
-      Buf_GetBufferData( lv+1, amr->FluSg[lv+1], NULL_INT, DATA_AFTER_REFINE, _TOTAL, Flu_ParaBuf, USELB_YES );
+      Buf_GetBufferData( lv+1, amr->FluSg[lv+1], NULL_INT, NULL_INT, DATA_AFTER_REFINE, _TOTAL, _NONE, Flu_ParaBuf, USELB_YES );
 
       LB_Init_LoadBalance( Redistribute_Yes, Par_Weight, ResetLB_Yes, lv+1 );
 #     endif

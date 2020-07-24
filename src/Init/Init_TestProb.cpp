@@ -16,6 +16,10 @@ void Init_TestProb_Hydro_Riemann();
 void Init_TestProb_Hydro_CollidingJets();
 void Init_TestProb_Hydro_Plummer();
 void Init_TestProb_Hydro_Gravity();
+void Init_TestProb_Hydro_MHD_ABC();
+void Init_TestProb_Hydro_MHD_OrszagTangVortex();
+void Init_TestProb_Hydro_MHD_LinearWave();
+void Init_TestProb_Hydro_JeansInstability();
 
 void Init_TestProb_ELBDM_ExtPot();
 void Init_TestProb_ELBDM_JeansInstabilityComoving();
@@ -24,6 +28,9 @@ void Init_TestProb_ELBDM_Soliton();
 void Init_TestProb_ELBDM_SelfSimilarHalo();
 void Init_TestProb_ELBDM_VortexPairRotating();
 void Init_TestProb_ELBDM_VortexPairLinear();
+void Init_TestProb_ELBDM_IsolatedHalo();
+void Init_TestProb_ELBDM_GaussianWavePacket();
+void Init_TestProb_ELBDM_LSS();
 void Init_TestProb_ELBDM_EridanusII();
 
 
@@ -62,6 +69,10 @@ void Init_TestProb()
       case TESTPROB_HYDRO_COLLIDING_JETS :               Init_TestProb_Hydro_CollidingJets();               break;
       case TESTPROB_HYDRO_PLUMMER :                      Init_TestProb_Hydro_Plummer();                     break;
       case TESTPROB_HYDRO_GRAVITY :                      Init_TestProb_Hydro_Gravity();                     break;
+      case TESTPROB_HYDRO_MHD_ABC :                      Init_TestProb_Hydro_MHD_ABC();                     break;
+      case TESTPROB_HYDRO_MHD_ORSZAG_TANG_VORTEX :       Init_TestProb_Hydro_MHD_OrszagTangVortex();        break;
+      case TESTPROB_HYDRO_MHD_LINEAR_WAVE :              Init_TestProb_Hydro_MHD_LinearWave();              break;
+      case TESTPROB_HYDRO_JEANS_INSTABILITY :            Init_TestProb_Hydro_JeansInstability();            break;
 
       case TESTPROB_ELBDM_EXTPOT :                       Init_TestProb_ELBDM_ExtPot();                      break;
       case TESTPROB_ELBDM_JEANS_INSTABILITY_COMOVING :   Init_TestProb_ELBDM_JeansInstabilityComoving();    break;
@@ -70,6 +81,9 @@ void Init_TestProb()
       case TESTPROB_ELBDM_SELF_SIMILAR_HALO :            Init_TestProb_ELBDM_SelfSimilarHalo();             break;
       case TESTPROB_ELBDM_VORTEX_PAIR_ROTATING :         Init_TestProb_ELBDM_VortexPairRotating();          break;
       case TESTPROB_ELBDM_VORTEX_PAIR_LINEAR :           Init_TestProb_ELBDM_VortexPairLinear();            break;
+      case TESTPROB_ELBDM_ISOLATED_HALO :                Init_TestProb_ELBDM_IsolatedHalo();                break;
+      case TESTPROB_ELBDM_GAUSSIAN_WAVE_PACKET :         Init_TestProb_ELBDM_GaussianWavePacket();          break;
+      case TESTPROB_ELBDM_LSS :                          Init_TestProb_ELBDM_LSS();                         break;
       case TESTPROB_ELBDM_ERIDANUSII :                   Init_TestProb_ELBDM_EridanusII();                  break;
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );

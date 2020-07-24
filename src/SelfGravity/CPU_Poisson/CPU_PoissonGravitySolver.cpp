@@ -4,11 +4,6 @@
 
 
 
-#include "CUPOT.h"
-extern double ExtPot_AuxArray[EXT_POT_NAUX_MAX];
-extern double ExtAcc_AuxArray[EXT_ACC_NAUX_MAX];
-
-
 // Poisson solver prototypes
 #if   ( POT_SCHEME == SOR )
 void CPU_PoissonSolver_SOR( const real Rho_Array    [][RHO_NXT][RHO_NXT][RHO_NXT],
@@ -36,13 +31,12 @@ void CPU_HydroGravitySolver(
    const real   g_Pot_Array_USG[][ CUBE(USG_NXT_G) ],
    const real   g_Flu_Array_USG[][GRA_NIN-1][ CUBE(PS1) ],
          char   g_DE_Array     [][ CUBE(PS1) ],
+   const real   g_EngyB_Array  [][ CUBE(PS1) ],
    const int NPatchGroup,
    const real dt, const real dh, const bool P5_Gradient,
-   const OptGravityType_t GravityType, const double c_ExtAcc_AuxArray[],
+   const OptGravityType_t GravityType, ExtAcc_t ExtAcc_Func,
+   const double c_ExtAcc_AuxArray[],
    const double TimeNew, const double TimeOld, const real MinEint );
-
-#elif ( MODEL == MHD )
-#warning : WAIT MHD !!!
 
 #elif ( MODEL == ELBDM )
 void CPU_ELBDMGravitySolver  (       real   g_Flu_Array[][GRA_NIN][ CUBE(PS1) ],
@@ -50,7 +44,7 @@ void CPU_ELBDMGravitySolver  (       real   g_Flu_Array[][GRA_NIN][ CUBE(PS1) ],
                                const double g_Corner_Array[][3],
                                const int NPatchGroup,
                                const real EtaDt, const real dh, const real Lambda,
-                               const bool ExtPot, const double Time,
+                               const bool ExtPot, ExtPot_t ExtPot_Func, const double Time,
                                const double c_ExtPot_AuxArray[] );
 
 #else
@@ -73,6 +67,7 @@ void CPU_ELBDMGravitySolver  (       real   g_Flu_Array[][GRA_NIN][ CUBE(PS1) ],
 //                h_Pot_Array_USG      : Host array storing the prepared potential for UNSPLIT_GRAVITY
 //                h_Flu_Array_USG      : Host array storing the prepared density + momentum for UNSPLIT_GRAVITY
 //                h_DE_Array           : Host array storing the dual-energy status (for both input and output)
+//                h_EngyB_Array        : Host array storing the cell-centered magnetic energy (MHD only)
 //                NPatchGroup          : Number of patch groups evaluated simultaneously by GPU
 //                dt                   : Time interval to advance solution
 //                dh                   : Cell size
@@ -112,6 +107,7 @@ void CPU_PoissonGravitySolver( const real h_Rho_Array    [][RHO_NXT][RHO_NXT][RH
                                const real h_Pot_Array_USG[][USG_NXT_G][USG_NXT_G][USG_NXT_G],
                                const real h_Flu_Array_USG[][GRA_NIN-1][PS1][PS1][PS1],
                                      char h_DE_Array     [][PS1][PS1][PS1],
+                               const real h_EngyB_Array  [][PS1][PS1][PS1],
                                const int NPatchGroup, const real dt, const real dh, const int SOR_Min_Iter,
                                const int SOR_Max_Iter, const real SOR_Omega, const int MG_Max_Iter,
                                const int MG_NPre_Smooth, const int MG_NPost_Smooth, const real MG_Tolerated_Error,
@@ -123,25 +119,30 @@ void CPU_PoissonGravitySolver( const real h_Rho_Array    [][RHO_NXT][RHO_NXT][RH
 
 // check
 #  ifdef GAMER_DEBUG
-   if ( Poisson  &&  ( IntScheme != INT_CQUAD  &&  IntScheme != INT_QUAD )  )
-   Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "IntScheme", IntScheme );
+   if (  Poisson  &&  ( IntScheme != INT_CQUAD && IntScheme != INT_QUAD )  )
+      Aux_Error( ERROR_INFO, "incorrect parameter %s = %d !!\n", "IntScheme", IntScheme );
 
    if ( GraAcc )
    {
       if (  ( GravityType == GRAVITY_EXTERNAL || GravityType == GRAVITY_BOTH || ExtPot )  &&  h_Corner_Array == NULL  )
-      Aux_Error( ERROR_INFO, "h_Corner_Array == NULL !!\n" );
+         Aux_Error( ERROR_INFO, "h_Corner_Array == NULL !!\n" );
 
 #     ifdef UNSPLIT_GRAVITY
       if (  ( GravityType == GRAVITY_SELF || GravityType == GRAVITY_BOTH )  &&  h_Pot_Array_USG == NULL  )
-      Aux_Error( ERROR_INFO, "h_Pot_Array_USG == NULL !!\n" );
+         Aux_Error( ERROR_INFO, "h_Pot_Array_USG == NULL !!\n" );
 
       if ( h_Flu_Array_USG == NULL )
-      Aux_Error( ERROR_INFO, "h_Flu_Array_USG == NULL !!\n" );
+         Aux_Error( ERROR_INFO, "h_Flu_Array_USG == NULL !!\n" );
 #     endif
 
 #     ifdef DUAL_ENERGY
       if ( h_DE_Array == NULL )
-      Aux_Error( ERROR_INFO, "h_DE_Array == NULL !!\n" );
+         Aux_Error( ERROR_INFO, "h_DE_Array == NULL !!\n" );
+#     endif
+
+#     ifdef MHD
+      if ( h_EngyB_Array == NULL )
+         Aux_Error( ERROR_INFO, "h_EngyB_Array == NULL !!\n" );
 #     endif
    }
 #  endif // #ifdef GAMER_DEBUG
@@ -180,18 +181,16 @@ void CPU_PoissonGravitySolver( const real h_Rho_Array    [][RHO_NXT][RHO_NXT][RH
                               (real(*)[ CUBE(USG_NXT_G) ])      h_Pot_Array_USG,
                               (real(*)[GRA_NIN-1][ CUBE(PS1) ]) h_Flu_Array_USG,
                               (char(*)[ CUBE(PS1) ])            h_DE_Array,
-                              NPatchGroup, dt, dh, P5_Gradient, GravityType,
+                              (real(*)[ CUBE(PS1) ])            h_EngyB_Array,
+                              NPatchGroup, dt, dh, P5_Gradient, GravityType, CPUExtAcc_Ptr,
                               ExtAcc_AuxArray, TimeNew, TimeOld, MinEint );
-
-#     elif ( MODEL == MHD )
-#     error : WAIT MHD !!!
 
 #     elif ( MODEL == ELBDM )
       CPU_ELBDMGravitySolver( (real(*)[GRA_NIN][ CUBE(PS1) ]) h_Flu_Array,
                               (real(*)[ CUBE(GRA_NXT) ])      h_Pot_Array_Out,
                                                               h_Corner_Array,
                               NPatchGroup, ELBDM_Eta*dt, dh, ELBDM_Lambda,
-                              ExtPot, TimeNew, ExtPot_AuxArray );
+                              ExtPot, CPUExtPot_Ptr, TimeNew, ExtPot_AuxArray );
 
 #     else
 #     error : ERROR : unsupported MODEL !!

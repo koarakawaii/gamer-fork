@@ -488,8 +488,8 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
 
       for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
 
-      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS,
-                         OPT__RHO_INT_SCHEME, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
+      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS, _NONE,
+                         OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
                          MinDens_No, MinPres_No, DE_Consistency_No );
 
       delete [] PID0List;
@@ -769,7 +769,7 @@ void Record_EridanusII()
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Init_ExtPot
+// Function    :  Init_ExtPot_EridanusII
 // Description :  Set the array "ExtPot_AuxArray" used by the external potential routines
 //                "CUPOT_ExternalPot.cu / CPU_ExternalPot.cpp"
 //
@@ -778,21 +778,20 @@ void Record_EridanusII()
 //
 // Parameter   :  None
 //-------------------------------------------------------------------------------------------------------
-void Init_ExtPot()
+void Init_ExtPot_EridanusII( double AuxArray[] )
 {
 
-// ExtPot_AuxArray has the size of EXT_POT_NAUX_MAX (default = 10)
-   ExtPot_AuxArray[0] = Tidal_CM[0];
-   ExtPot_AuxArray[1] = Tidal_CM[1];
-   ExtPot_AuxArray[2] = Tidal_CM[2];
-   ExtPot_AuxArray[3] = NEWTON_G*Tidal_Mass;
-   ExtPot_AuxArray[4] = Tidal_R;
-   ExtPot_AuxArray[5] = Tidal_Vrot;
-   ExtPot_AuxArray[6] = ( Tidal_FixedPos ) ? +1.0 : -1.0;
-   ExtPot_AuxArray[7] = ( Tidal_Centrifugal ) ? +1.0 : -1.0;
-   ExtPot_AuxArray[8] = Tidal_Angle0;
+   AuxArray[0] = Tidal_CM[0];
+   AuxArray[1] = Tidal_CM[1];
+   AuxArray[2] = Tidal_CM[2];
+   AuxArray[3] = NEWTON_G*Tidal_Mass;
+   AuxArray[4] = Tidal_R;
+   AuxArray[5] = Tidal_Vrot;
+   AuxArray[6] = ( Tidal_FixedPos ) ? +1.0 : -1.0;
+   AuxArray[7] = ( Tidal_Centrifugal ) ? +1.0 : -1.0;
+   AuxArray[8] = Tidal_Angle0;
 
-} // FUNCTION : Init_ExtPot
+} // FUNCTION : Init_ExtPot_EridanusII
 
 
 
@@ -894,8 +893,18 @@ void Init_TestProb_ELBDM_EridanusII()
    Output_User_Ptr          = NULL;
    Aux_Record_User_Ptr      = Record_EridanusII;
    End_User_Ptr             = End_EridanusII;
-   Init_ExternalAcc_Ptr     = NULL;
-   Init_ExternalPot_Ptr     = Init_ExtPot;
+#  ifdef GRAVITY
+   Init_ExtAccAuxArray_Ptr  = NULL;
+   SetCPUExtAcc_Ptr         = NULL;
+#  ifdef GPU
+   SetGPUExtAcc_Ptr         = NULL;
+#  endif
+   Init_ExtPotAuxArray_Ptr  = Init_ExtPot_EridanusII;
+   SetCPUExtPot_Ptr         = NULL;
+#  ifdef GPU
+   SetGPUExtPot_Ptr         = NULL;
+#  endif
+#  endif // #ifdef GRAVITY
 #  ifdef PARTICLE
    Par_Init_ByFunction_Ptr  = Par_Init_ByFunction_EridanusII;
 #  endif
