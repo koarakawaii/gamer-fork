@@ -7,7 +7,7 @@
 // =======================================================================================
        bool     FixDM;                                   // true --> do not evolve psidm at all
        double   Soliton_CoreRadius;                      // soliton core radius
-static int      Soliton_InputMode;                       // soliton input mode: 1/2 -> table/approximate analytical form
+static int      Soliton_InputMode;                       // soliton input mode: 1/2/3 -> table/approximate analytical form/none
 static double   Soliton_OuterSlope;                      // soliton outer slope (only used by Soliton_InputMode=2)
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the reference soliton density profile
 
@@ -155,7 +155,7 @@ void SetParameter()
 // ********************************************************************************************************************************
    ReadPara->Add( "FixDM",                     &FixDM,                      false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Soliton_CoreRadius",        &Soliton_CoreRadius,        -1.0,           Eps_double,       NoMax_double      );
-   ReadPara->Add( "Soliton_InputMode",         &Soliton_InputMode,          1,             1,                2                 );
+   ReadPara->Add( "Soliton_InputMode",         &Soliton_InputMode,          1,             1,                3                 );
    ReadPara->Add( "Soliton_OuterSlope",        &Soliton_OuterSlope,        -8.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  Useless_str,   Useless_str,      Useless_str       );
    ReadPara->Add( "Soliton_CM_MaxR",           &Soliton_CM_MaxR,           -1.0,           Eps_double,       NoMax_double      );
@@ -405,6 +405,9 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
       fluid[DENS] = peak_rho*pow( 1.0+9.06e-2*SQR(r_tar/rc_kpc), Soliton_OuterSlope );
    }
 
+   else if ( Soliton_InputMode == 3 )
+      fluid[DENS] = 0.0;
+
    else
       Aux_Error( ERROR_INFO, "Unsupported Soliton_InputMode (%d) !!\n", Soliton_InputMode );
 
@@ -632,40 +635,90 @@ void Record_EridanusII()
    double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
    double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
 
+   const bool   IntPhase_No       = false;
+   const real   MinDens_No        = -1.0;
+   const real   MinPres_No        = -1.0;
+   const bool   DE_Consistency_No = false;
+#  ifdef PARTICLE
+   const bool   TimingSendPar_No  = false;
+   const bool   PredictParPos_No  = false;
+   const bool   JustCountNPar_No  = false;
+#  ifdef LOAD_BALANCE
+   const bool   SibBufPatch       = true;
+   const bool   FaSibBufPatch     = true;
+#  else
+   const bool   SibBufPatch       = NULL_BOOL;
+   const bool   FaSibBufPatch     = NULL_BOOL;
+#  endif
+#  endif // #ifdef PARTICLE
+
 
 // collect local data
    for (int lv=0; lv<NLEVEL; lv++)
-   for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
    {
-//    skip non-leaf patches
-      if ( amr->patch[0][lv][PID]->son != -1 )  continue;
+//    initialize the particle density array (rho_ext) and collect particles to the target level
+#     ifdef PARTICLE
+      Prepare_PatchData_InitParticleDensityArray( lv );
 
-      for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*amr->dh[lv];
-      for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*amr->dh[lv];
-      for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*amr->dh[lv];
+      Par_CollectParticle2OneLevel( lv, PredictParPos_No, NULL_REAL, SibBufPatch, FaSibBufPatch, JustCountNPar_No,
+                                    TimingSendPar_No );
+#     endif
 
-         dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-         pote = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
+//    get the total density on grids
+      real (*TotalDens)[PS1][PS1][PS1] = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
+      int   *PID0List                  = new int  [ amr->NPatchComma[lv][1]/8 ];
 
-         if ( dens > max_dens_loc )
-         {
-            max_dens_loc        = dens;
-            real_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
-            imag_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
-            max_dens_pos_loc[0] = x;
-            max_dens_pos_loc[1] = y;
-            max_dens_pos_loc[2] = z;
-         }
+      for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
 
-         if ( pote < min_pote_loc )
-         {
-            min_pote_loc        = pote;
-            min_pote_pos_loc[0] = x;
-            min_pote_pos_loc[1] = y;
-            min_pote_pos_loc[2] = z;
-         }
-      }}}
-   }
+      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS, _NONE,
+                         OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
+                         MinDens_No, MinPres_No, DE_Consistency_No );
+
+      delete [] PID0List;
+
+
+//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext)
+#     ifdef PARTICLE
+      Par_CollectParticle2OneLevel_FreeMemory( lv, SibBufPatch, FaSibBufPatch );
+
+      Prepare_PatchData_FreeParticleDensityArray( lv );
+#     endif
+
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      {
+//       skip non-leaf patches
+         if ( amr->patch[0][lv][PID]->son != -1 )  continue;
+
+         for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*amr->dh[lv];
+         for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*amr->dh[lv];
+         for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*amr->dh[lv];
+
+//          dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+            dens = TotalDens[PID][k][j][i];
+            pote = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
+
+            if ( dens > max_dens_loc )
+            {
+               max_dens_loc        = dens;
+               real_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
+               imag_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+               max_dens_pos_loc[0] = x;
+               max_dens_pos_loc[1] = y;
+               max_dens_pos_loc[2] = z;
+            }
+
+            if ( pote < min_pote_loc )
+            {
+               min_pote_loc        = pote;
+               min_pote_pos_loc[0] = x;
+               min_pote_pos_loc[1] = y;
+               min_pote_pos_loc[2] = z;
+            }
+         }}}
+      } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+
+      delete [] TotalDens;
+   } // for (int lv=0; lv<NLEVEL; lv++)
 
 
 // gather data to the root rank
