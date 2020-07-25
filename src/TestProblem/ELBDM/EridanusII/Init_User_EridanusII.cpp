@@ -23,6 +23,10 @@ extern bool   Star_AddParForRestart;
 extern long   Star_AddParForRestart_NPar;
 extern double Star_AddParForRestart_PeakRho;
 
+extern bool   ParFileCM_Enabled;
+extern double ParFileCM_Dis[3];
+extern double ParFileCM_Vel[3];
+
 static RandomNumber_t *RNG = NULL;
 
 
@@ -38,7 +42,9 @@ extern void (*Aux_Record_User_Ptr)();
 // Function    :  Init_User_EridanusII
 // Description :  User-specified initialization
 //
-// Note        :  1. Add particles after restart
+// Note        :  1. Shift the CM of particles loaded from PAR_IC
+//                2. Add particles after restart
+//                3. Set the central coordinates of tidal field
 //
 // Parameter   :  None
 //
@@ -47,21 +53,33 @@ extern void (*Aux_Record_User_Ptr)();
 void Init_User_EridanusII()
 {
 
-   if ( OPT__RECORD_USER  &&  Aux_Record_User_Ptr != NULL )
-   {
-      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Setting initial central coordinates ... " );
-      Aux_Record_User_Ptr();
-      Init_ExtAccPot();
-      if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
-   }
-
-
-   if ( amr->Par->Init != PAR_INIT_BY_RESTART  ||  !OPT__RESTART_RESET  ||  !Star_AddParForRestart )
-      return;
-
-
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
 
+
+// 1. shift the CM of particles loaded from PAR_IC
+   if ( ParFileCM_Enabled  &&  amr->Par->Init == PAR_INIT_BY_FILE )
+   {
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Shifting particle CM ...\n" );
+
+      for (long p=0; p<amr->Par->NPar_Active; p++)
+      {
+        amr->Par->Attribute[PAR_POSX][p] += ParFileCM_Dis[0];
+        amr->Par->Attribute[PAR_POSY][p] += ParFileCM_Dis[1];
+        amr->Par->Attribute[PAR_POSZ][p] += ParFileCM_Dis[2];
+        amr->Par->Attribute[PAR_VELX][p] += ParFileCM_Vel[0];
+        amr->Par->Attribute[PAR_VELY][p] += ParFileCM_Vel[1];
+        amr->Par->Attribute[PAR_VELZ][p] += ParFileCM_Vel[2];
+      }
+
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Shifting particle CM ... done\n" );
+   } // if ( ParFileCM_Enabled  &&  amr->Par->Init == PAR_INIT_BY_FILE )
+
+
+
+// 2. add particles after restart
+   else if ( amr->Par->Init == PAR_INIT_BY_RESTART  &&  OPT__RESTART_RESET  &&  Star_AddParForRestart )
+   {
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Adding particles after restart ...\n" );
 
 // check
    if ( Star_AddParForRestart_NPar < 0 )
@@ -275,6 +293,20 @@ void Init_User_EridanusII()
 
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
    } // for (int lv=0; lv<MAX_LEVEL; lv++)
+
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Adding particles after restart ... done\n" );
+   } // if ( amr->Par->Init == PAR_INIT_BY_RESTART  &&  OPT__RESTART_RESET  &&  Star_AddParForRestart )
+
+
+
+// 3. set the central coordinates of tidal field
+   if ( OPT__RECORD_USER  &&  Aux_Record_User_Ptr != NULL )
+   {
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "Setting initial central coordinates ... " );
+      Aux_Record_User_Ptr();
+      Init_ExtAccPot();
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
+   }
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
