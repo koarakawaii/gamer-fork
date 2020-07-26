@@ -4,7 +4,7 @@ Soliton_CoreRadius                6.5e-1                             # soliton c
 Soliton_InputMode                 2                                  # soliton input mode (1/2/3 -> table/approximate analytical form/none) [1]
 Soliton_OuterSlope               -8.5                                # soliton outer slope (only used by Soliton_InputMode=2) [-8.0]
 Soliton_DensProf_Filename         SolitonDensityProfile_Lambda0.0    # filename of the input soliton density profile
-Soliton_CM_MaxR            	  1.2e-3                             # maximum radius for determining the center of mass [-1.0]
+Soliton_CM_MaxR            	  1.2e-3                             # maximum radius for determining the center of mass
 Soliton_CM_TolErrR         	 -1.0                                # maximum allowed errors when checking the center of mass convergence (<0=auto -> 1*dh_min) [-1.0]
 Star_RSeed                        123                                # random seed for setting particle position and velocity (>=0) [123]
 Star_SigmaMode                    0                                  # velocity dispersion assignment (0/1 -> self-bound/soliton) [0]
