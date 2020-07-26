@@ -641,7 +641,7 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
 // Note        :  1. It will also record the real and imaginary parts associated with the maximum density
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
-//                3. Output filenames are fixed to "Record__MaxDens" and "Record__Center"
+//                3. Output filename is fixed to "Record__Center"
 //
 // Parameter   :  None
 //
@@ -650,7 +650,6 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
 void Record_EridanusII()
 {
 
-   const char filename_max_dens[] = "Record__MaxDens";
    const char filename_center  [] = "Record__Center";
    const int  CountMPI            = 10;
 
@@ -792,22 +791,13 @@ void Record_EridanusII()
 
       if ( FirstTime )
       {
-         if ( Aux_CheckFileExist(filename_max_dens) )
-            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_max_dens );
-         else
-         {
-            FILE *file_max_dens = fopen( filename_max_dens, "w" );
-            fprintf( file_max_dens, "#%19s   %10s   %14s   %14s   %14s\n", "Time", "Step", "Dens", "Real", "Imag" );
-            fclose( file_max_dens );
-         }
-
          if ( Aux_CheckFileExist(filename_center) )
             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
          else
          {
             FILE *file_center = fopen( filename_center, "w" );
-            fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
-                     "Time", "Step", "Dens", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+            fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
                      "NIter", "CM_x", "CM_y", "CM_z" );
             fclose( file_center );
          }
@@ -815,15 +805,11 @@ void Record_EridanusII()
          FirstTime = false;
       }
 
-      FILE *file_max_dens = fopen( filename_max_dens, "a" );
-      fprintf( file_max_dens, "%20.14e   %10ld   %14.7e   %14.7e   %14.7e\n",
-               Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2] );
-      fclose( file_max_dens );
-
       FILE *file_center = fopen( filename_center, "a" );
-      fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
-               Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][3], recv[max_dens_rank][4], recv[max_dens_rank][5],
-                              recv[min_pote_rank][6], recv[min_pote_rank][7], recv[min_pote_rank][8], recv[min_pote_rank][9] );
+      fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
+               Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2], recv[max_dens_rank][3],
+                              recv[max_dens_rank][4], recv[max_dens_rank][5], recv[min_pote_rank][6], recv[min_pote_rank][7],
+                              recv[min_pote_rank][8], recv[min_pote_rank][9] );
       fclose( file_center );
    } // if ( MPI_Rank == 0 )
 
