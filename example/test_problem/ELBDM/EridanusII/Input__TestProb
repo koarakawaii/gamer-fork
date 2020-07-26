@@ -18,7 +18,8 @@ Star_MassProfNBin                 1000                               # number of
 Star_AddParForRestart             1                                  # add particles after restart [0]
 Star_AddParForRestart_NPar        200000                             # number of particles for Star_AddParForRestart
 Star_AddParForRestart_PeakRho    -1.0                                # Peak density for Star_AddParForRestart and Star_SigmaMode=1
-Tidal_RotatingFrame               0                                  # 0/1: inertial/rotating frame [1]
+Tidal_Enabled                     0                                  # enable tidal field [0]
+Tidal_RotatingFrame               1                                  # 0/1: inertial/rotating frame [1]
 Tidal_Mass                        1.0e12                             # point mass (Msun)
 Tidal_R                           1.0e2                              # point mass distance (kpc)
 Tidal_Angle0                      0.0                                # initial angle of the point mass [0.0]
