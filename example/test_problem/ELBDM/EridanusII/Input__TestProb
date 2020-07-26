@@ -36,3 +36,4 @@ ParFileCM_DisZ                    0.0                                #
 ParFileCM_VelX                    0.0                                # particle CM velocity shift x/y/z (in km/s) [0.0]
 ParFileCM_VelY                    0.0                                #
 ParFileCM_VelZ                    0.0                                #
+DensRecMode                       3                                  # peak density recording mode (1/2/3 -> ELBDM/particle/total density) [3]

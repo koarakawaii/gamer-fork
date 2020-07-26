@@ -38,7 +38,6 @@ static double   Sponge_Amp;                              // sponge amplitude
 
        double   Sponge_dt = 0.0;                         // evolution time-step
 // =======================================================================================
-// =======================================================================================
 
 
 // particle-specific global variables
@@ -61,6 +60,8 @@ static double Star_FreeT;           // free-fall time at Star_R0
        bool   ParFileCM_Enabled;    // shift the CM of particles loaded from PAR_IC
        double ParFileCM_Dis[3];     // CM displacement/velocity for ParFileCM_Enabled
        double ParFileCM_Vel[3];
+
+       int    DensRecMode;          // different modes for recording the peak density (1/2/3: ELBDM/particle/total density)
 // =======================================================================================
 
 // problem-specific function prototypes
@@ -194,6 +195,8 @@ void SetParameter()
    ReadPara->Add( "ParFileCM_VelY",            &ParFileCM_Vel[1],           0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "ParFileCM_VelZ",            &ParFileCM_Vel[2],           0.0,           NoMin_double,     NoMax_double      );
 
+   ReadPara->Add( "DensRecMode",               &DensRecMode,                3,             1,                3                 );
+
    ReadPara->Read( FileName );
 
    delete ReadPara;
@@ -217,6 +220,10 @@ void SetParameter()
    if ( FixDM  &&  OPT__FIXUP_FLUX )   Aux_Error( ERROR_INFO, "must disable OPT__FIXUP_FLUX for FixDM !!\n" );
 
    if ( !OPT__RECORD_USER  &&  OPT__EXTERNAL_POT )    Aux_Error( ERROR_INFO, "must enable OPT__RECORD_USER for OPT__EXTERNAL_POT !!\n" );
+
+#  ifndef PARTICLE
+   if ( DensRecMode == 2 )    Aux_Error( ERROR_INFO, "DensRecMode == 2 must work with PARTICLE !!\n" );
+#  endif
 
 
 // (2) set the problem-specific derived parameters
@@ -351,6 +358,8 @@ void SetParameter()
       Aux_Message( stdout, "  Particle CM velocity x     = %14.7e km/s\n", ParFileCM_Vel[0]*(UNIT_L/UNIT_T)/(Const_km/Const_s) );
       Aux_Message( stdout, "  Particle CM velocity y     = %14.7e km/s\n", ParFileCM_Vel[1]*(UNIT_L/UNIT_T)/(Const_km/Const_s) );
       Aux_Message( stdout, "  Particle CM velocity z     = %14.7e km/s\n", ParFileCM_Vel[2]*(UNIT_L/UNIT_T)/(Const_km/Const_s) ); }
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  Density recording mode = %d\n", DensRecMode );
       Aux_Message( stdout, "======================================================================================\n" );
    }
 
@@ -657,6 +666,11 @@ void Record_EridanusII()
    double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
    double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
 
+   const long   DensMode          = ( DensRecMode == 1 ) ? _DENS :
+#                                   ifdef PARTICLE
+                                    ( DensRecMode == 2 ) ? _PAR_DENS :
+#                                   endif
+                                                           _TOTAL_DENS;
    const bool   IntPhase_No       = false;
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
@@ -692,7 +706,7 @@ void Record_EridanusII()
 
       for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
 
-      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS, _NONE,
+      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
                          MinDens_No, MinPres_No, DE_Consistency_No );
 
