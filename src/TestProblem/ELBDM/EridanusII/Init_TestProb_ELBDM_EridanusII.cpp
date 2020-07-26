@@ -20,6 +20,7 @@ static double   Soliton_ScaleD     = NULL;
 static double   Soliton_CM_MaxR;                         // maximum radius for determining CM
 static double   Soliton_CM_TolErrR;                      // maximum allowed errors for determining CM
 
+       bool     Tidal_Enabled;                           // enable tidal field (as an external potential)
 static bool     Tidal_RotatingFrame;                     // true/false --> rotating/inertial frame
 static double   Tidal_Mass;                              // point mass
 static double   Tidal_R;                                 // point mass distance
@@ -172,6 +173,7 @@ void SetParameter()
    ReadPara->Add( "Star_AddParForRestart",     &Star_AddParForRestart,      false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Star_AddParForRestart_NPar",&Star_AddParForRestart_NPar,-1L,            NoMin_long,       NoMax_long        );
    ReadPara->Add( "Star_AddParForRestart_PeakRho", &Star_AddParForRestart_PeakRho, -1.0,   NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Tidal_Enabled",             &Tidal_Enabled,              false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_RotatingFrame",       &Tidal_RotatingFrame,        true,          Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_Mass",                &Tidal_Mass,                -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "Tidal_R",                   &Tidal_R,                   -1.0,           Eps_double,       NoMax_double      );
@@ -278,6 +280,21 @@ void SetParameter()
       PRINT_WARNING( "END_T", END_T, FORMAT_REAL );
    }
 
+   if ( Tidal_Enabled )
+   {
+      if ( !OPT__EXTERNAL_POT )
+      {
+         OPT__EXTERNAL_POT = true;
+         PRINT_WARNING( "OPT__EXTERNAL_POT", OPT__EXTERNAL_POT, FORMAT_BOOL );
+      }
+
+      if ( !OPT__RECORD_USER )
+      {
+         OPT__RECORD_USER = true;
+         PRINT_WARNING( "OPT__RECORD_USER", OPT__RECORD_USER, FORMAT_BOOL );
+      }
+   }
+
 
 // (5) make a note
    if ( MPI_Rank == 0 )
@@ -309,6 +326,9 @@ void SetParameter()
       Aux_Message( stdout, "  add particles after restart               = %d\n",     Star_AddParForRestart );
       Aux_Message( stdout, "     number of particles to be added        = %ld\n",    Star_AddParForRestart_NPar );
       Aux_Message( stdout, "     peak DM density for estimating sigma   = %14.7e\n", Star_AddParForRestart_PeakRho );
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  Tidal_Enabled       = %d\n",            Tidal_Enabled                  );
+      if ( Tidal_Enabled ) {
       Aux_Message( stdout, "  Tidal_RotatingFrame = %d\n",            Tidal_RotatingFrame            );
       Aux_Message( stdout, "  Tidal_Mass          = %13.7e Msun\n",   Tidal_Mass*UNIT_M/Const_Msun   );
       Aux_Message( stdout, "  Tidal_R             = %13.7e kpc\n",    Tidal_R*UNIT_L/Const_kpc       );
@@ -316,11 +336,14 @@ void SetParameter()
       Aux_Message( stdout, "  Tidal_FixedPos      = %d\n",            Tidal_FixedPos                 );
       Aux_Message( stdout, "  Tidal_Centrifugal   = %d\n",            Tidal_Centrifugal              );
       Aux_Message( stdout, "  Tidal_CutoffR       = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
-      Aux_Message( stdout, "  Tidal_Vrot          = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   );
+      Aux_Message( stdout, "  Tidal_Vrot          = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   ); }
+      Aux_Message( stdout, "\n" );
       Aux_Message( stdout, "  Sponge_Enabled      = %d\n",            Sponge_Enabled                 );
       if ( Sponge_Enabled ) {
       Aux_Message( stdout, "  Sponge_Width        = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
       Aux_Message( stdout, "  Sponge_Amp          = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
+      Aux_Message( stdout, "\n" );
+      Aux_Message( stdout, "  ParFileCM_Enabled   = %d\n",            ParFileCM_Enabled              );
       if ( ParFileCM_Enabled ) {
       Aux_Message( stdout, "  Particle CM displacement x = %14.7e kpc\n",  ParFileCM_Dis[0]*UNIT_L/Const_kpc );
       Aux_Message( stdout, "  Particle CM displacement y = %14.7e kpc\n",  ParFileCM_Dis[1]*UNIT_L/Const_kpc );

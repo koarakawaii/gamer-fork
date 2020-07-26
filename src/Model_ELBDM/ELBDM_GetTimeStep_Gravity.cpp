@@ -9,6 +9,7 @@ extern ExtPot_t CPUExtPot_Ptr;
 static real GetMaxPot( const int lv );
 
 
+extern bool   Tidal_Enabled;
 extern double Tidal_CutoffR;
 extern double Tidal_CM[3];
 
@@ -121,11 +122,14 @@ double dr[3], r2;
 
 
 // skip cells outside the cut-off radius
-dr[0] = x - Tidal_CM[0];
-dr[1] = y - Tidal_CM[1];
-dr[2] = z - Tidal_CM[2];
-r2    = dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2];
-if ( r2 > Tidal_CutoffR2 )    continue;
+if ( Tidal_Enabled )
+{
+   dr[0] = x - Tidal_CM[0];
+   dr[1] = y - Tidal_CM[1];
+   dr[2] = z - Tidal_CM[2];
+   r2    = dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2];
+   if ( r2 > Tidal_CutoffR2 )    continue;
+}
 
 
          PotG   = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
