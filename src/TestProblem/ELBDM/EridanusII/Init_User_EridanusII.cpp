@@ -303,8 +303,15 @@ void Init_User_EridanusII()
    if ( OPT__RECORD_USER  &&  Aux_Record_User_Ptr != NULL )
    {
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "Setting initial central coordinates ... " );
+
       Aux_Record_User_Ptr();
-      Init_ExtAccPot();
+
+      const bool OnlyInitAuxArray_Yes = true;
+      Init_ExtAccPot( OnlyInitAuxArray_Yes );
+#     ifdef GPU
+      CUAPI_SetConstMemory_ExtAccPot();
+#     endif
+
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
    }
 
