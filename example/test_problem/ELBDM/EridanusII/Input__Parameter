@@ -107,7 +107,7 @@ OPT__MEMORY_POOL              0           # preallocate patches for OPT__REUSE_M
 
 # load balance (LOAD_BALANCE only)
 LB_INPUT__WLI_MAX             0.1         # weighted-load-imbalance (WLI) threshold for redistributing all patches [0.1]
-LB_INPUT__PAR_WEIGHT          0.0         # load-balance weighting of one particle over one cell [0.0]
+LB_INPUT__PAR_WEIGHT          2.0         # load-balance weighting of one particle over one cell [0.0]
 OPT__RECORD_LOAD_BALANCE      1           # record the load-balance info [1]
 OPT__MINIMIZE_MPI_BARRIER     1           # minimize MPI barriers to improve load balance, especially with particles [1]
                                           # (STORE_POT_GHOST, PAR_IMPROVE_ACC=1, OPT__TIMING_BARRIER=0 only; recommend AUTO_REDUCE_DT=0)
@@ -117,7 +117,7 @@ OPT__MINIMIZE_MPI_BARRIER     1           # minimize MPI barriers to improve loa
 ELBDM_MASS                    1.0e-22     # particle mass in ev/c^2 (input unit is fixed even when OPT__UNIT or COMOVING is on)
 ELBDM_PLANCK_CONST           -1.0         # reduced Planck constant (will be overwritten if OPT__UNIT or COMOVING is on)
 ELBDM_TAYLOR3_COEFF           0.166666667 # 3rd Taylor expansion coefficient [1.0/6.0] ##USELESS if ELBDM_TAYLOR3_AUTO is on##
-ELBDM_TAYLOR3_AUTO            1           # Optimize ELBDM_TAYLOR3_COEFF automatically to minimize the damping at kmax [1]
+ELBDM_TAYLOR3_AUTO            0           # Optimize ELBDM_TAYLOR3_COEFF automatically to minimize the damping at kmax [1]
 ELBDM_REMOVE_MOTION_CM        0           # remove the motion of center-of-mass (must enable OPT__CK_CONSERVATION):
                                           # (0=off, 1=init, 2=every step) [0]
 
@@ -129,7 +129,7 @@ OPT__FIXUP_FLUX               1           # correct coarse grids by the fine-gri
 OPT__FIXUP_RESTRICT           1           # correct coarse grids by averaging the fine-grid data [1]
 OPT__CORR_AFTER_ALL_SYNC     -1           # apply various corrections after all levels are synchronized (see "Flu_CorrAfterAllSync"):
                                           # (-1=auto, 0=off, 1=every step, 2=before dump) [-1]
-OPT__NORMALIZE_PASSIVE        1           # ensure "sum(passive_scalar_density) == gas_density" [1]
+OPT__NORMALIZE_PASSIVE        0           # ensure "sum(passive_scalar_density) == gas_density" [1]
 OPT__OVERLAP_MPI              0           # overlap MPI communication with CPU/GPU computations [0] ##NOT SUPPORTED YET##
 OPT__RESET_FLUID              0           # reset fluid variables after each update -> edit "Flu_ResetByUser.cpp" [0]
 MIN_DENS                      0.0         # minimum mass density (must >= 0.0) [0.0] ##HYDRO, MHD, and ELBDM ONLY##
@@ -179,7 +179,7 @@ OPT__OUTPUT_USER              0           # output the user-specified data -> ed
 OPT__OUTPUT_PAR_TEXT          0           # output the particle text file [0] ##PARTICLE ONLY##
 OPT__OUTPUT_BASEPS            0           # output the base-level power spectrum [0]
 OPT__OUTPUT_BASE              0           # only output the base-level data [0] ##OPT__OUTPUT_PART ONLY##
-OPT__OUTPUT_POT               0           # output gravitational potential [0] ##OPT__OUTPUT_TOTAL ONLY##
+OPT__OUTPUT_POT               1           # output gravitational potential [0] ##OPT__OUTPUT_TOTAL ONLY##
 OPT__OUTPUT_PAR_DENS          1           # output the particle or total mass density on grids:
                                           # (0=off, 1=particle mass density, 2=total mass density) [1] ##OPT__OUTPUT_TOTAL ONLY##
 OPT__OUTPUT_MODE              2           # (1=const step, 2=const dt, 3=dump table) -> edit "Input__DumpTable" for 3
