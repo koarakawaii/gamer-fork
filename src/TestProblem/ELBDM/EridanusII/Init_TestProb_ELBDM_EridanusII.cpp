@@ -32,7 +32,7 @@ static bool     Tidal_Centrifugal;                       // Add the centrifugal 
 static double   Tidal_Vrot;                              // rotational velocity due to the point mass
        double   Tidal_CM[3] = { __DBL_MAX__, __DBL_MAX__, __DBL_MAX__ }; // Center of mass of the satellite
 
-static bool     Sponge_Enabled;                          // true/false: sponge/truncation BC
+static int      Sponge_Mode;                             // 1/2/3: sponge BC/truncation BC/none
 static double   Sponge_Width;                            // sponge width
 static double   Sponge_Amp;                              // sponge amplitude
 
@@ -183,7 +183,7 @@ void SetParameter()
    ReadPara->Add( "Tidal_Centrifugal",         &Tidal_Centrifugal,          false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "Tidal_CutoffR",             &Tidal_CutoffR,              __DBL_MAX__,   0.0,              NoMax_double      );
 
-   ReadPara->Add( "Sponge_Enabled",            &Sponge_Enabled,             false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Sponge_Mode",               &Sponge_Mode,                3,             1,                3                 );
    ReadPara->Add( "Sponge_Width",              &Sponge_Width,               10.0,          Eps_double,       NoMax_double      );
    ReadPara->Add( "Sponge_Amp",                &Sponge_Amp,                 1.0,           0.0,              NoMax_double      );
 
@@ -218,8 +218,6 @@ void SetParameter()
 
 // (1-3) check the runtime parameters
    if ( FixDM  &&  OPT__FIXUP_FLUX )   Aux_Error( ERROR_INFO, "must disable OPT__FIXUP_FLUX for FixDM !!\n" );
-
-   if ( !OPT__RECORD_USER  &&  OPT__EXTERNAL_POT )    Aux_Error( ERROR_INFO, "must enable OPT__RECORD_USER for OPT__EXTERNAL_POT !!\n" );
 
 #  ifndef PARTICLE
    if ( DensRecMode == 2 )    Aux_Error( ERROR_INFO, "DensRecMode == 2 must work with PARTICLE !!\n" );
@@ -302,6 +300,15 @@ void SetParameter()
       }
    }
 
+   if ( Sponge_Mode != 3 )
+   {
+      if ( !OPT__RESET_FLUID )
+      {
+         OPT__RESET_FLUID = true;
+         PRINT_WARNING( "OPT__RESET_FLUID", OPT__RESET_FLUID, FORMAT_BOOL );
+      }
+   }
+
 
 // (5) make a note
    if ( MPI_Rank == 0 )
@@ -345,8 +352,8 @@ void SetParameter()
       Aux_Message( stdout, "  Tidal_CutoffR       = %13.7e kpc\n",    Tidal_CutoffR*UNIT_L/Const_kpc );
       Aux_Message( stdout, "  Tidal_Vrot          = %13.7e km/s\n",   Tidal_Vrot*UNIT_V/(Const_km)   ); }
       Aux_Message( stdout, "\n" );
-      Aux_Message( stdout, "  Sponge_Enabled      = %d\n",            Sponge_Enabled                 );
-      if ( Sponge_Enabled ) {
+      Aux_Message( stdout, "  Sponge_Mode         = %d\n",            Sponge_Mode                    );
+      if ( Sponge_Mode != 3 ) {
       Aux_Message( stdout, "  Sponge_Width        = %13.7e kpc\n",    Sponge_Width*UNIT_L/Const_kpc  );
       Aux_Message( stdout, "  Sponge_Amp          = %13.7e Gyr^-1\n", Sponge_Amp*Const_Gyr/UNIT_T    ); }
       Aux_Message( stdout, "\n" );
@@ -950,7 +957,7 @@ bool Reset( real fluid[], const double x, const double y, const double z, const 
    const real r     = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
 
 // sponge BC
-   if ( Sponge_Enabled )
+   if      ( Sponge_Mode == 1 )
    {
       const double v    = 0.5*Sponge_Amp*(  1.0 + tanh( (r-Tidal_CutoffR)/Sponge_Width )  );
       const double damp = exp( -v*Sponge_dt );
@@ -963,7 +970,7 @@ bool Reset( real fluid[], const double x, const double y, const double z, const 
    }
 
 // truncation BC
-   else
+   else if ( Sponge_Mode == 2 )
    {
       const real WaveFloor = 1.0e-3;
       const real DensFloor = SQR(WaveFloor);
@@ -979,6 +986,12 @@ bool Reset( real fluid[], const double x, const double y, const double z, const 
 
       else
          return false;
+   }
+
+// nothing
+   else
+   {
+      return false;
    }
 
 } // FUNCTION : Reset

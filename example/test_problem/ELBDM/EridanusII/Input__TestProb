@@ -26,7 +26,7 @@ Tidal_Angle0                      0.0                                # initial a
 Tidal_FixedPos                    0                                  # fix the point mass position (for testing the tidal force implementation only) [0]
 Tidal_Centrifugal                 0                                  # add the centrifugal pseudo force (THIS IS WRONG AND SHOULD NEVER TO USED) [0]
 Tidal_CutoffR                     5.0e1                              # Cut-off radius (kpc)
-Sponge_Enabled                    0                                  # true/false: sponge/truncation BC
+Sponge_Mode                       3                                  # sponge BC/truncation BC/none
 Sponge_Width                      5.0e0                              # sponge width (in kpc) [10.0]
 Sponge_Amp                        5.0e0                              # sponge amplitude (in Gyr^-1) [1.0]
 ParFileCM_Enabled                 0                                  # shift the CM of particles loaded from PAR_IC [0]
