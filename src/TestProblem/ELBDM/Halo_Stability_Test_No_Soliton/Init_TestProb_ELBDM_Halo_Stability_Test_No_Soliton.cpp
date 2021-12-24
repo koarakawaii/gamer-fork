@@ -10,22 +10,19 @@ void Aux_ComputeProfile_with_Sigma( Profile_with_Sigma_t *Prof[], const double C
                                     const int NProf, const int MinLv, const int MaxLv, const PatchType_t PatchType,
                                     const double PrepTime );
 // This function computes correlation function
-//void Aux_ComputeCorrelation( Profile_t *Correlation[], FieldIdx_t *Passive_idx[], const Profile_t *prof_init[], const double Center[],
 void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_t *prof_init[], const double Center[],
                              const double r_max_input, const double dr_min, const bool LogBin, const double LogBinRatio,
                              const bool RemoveEmpty, const long TVarBitIdx[], const int NProf, const int MinLv, const int MaxLv,
                              const PatchType_t PatchType, const double PrepTime, const double dr_min_prof );
 //
 // intern functions
-static void Record_CenterOfMass( bool record_flag );
+static void GetCenterOfMass( bool record_flag );
 
 // problem-specific global variables
 // =======================================================================================
 static FieldIdx_t Idx_Dens0 = Idx_Undefined;  // field index for storing the **initial** density
 static double   System_CM_MaxR;               // maximum radius for determining System CM
 static double   System_CM_TolErrR;            // maximum allowed errors for determining System CM
-static double   Soliton_CM_MaxR;              // maximum radius for determining Soliton CM
-static double   Soliton_CM_TolErrR;           // maximum allowed errors for determining Soliton CM
 static double   Center[3];                    // use maximum density coordinate as center
 static double   dr_min_prof;                  // bin size of correlation function statistics (minimum size if logarithic bin) (profile)
 static double   LogBinRatio_prof;             // ratio of bin size growing rate for logarithmic bin (profile)
@@ -46,13 +43,20 @@ static int      StepInitial;                  // inital step for recording corre
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
+static bool     first_run_flag      = true;                  // flag suggesting first run (for determining whether write header in log file or not )
 
-static int step_counter;                             // counter for caching consumed step indices
+static int      step_counter;                                // counter for caching consumed step indices
 static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer to save initial density profile
 static Profile_with_Sigma_t *Prof[] = { &Prof_Dens_initial };
 static Profile_t            Correlation_Dens;                       // pointer to save density correlation function
 static Profile_t            *Correlation[] = { &Correlation_Dens };       
 //FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
+#ifdef PARTICLE
+static long     NPar_AllRank_Check;
+static char     Particle_Data_Filename[MAX_STRING];          // filename of the particles mass, initial position, initial velocity data
+static char     Particle_Log_Filename[MAX_STRING];           // filename for recording particle data
+static double  *Particle_Data_Table = NULL;                  // particle data table [mass/position/velocity]
+#endif
 // =======================================================================================
 
 //-------------------------------------------------------------------------------------------------------
@@ -81,11 +85,7 @@ void Validate()
 
 #  ifdef COMOVING
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
-   #  endif
-
-#  ifdef PARTICLE
-   Aux_Error( ERROR_INFO, "PARTICLE must be disabled !!\n" );
-   #  endif
+#  endif
 
 #  ifdef GRAVITY
    if ( OPT__BC_POT != BC_POT_ISOLATED )
@@ -134,8 +134,6 @@ void SetParameter()
 // ********************************************************************************************************************************
    ReadPara->Add( "System_CM_MaxR",           &System_CM_MaxR,         NoMax_double,     Eps_double,       NoMax_double      );
    ReadPara->Add( "System_CM_TolErrR",        &System_CM_TolErrR,         0.0,           NoMin_double,     NoMax_double      );
-   ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,        NoMax_double,     Eps_double,       NoMax_double      );
-   ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,        0.0,          NoMin_double,     NoMax_double       );
    ReadPara->Add( "ComputeCorrelation",       &ComputeCorrelation,      false,          Useless_bool,     Useless_bool       );
    ReadPara->Add( "dr_min_corr",              &dr_min_corr,            Eps_double,       Eps_double,       NoMax_double      );
    ReadPara->Add( "LogBinRatio_corr",         &LogBinRatio_corr,          1.0,           Eps_double,      NoMax_double       );
@@ -154,13 +152,20 @@ void SetParameter()
    ReadPara->Add( "StepInitial",              &StepInitial,             NoMin_int,         NoMin_int,       NoMax_int        );
    ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,        NoMax_int       );
    ReadPara->Add( "FilePath_corr",            FilePath_corr,       Useless_str,           Useless_str,      Useless_str      );
+#ifdef PARTICLE
+   if (amr->Par->NPar_Active_AllRank>0)
+   {
+      if (amr->Par->Init == PAR_INIT_BY_FUNCTION)
+          ReadPara->Add( "Particle_Data_Filename",     Particle_Data_Filename,     Useless_str,   Useless_str,      Useless_str       );
+      ReadPara->Add( "Particle_Log_Filename",      Particle_Log_Filename,      Useless_str,   Useless_str,      Useless_str       );
+   }
+#endif
    ReadPara->Read( FileName );
 
    delete ReadPara;
 
 // (1-2) set the default values
    if ( System_CM_TolErrR < 0.0 )           System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
-   if ( Soliton_CM_TolErrR < 0.0 )          Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
    if (ComputeCorrelation)
    {
@@ -195,7 +200,17 @@ void SetParameter()
       Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
 
 // (2) set the problem-specific derived parameters
-
+#ifdef PARTICLE
+      if (amr->Par->NPar_Active_AllRank>0)
+      {
+         const bool RowMajor_No_particle_data            = false;                 // load data into the column-major order
+         const bool AllocMem_Yes_particle_data           = true;                  // allocate memory for Soliton_DensProf
+         const int NCol_particle_data                    = 7;                     // total number of columns to load for particle data
+         const int Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
+         if (amr->Par->Init == PAR_INIT_BY_FUNCTION && amr->Par->NPar_Active_AllRank>0) 
+            NPar_AllRank_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
+      }
+#endif
 
 // (3) reset other general-purpose parameters
 //     --> a helper macro PRINT_WARNING is defined in TestProb.h
@@ -214,9 +229,15 @@ void SetParameter()
       Aux_Message( stdout, "  test problem ID                             = %d\n",     TESTPROB_ID               );
       Aux_Message( stdout, "  system CM max radius                        = %13.6e\n", System_CM_MaxR            );
       Aux_Message( stdout, "  system CM tolerated error                   = %13.6e\n", System_CM_TolErrR         );
-      Aux_Message( stdout, "  soliton CM max radius                       = %13.6e\n", Soliton_CM_MaxR           );
-      Aux_Message( stdout, "  soliton CM tolerated error                  = %13.6e\n", Soliton_CM_TolErrR        );
       Aux_Message( stdout, "  compute correlation                         = %d\n"    , ComputeCorrelation        );
+#ifdef PARTICLE
+      if (amr->Par->NPar_Active_AllRank>0)
+      {
+          if (amr->Par->Init==PAR_INIT_BY_FUNCTION)
+              Aux_Message( stdout, "  particle data filename                    = %s\n",     Particle_Data_Filename           );
+          Aux_Message( stdout, "  particle log filename                     = %s\n",     Particle_Log_Filename            );
+      }
+#endif
       if (ComputeCorrelation)
       {
          Aux_Message( stdout, "  histogram bin size  (correlation)           = %13.6e\n", dr_min_corr            );
@@ -247,11 +268,10 @@ void SetParameter()
 // Function    :  Init_Load_StepTable
 // Description :  Load the dump table from the file "Input__StepTable"
 //-------------------------------------------------------------------------------------------------------
-void Init_Load_StepTable()
+void Init_Load_StepTable_No_Soliton()
 {
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "Init_Load_StepTable ...\n" );
-
 
    const char FileName[] = "Input__StepTable";
 
@@ -329,7 +349,7 @@ void Init_Load_StepTable()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "Init_Load_StepTable ... done\n" );
 
-} // FUNCTION : Init_Load_StepTable
+} // FUNCTION : Init_Load_StepTable_No_Soliton
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -354,7 +374,239 @@ static void AddNewField_ELBDM_Halo_Stability_Test(void)
 //   if ( MPI_Rank == 0 )   printf("Idx_Dens0 = %d \n", Idx_Dens0);
 #  endif
 
-} // FUNCTION : AddNewField_ELBDM_Halo_Stability_Test
+} // FUNCTION : AddNewField_ELBDM_Halo_Stability_Test_No_Soliton
+
+
+#ifdef PARTICLE
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Par_Init_ByFunction_No_Soliton
+// Description :  User-specified function to initialize particle attributes
+//
+// Note        :  1. Invoked by Init_GAMER() using the function pointer "Par_Init_ByFunction_Ptr"
+//                   --> This function pointer may be reset by various test problem initializers, in which case
+//                       this funtion will become useless
+//                2. Periodicity should be taken care of in this function
+//                   --> No particles should lie outside the simulation box when the periodic BC is adopted
+//                   --> However, if the non-periodic BC is adopted, particles are allowed to lie outside the box
+//                       (more specifically, outside the "active" region defined by amr->Par->RemoveCell)
+//                       in this function. They will later be removed automatically when calling Par_Aux_InitCheck()
+//                       in Init_GAMER().
+//                3. Particles set by this function are only temporarily stored in this MPI rank
+//                   --> They will later be redistributed when calling Par_FindHomePatch_UniformGrid()
+//                       and LB_Init_LoadBalance()
+//                   --> Therefore, there is no constraint on which particles should be set by this function
+//
+// Parameter   :  NPar_ThisRank : Number of particles to be set by this MPI rank
+//                NPar_AllRank  : Total Number of particles in all MPI ranks
+//                ParPosX/Y/Z   : Particle position array with the size of NPar_ThisRank
+//                ParVelX/Y/Z   : Particle velocity array with the size of NPar_ThisRank
+//                ParTime       : Particle time     array with the size of NPar_ThisRank
+//                AllAttribute  : Pointer array for all particle attributes
+//                                --> Dimension = [PAR_NATT_TOTAL][NPar_ThisRank]
+//                                --> Use the attribute indices defined in Field.h (e.g., Idx_ParCreTime)
+//                                    to access the data
+//
+// Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime, AllAttribute
+//-------------------------------------------------------------------------------------------------------
+void Par_Init_ByFunction_No_Soliton( const long NPar_ThisRank, const long NPar_AllRank,
+                                     real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
+                                     real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
+                                     real *AllAttribute[PAR_NATT_TOTAL] )
+{
+
+   if ( (OPT__INIT == INIT_BY_RESTART) || (amr->Par->NPar_Active_AllRank<=0) )
+      return;
+
+   if ( MPI_Rank == 0 )
+   {
+       Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
+       if ( NPar_AllRank_Check!=NPar_AllRank )
+          Aux_Error( ERROR_INFO, "NPar_AllRank_check(%ld) != NPar_AllRank(%ld) !!\n" );
+   }
+
+
+   real *Mass_AllRank   = NULL;
+   real *Pos_AllRank[3] = { NULL, NULL, NULL };
+   real *Vel_AllRank[3] = { NULL, NULL, NULL };
+
+// only the master rank will construct the initial condition
+   if ( MPI_Rank == 0 )
+   {
+      double  TotM;
+      const double *Mass_table        = Particle_Data_Table;
+      const double *Position_table[3];
+      const double *Velocity_table[3];
+
+      Mass_AllRank = new real [NPar_AllRank];
+      for (int d=0; d<3; d++)
+      {
+         Position_table[d] = Particle_Data_Table+(1+d)*NPar_AllRank;
+         Velocity_table[d] = Particle_Data_Table+(4+d)*NPar_AllRank;
+         Pos_AllRank[d] = new real [NPar_AllRank];
+         Vel_AllRank[d] = new real [NPar_AllRank];
+      }
+
+
+//    set particle attributes
+      for (long p=0; p<NPar_AllRank; p++)
+      {
+//       mass
+         Mass_AllRank[p] = Mass_table[p];
+         TotM += Mass_AllRank[p];
+
+//       position
+         for (int d=0; d<3; d++)    Pos_AllRank[d][p] = Position_table[d][p];
+
+//       check periodicity
+         for (int d=0; d<3; d++)
+         {
+            if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+         }
+
+//       velocity
+         for (int d=0; d<3; d++)    Vel_AllRank[d][p] = Velocity_table[d][p];
+
+      } // for (long p=0; p<NPar_AllRank; p++)
+
+      Aux_Message( stdout, "=====================================================================================================\n" );
+      Aux_Message( stdout, "Total mass = %13.7e\n",  TotM );
+      for (long p=0; p<NPar_AllRank; p++)
+           Aux_Message( stdout, "Pisition for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Pos_AllRank[0][p], Pos_AllRank[1][p], Pos_AllRank[2][p] );
+      for (long p=0; p<NPar_AllRank; p++)
+           Aux_Message( stdout, "Velocity for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Vel_AllRank[0][p], Vel_AllRank[1][p], Vel_AllRank[2][p] );
+      Aux_Message( stdout, "=====================================================================================================\n" );
+
+   } // if ( MPI_Rank == 0 )
+
+
+// synchronize all particles to the physical time on the base level
+   for (long p=0; p<NPar_ThisRank; p++)   ParTime[p] = Time[0];
+
+
+// get the number of particles in each rank and set the corresponding offsets
+   if ( NPar_AllRank > (long)__INT_MAX__ )
+      Aux_Error( ERROR_INFO, "NPar_Active_AllRank (%ld) exceeds the maximum integer (%ld) --> MPI will likely fail !!\n",
+                 NPar_AllRank, (long)__INT_MAX__ );
+
+   int NSend[MPI_NRank], SendDisp[MPI_NRank];
+   int NPar_ThisRank_int = NPar_ThisRank;    // (i) convert to "int" and (ii) remove the "const" declaration
+                                             // --> (ii) is necessary for OpenMPI version < 1.7
+
+   MPI_Gather( &NPar_ThisRank_int, 1, MPI_INT, NSend, 1, MPI_INT, 0, MPI_COMM_WORLD );
+
+   if ( MPI_Rank == 0 )
+   {
+      SendDisp[0] = 0;
+      for (int r=1; r<MPI_NRank; r++)  SendDisp[r] = SendDisp[r-1] + NSend[r-1];
+   }
+
+
+// send particle attributes from the master rank to all ranks
+   real *Mass   =   ParMass;
+   real *Pos[3] = { ParPosX, ParPosY, ParPosZ };
+   real *Vel[3] = { ParVelX, ParVelY, ParVelZ };
+
+#  ifdef FLOAT8
+   MPI_Scatterv( Mass_AllRank, NSend, SendDisp, MPI_DOUBLE, Mass, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+   for (int d=0; d<3; d++)
+   {
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Pos[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Vel[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+   }
+
+#  else
+   MPI_Scatterv( Mass_AllRank, NSend, SendDisp, MPI_FLOAT,  Mass, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+
+   for (int d=0; d<3; d++)
+   {
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Pos[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Vel[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+   }
+#  endif
+
+
+   if ( MPI_Rank == 0 )
+   {
+      delete [] Mass_AllRank;
+
+      for (int d=0; d<3; d++)
+      {
+         delete [] Pos_AllRank[d];
+         delete [] Vel_AllRank[d];
+      }
+   }
+
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
+
+} // FUNCTION : Par_Init_ByFunction_No_Soliton
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Record_Particle_Data
+// Description :  Output the particle position and velocity
+//
+// Parameter   :  FileName : Output file name
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+static void Record_Particle_Data( char *FileName )
+{
+
+// check
+//   if ( MPI_Rank == 0  &&  Aux_CheckFileExist(FileName) )
+//      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
+
+   FILE *File;
+// header
+   if ( MPI_Rank == 0 )
+   {
+      if ( first_run_flag )
+      {
+          if ( !Aux_CheckFileExist(FileName) )
+              File = fopen( FileName, "w" );
+          else
+              File = fopen( FileName, "a" );
+
+          fprintf( File, "#Time                    Step                    Active Particles   ");
+
+          for (int v=0; v<PAR_NATT_TOTAL; v++)
+              fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+          fprintf( File, "\n" );
+          first_run_flag = false;
+      }
+      else
+          File = fopen( FileName, "a" );
+      fprintf( File, "%20.14e    %13ld    %13ld          ", Time[0], Step, amr->Par->NPar_Active_AllRank );
+      fclose( File );
+   }
+
+// data
+   for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
+   {
+      if ( MPI_Rank == TargetMPIRank )
+      {
+         File = fopen( FileName, "a" );
+
+         for (long p=0; p<amr->Par->NPar_AcPlusInac; p++)
+         {
+//          skip inactive particles
+            if ( amr->Par->Mass[p] < 0.0 )   continue;
+
+            for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->Attribute[v][p] );
+
+            fprintf( File, "\n" );
+         }
+
+         fclose( File );
+      } // if ( MPI_Rank == TargetMPIRank )
+
+      MPI_Barrier( MPI_COMM_WORLD );
+   } // for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
+} // FUNCTION : Record_Particle_Data
+#endif // end of ifdef PARTICLE
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -368,7 +620,7 @@ static void AddNewField_ELBDM_Halo_Stability_Test(void)
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Init_User_ELBDM_Halo_Stability_Test(void)
+void Init_User_ELBDM_Halo_Stability_Test_No_Soliton(void)
 {
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
@@ -405,14 +657,14 @@ void Init_User_ELBDM_Halo_Stability_Test(void)
           if ( MPI_Rank==0 ) Aux_Message( stdout, "StepInitial = %d ; StepInterval = %d \n", StepInitial, StepInterval);
        }
        else if ( OutputCorrelationMode == 1)
-          Init_Load_StepTable();
+          Init_Load_StepTable_No_Soliton();
        if ( MPI_Rank == 0 )  Aux_Message( stdout, "InitialTime = %13.6e \n", InitialTime );
 
        // compute the enter position for passive field
        if ( MPI_Rank == 0 )  Aux_Message( stdout, "Calculate halo center for passive field:\n");
 
        bool record_flag = false;
-       Record_CenterOfMass( record_flag );
+       ( record_flag );
        if ( MPI_Rank == 0 )  Aux_Message( stdout, "Center of passive field is ( %14.11e,%14.11e,%14.11e )\n", Center[0], Center[1], Center[2] );
        // commpute density profile for passive field;
        if ( MPI_Rank == 0 )  Aux_Message( stdout, "Calculate density profile for passive field:\n");
@@ -430,7 +682,7 @@ void Init_User_ELBDM_Halo_Stability_Test(void)
    }
 #  endif
 
-} // FUNCTION : Init_User_ELBDM_Halo_Stability_Test
+} // FUNCTION : Init_User_ELBDM_Halo_Stability_Test_No_Soliton
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  SetGridIC
@@ -479,7 +731,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
 } // FUNCTION : SetGridIC
 
-void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
+static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
          const int lv, double AuxArray[] )
 {
 
@@ -494,12 +746,12 @@ void BC_HALO( real fluid[], const double x, const double y, const double z, cons
 // Function    :  GetCenterOfMass
 // Description :  Record the center of mass (CM)
 //
-// Note        :  1. Invoked by Record_CenterOfMass recursively
+// Note        :  1. Invoked by  recursively
 //                2. Only include cells within CM_MaxR from CM_Old[] when updating CM
 //
 // Parameter   :  CM_Old[] : Previous CM
 //                CM_New[] : New CM to be returned
-void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], const double CM_MaxR )
+static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], const double CM_MaxR )
 {
 
    const double CM_MaxR2          = SQR( CM_MaxR );
@@ -613,7 +865,7 @@ void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], 
 } // FUNCTION : GetCenterOfMass
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Record_CenterOfMass
+// Function    :  
 // Description :  Record the maximum density and center coordinates
 //
 // Note        :  1. It will also record the real and imaginary parts associated with the maximum density
@@ -637,7 +889,8 @@ void Record_CenterOfMass( bool record_flag )
    double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
    double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
    long   DensMode;
-   if (record_flag)       DensMode  = _TOTAL_DENS;
+//   if (record_flag)       DensMode  = _TOTAL_DENS;
+   if (record_flag)       DensMode  = _DENS;
    else                   DensMode  = BIDX(Idx_Dens0);
 //   const long DensMode  = _TOTAL_DENS;
 
@@ -754,10 +1007,9 @@ void Record_CenterOfMass( bool record_flag )
             else
             {
                FILE *file_center = fopen( filename_center, "w" );
-               fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+               fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
                         "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
-                        "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
-                        "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+                        "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h");
                fclose( file_center );
             }
 
@@ -781,9 +1033,6 @@ void Record_CenterOfMass( bool record_flag )
    double dR2, CM_Old[3], CM_New[3];
    int NIter = 0;
 
-// repeat 2 times: first for system CM, next for soliton CM
-   for (int repeat=0; repeat<2; repeat++)
-   {
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
@@ -792,10 +1041,7 @@ void Record_CenterOfMass( bool record_flag )
     
        while ( true )
        {
-          if (repeat==0)
-              GetCenterOfMass( record_flag, CM_Old, CM_New, System_CM_MaxR );
-          else
-              GetCenterOfMass( record_flag, CM_Old, CM_New, Soliton_CM_MaxR );
+          GetCenterOfMass( record_flag, CM_Old, CM_New, System_CM_MaxR );
     
           dR2 = SQR( CM_Old[0] - CM_New[0] )
               + SQR( CM_Old[1] - CM_New[1] )
@@ -816,27 +1062,22 @@ void Record_CenterOfMass( bool record_flag )
           if (record_flag)
           {
              FILE *file_center = fopen( filename_center, "a" );
-             if (repeat==0)
-                 fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e", NIter, CM_New[0], CM_New[1], CM_New[2] );
-             else
-                 fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e\n", NIter, CM_New[0], CM_New[1], CM_New[2] );
+             fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e\n", NIter, CM_New[0], CM_New[1], CM_New[2] );
              fclose( file_center );
           }
        }
-       if ( (!record_flag) && (repeat==0) )
+       if ( !record_flag )
        {
 // Only cached the center coordinate by maximum density point of whole halo for passive field, when simuliation BEGINS!!
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
-           
-           break;  // break the for loop since only CoM of whole halo is needed for passive field
 // 
        }
-   }  // end of for loop for repeat = 2
 
    delete [] recv;
 
-} // FUNCTION : Record_CenterOfMass
+} // FUNCTION : Record_CenterOfMass 
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -856,7 +1097,11 @@ static void Do_COM_and_CF( void )
 {
    bool record_flag = true;
    Record_CenterOfMass( record_flag );
-   
+#ifdef PARTICLE
+   if (amr->Par->NPar_Active_AllRank>0)
+      Record_Particle_Data(Particle_Log_Filename);
+#endif
+
 // Compute correlation if ComputeCorrelation flag is true
    if (ComputeCorrelation)
    {
@@ -880,7 +1125,26 @@ static void Do_COM_and_CF( void )
       }
    }  // end of if ComputeCorrelation
 }
-#endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  End_Halo_Stability_Test_No_Soliton
+// Description :  Free memory before terminating the program
+//
+// Note        :  1. Linked to the function pointer "End_User_Ptr" to replace "End_User()"
+//
+// Parameter   :  None
+//-------------------------------------------------------------------------------------------------------
+void End_Halo_Stability_Test_No_Soliton()
+{
+//FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
+
+#ifdef PARTICLE
+   delete [] Particle_Data_Table;
+#endif
+
+} // FUNCTION : End_Stability_Test_No_Soliton
+#endif // end of if ( MODEL == ELBDM && defined GRAVITY )
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -893,7 +1157,7 @@ static void Do_COM_and_CF( void )
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Init_TestProb_ELBDM_Halo_Stability_Test()
+void Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton()
 {
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
@@ -905,7 +1169,6 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 // validate the compilation flags and runtime parameters
    Validate();
 
-
 #  if ( MODEL == ELBDM  &&  defined GRAVITY )
 // set the problem-specific runtime parameters
    SetParameter();
@@ -914,12 +1177,15 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
    Init_Field_User_Ptr    = AddNewField_ELBDM_Halo_Stability_Test;
    BC_User_Ptr            = BC_HALO;
    Aux_Record_User_Ptr    = Do_COM_and_CF;
-   Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test;
+   Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test_No_Soliton;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
+# ifdef PARTICLE
+   Par_Init_ByFunction_Ptr = Par_Init_ByFunction_No_Soliton;
+#endif
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
    Src_Init_User_Ptr              = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
-   End_User_Ptr                   = NULL;
+   End_User_Ptr                   = End_Halo_Stability_Test_No_Soliton;
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
