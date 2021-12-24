@@ -15,7 +15,16 @@
 
 # executable
 #######################################################################################################
-EXECUTABLE := gamer_correlation_function
+#EXECUTABLE := gamer_correlation_function
+#EXECUTABLE := gamer_correlation_function_double
+
+#EXECUTABLE := gamer_toy_model
+#EXECUTABLE := gamer_toy_model_double
+#EXECUTABLE := gamer_toy_model_double_RTX3080Ti
+#EXECUTABLE := gamer_toy_model_double_GTX1080Ti
+
+EXECUTABLE := gamer_no_soliton
+#EXECUTABLE := gamer_no_soliton_double
 
 
 
@@ -40,7 +49,7 @@ SIMU_OPTION += -DGRAVITY
 
 # enable particles
 # --> must enable GRAVITY
-#SIMU_OPTION += -DPARTICLE
+SIMU_OPTION += -DPARTICLE
 
 # support Grackle, a chemistry and radiative cooling library
 # --> must set NCOMP_PASSIVE_USER according to the primordial chemistry network set by GRACKLE_PRIMORDIAL
@@ -106,7 +115,7 @@ SIMU_OPTION += -DLAPLACIAN_4TH
 
 # number of passively advected scalars
 # --> not supported yet and must be set to 0 (or comment it out)
-SIMU_OPTION += -DNCOMP_PASSIVE_USER=1
+SIMU_OPTION += -DNCOMP_PASSIVE_USER=0
 
 endif # MODEL
 
@@ -153,7 +162,7 @@ endif # PARTICLE
 # ------------------------------------------------------------------------------------
 # maximum number of AMR levels including the root level (level id = 0 ... NLEVEL-1)
 # --> must be set in any cases
-SIMU_OPTION += -DNLEVEL=4
+SIMU_OPTION += -DNLEVEL=10
 
 # maximum number of patches on each AMR level
 # --> must be set in any cases
@@ -166,6 +175,7 @@ SIMU_OPTION += -DGPU
 # GPU architecture: FERMI/KEPLER/MAXWELL/PASCAL/VOLTA/TURING/AMPERE
 SIMU_OPTION += -DGPU_ARCH=TURING
 #SIMU_OPTION += -DGPU_ARCH=AMPERE
+#SIMU_OPTION += -DGPU_ARCH=PASCAL
 
 # debug mode
 #SIMU_OPTION += -DGAMER_DEBUG
