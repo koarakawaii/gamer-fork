@@ -972,7 +972,7 @@ ifeq "$(COMPILE_VERBOSE)" "1"
 # if fftw library is dynamic
 #	$(CXX) -o $@ $^ $(OBJ_GPU_LINK) -Wl,-rpath,$(FFTW_PATH)/lib $(LIB) $(OPENMPFLAG)
 # if fftw library is static
-	$(CXX) -o $@ $^ $(OBJ_GPU_LINK) $(LIB) $(OPENMPFLAG)   # if fftw library is static
+	$(CXX) -o $@ $^ $(OBJ_GPU_LINK) $(LIB) $(OPENMPFLAG)
 	@printf "\nCompiling GAMER --> Successful!\n\n"; \
 	cp $(EXECUTABLE) ../bin/
 else
