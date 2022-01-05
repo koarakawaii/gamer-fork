@@ -178,7 +178,7 @@ void SetParameter()
        if ( MaxLv <= MinLv ) MaxLv = MAX_LEVEL;
        if ( OutputCorrelationMode>1 ) OutputCorrelationMode = 0;
        if ( (OutputCorrelationMode==0) && (StepInterval<1) ) StepInterval = 1;
-       if ( FilePath_corr == Useless_str )  sprintf( FilePath_corr, "./" );
+       if ( FilePath_corr == "\0" )  sprintf( FilePath_corr, "./" );
        else
        { 
           FILE *file_checker = fopen(FilePath_corr, "r");

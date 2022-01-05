@@ -146,12 +146,12 @@ void SetParameter()
 //   ReadPara->Add( "LogBin_prof",              &LogBin_prof,             false,          Useless_bool,     Useless_bool       );
 //   ReadPara->Add( "RemoveEmpty_prof",         &RemoveEmpty_prof,        false,          Useless_bool,     Useless_bool       );
 //   ReadPara->Add( "PrepTime",                 &PrepTime,                  0.0,          NoMin_double,     NoMax_double       );
-   ReadPara->Add( "MinLv",                    &MinLv,                       0,                     0,        MAX_LEVEL       );
-   ReadPara->Add( "MaxLv",                    &MaxLv,               MAX_LEVEL,                     0,        MAX_LEVEL       );
+   ReadPara->Add( "MinLv",                    &MinLv,                       0,                     0,      MAX_LEVEL         );
+   ReadPara->Add( "MaxLv",                    &MaxLv,                  MAX_LEVEL,                  0,      MAX_LEVEL         );
    ReadPara->Add( "OutputCorrelationMode",    &OutputCorrelationMode,       0,                     0,             1          );
-   ReadPara->Add( "StepInitial",              &StepInitial,             NoMin_int,         NoMin_int,       NoMax_int        );
-   ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,        NoMax_int       );
-   ReadPara->Add( "FilePath_corr",            FilePath_corr,       Useless_str,           Useless_str,      Useless_str      );
+   ReadPara->Add( "StepInitial",              &StepInitial,            NoMin_int,          NoMin_int,      NoMax_int         );
+   ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,      NoMax_int         );
+   ReadPara->Add( "FilePath_corr",            FilePath_corr,           Useless_str,      Useless_str,      Useless_str       );
 #ifdef PARTICLE
    if (amr->Par->NPar_Active_AllRank>0)
    {
@@ -183,7 +183,7 @@ void SetParameter()
        if ( MaxLv <= MinLv ) MaxLv = MAX_LEVEL;
        if ( OutputCorrelationMode>1 ) OutputCorrelationMode = 0;
        if ( (OutputCorrelationMode==0) && (StepInterval<1) ) StepInterval = 1;
-       if ( FilePath_corr == Useless_str )  sprintf( FilePath_corr, "./" );
+       if ( strcmp(FilePath_corr,"\0")==0 ) sprintf(FilePath_corr, "./");
        else
        { 
           FILE *file_checker = fopen(FilePath_corr, "r");
