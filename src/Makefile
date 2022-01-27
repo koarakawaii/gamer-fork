@@ -15,7 +15,8 @@
 
 # executable
 #######################################################################################################
-#EXECUTABLE := gamer_correlation_function
+EXECUTABLE := gamer_correlation_function
+#EXECUTABLE := gamer_correlation_function_gnu
 #EXECUTABLE := gamer_correlation_function_double
 
 #EXECUTABLE := gamer_toy_model
@@ -23,7 +24,7 @@
 #EXECUTABLE := gamer_toy_model_double_RTX3080Ti
 #EXECUTABLE := gamer_toy_model_double_GTX1080Ti
 
-EXECUTABLE := gamer_no_soliton
+#EXECUTABLE := gamer_no_soliton
 #EXECUTABLE := gamer_no_soliton_double
 
 
@@ -49,7 +50,7 @@ SIMU_OPTION += -DGRAVITY
 
 # enable particles
 # --> must enable GRAVITY
-SIMU_OPTION += -DPARTICLE
+#SIMU_OPTION += -DPARTICLE
 
 # support Grackle, a chemistry and radiative cooling library
 # --> must set NCOMP_PASSIVE_USER according to the primordial chemistry network set by GRACKLE_PRIMORDIAL
@@ -115,7 +116,7 @@ SIMU_OPTION += -DLAPLACIAN_4TH
 
 # number of passively advected scalars
 # --> not supported yet and must be set to 0 (or comment it out)
-SIMU_OPTION += -DNCOMP_PASSIVE_USER=0
+SIMU_OPTION += -DNCOMP_PASSIVE_USER=1
 
 endif # MODEL
 
@@ -236,10 +237,10 @@ SIMU_OPTION += -DRANDOM_NUMBER=RNG_GNU_EXT
 # -------------------------------------------------------------------------------
 # CXX         = icpc                                      # serial compiler
 CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
-##CXX         = CC                                        # cray wrapper script
+#CXX         = CC                                        # cray wrapper script
  CXXFLAG     = -g -O3                                    # general flags
-##CXXFLAG     = -g -O3 -std=c++11 #-gxx-name=YOUR_G++
-##CXXFLAG     = -g -fast
+#CXXFLAG     = -g -O3 -std=c++11 #-gxx-name=YOUR_G++
+#CXXFLAG     = -g -fast
  CXXFLAG    += -w                                       # warning flags
  OPENMPFLAG  = -fopenmp                                  # openmp flag
  LIB         = -limf                                     # libraries and linker flags
@@ -258,11 +259,11 @@ CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 
 # gnu
 # -------------------------------------------------------------------------------
-# CXX         = g++                                       # serial compiler
-##CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
+## CXX         = g++                                       # serial compiler
+#CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 ##CXX         = CC                                        # cray wrapper script
-# CXXFLAG     = -g -O3                                    # general flags
-##CXXFLAG     = -g -O3 -std=c++11
+## CXXFLAG     = -g -O3                                    # general flags
+#CXXFLAG     = -g -O3 -std=c++11
 ##CXXFLAG     = -g -Ofast
 # CXXFLAG    += -Wall -Wextra                             # warning flags
 # CXXFLAG    += -Wno-unused-variable -Wno-unused-parameter \
@@ -351,8 +352,9 @@ CUDA_PATH    := /software/cuda/default
 FFTW_PATH    := /software/fftw/default
 MPI_PATH     := /software/openmpi/default
 ## GNU
-#FFTW_PATH    := /software/fftw/2.1.5-gnu-openmpi-4.1.1-ucx_mt
-#MPI_PATH     := /software/openmpi/4.1.1-gnu-ucx_mt
+#FFTW_PATH    := /software/fftw/2.1.5-gnu-9.3.0-openmpi-4.1.1-ucx_mt
+#MPI_PATH     := /software/openmpi/4.1.1-ucx_mt-gnu-9.3.0
+##
 HDF5_PATH    := /software/hdf5/default
 GRACKLE_PATH :=
 GSL_PATH     := /software/gsl/default
