@@ -864,9 +864,14 @@ static void Do_COM_and_CF( void )
       {
          const long TVar[] = {_DENS};
 //         if ( MPI_Rank == 0 )    Aux_Message( stdout, "calculate correlation function at step = %d , prepared time =  %20.14e:\n", Step, Time[0] );
-//         Aux_ComputeCorrelation( Correlation, Passive_idx, Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
-         Aux_ComputeCorrelation( Correlation, Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
+// for GNU compiler  
+//         const Profile_with_Sigma_t **Prof_init = (const Profile_with_Sigma_t**)(Prof);
+         Aux_ComputeCorrelation( Correlation, (const Profile_with_Sigma_t**)Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
                                  RemoveEmpty_corr, TVar, 1, MinLv, MaxLv, PATCH_LEAF, Time[0], dr_min_prof);
+// for intel compiler
+//         Aux_ComputeCorrelation( Correlation, Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
+//                                 RemoveEmpty_corr, TVar, 1, MinLv, MaxLv, PATCH_LEAF, Time[0], dr_min_prof);
+
          char Filename[MAX_STRING];
          sprintf( Filename, "%s/correlation_function_t=%.4e.txt", FilePath_corr, Time[0] );
          FILE *output_correlation = fopen(Filename, "w");
