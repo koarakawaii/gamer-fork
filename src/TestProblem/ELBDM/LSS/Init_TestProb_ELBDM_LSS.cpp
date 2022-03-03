@@ -181,6 +181,7 @@ void Init_ByFile_ELBDM_LSS( real fluid_out[], const real fluid_in[], const int n
          fluid_out[IMAG] = fluid_in[1];
          break;
       }
+
       default:
          Aux_Error( ERROR_INFO, "unsupported initialization mode (%s = %d) !!\n",
                     "LSS_InitMode", LSS_InitMode );
