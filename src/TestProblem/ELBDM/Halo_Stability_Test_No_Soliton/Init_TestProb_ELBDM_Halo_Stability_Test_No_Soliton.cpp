@@ -268,7 +268,7 @@ void SetParameter()
 // Function    :  Init_Load_StepTable
 // Description :  Load the dump table from the file "Input__StepTable"
 //-------------------------------------------------------------------------------------------------------
-void Init_Load_StepTable_No_Soliton()
+static void Init_Load_StepTable_No_Soliton()
 {
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "Init_Load_StepTable ...\n" );
@@ -408,10 +408,10 @@ static void AddNewField_ELBDM_Halo_Stability_Test(void)
 //
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime, AllAttribute
 //-------------------------------------------------------------------------------------------------------
-void Par_Init_ByFunction_No_Soliton( const long NPar_ThisRank, const long NPar_AllRank,
-                                     real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
-                                     real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
-                                     real *AllAttribute[PAR_NATT_TOTAL] )
+static void Par_Init_ByFunction_No_Soliton( const long NPar_ThisRank, const long NPar_AllRank,
+                                            real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
+                                            real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
+                                            real *AllAttribute[PAR_NATT_TOTAL] )
 {
 
    if ( (OPT__INIT == INIT_BY_RESTART) || (amr->Par->NPar_Active_AllRank<=0) )
@@ -620,7 +620,7 @@ static void Record_Particle_Data( char *FileName )
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Init_User_ELBDM_Halo_Stability_Test_No_Soliton(void)
+static void Init_User_ELBDM_Halo_Stability_Test_No_Soliton(void)
 {
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
@@ -880,7 +880,7 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Record_CenterOfMass( bool record_flag )
+static void Record_CenterOfMass( bool record_flag )
 {
    const char filename_center  [] = "Record__Center";
    const int  CountMPI            = 10;
@@ -1068,7 +1068,7 @@ void Record_CenterOfMass( bool record_flag )
        }
        if ( !record_flag )
        {
-// Only cached the center coordinate by maximum density point of whole halo for passive field, when simuliation BEGINS!!
+// Only cached the center coordinate by CoM coordiante of the whole halo for passive field, when simuliation BEGINS!!
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
 // 
@@ -1135,7 +1135,7 @@ static void Do_COM_and_CF( void )
 //
 // Parameter   :  None
 //-------------------------------------------------------------------------------------------------------
-void End_Halo_Stability_Test_No_Soliton()
+static void End_Halo_Stability_Test_No_Soliton()
 {
 //FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
 

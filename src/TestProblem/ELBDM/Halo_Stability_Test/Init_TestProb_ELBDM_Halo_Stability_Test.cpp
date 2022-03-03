@@ -26,7 +26,7 @@ static double   System_CM_MaxR;               // maximum radius for determining 
 static double   System_CM_TolErrR;            // maximum allowed errors for determining System CM
 static double   Soliton_CM_MaxR;              // maximum radius for determining Soliton CM
 static double   Soliton_CM_TolErrR;           // maximum allowed errors for determining Soliton CM
-static double   Center[3];                    // use maximum density coordinate as center
+static double   Center[3];                    // use CoM coordinate of the whole halo as center
 static double   dr_min_prof;                  // bin size of correlation function statistics (minimum size if logarithic bin) (profile)
 static double   LogBinRatio_prof;             // ratio of bin size growing rate for logarithmic bin (profile)
 static double   RadiusMax_prof;               // maximum radius for correlation function statistics (profile)
@@ -247,7 +247,7 @@ void SetParameter()
 // Function    :  Init_Load_StepTable
 // Description :  Load the dump table from the file "Input__StepTable"
 //-------------------------------------------------------------------------------------------------------
-void Init_Load_StepTable()
+static void Init_Load_StepTable()
 {
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "Init_Load_StepTable ...\n" );
@@ -368,7 +368,7 @@ static void AddNewField_ELBDM_Halo_Stability_Test(void)
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Init_User_ELBDM_Halo_Stability_Test(void)
+static void Init_User_ELBDM_Halo_Stability_Test(void)
 {
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
@@ -479,7 +479,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
 } // FUNCTION : SetGridIC
 
-void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
+static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
          const int lv, double AuxArray[] )
 {
 
@@ -499,7 +499,7 @@ void BC_HALO( real fluid[], const double x, const double y, const double z, cons
 //
 // Parameter   :  CM_Old[] : Previous CM
 //                CM_New[] : New CM to be returned
-void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], const double CM_MaxR )
+static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], const double CM_MaxR )
 {
 
    const double CM_MaxR2          = SQR( CM_MaxR );
@@ -628,7 +628,7 @@ void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], 
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Record_CenterOfMass( bool record_flag )
+static void Record_CenterOfMass( bool record_flag )
 {
    const char filename_center  [] = "Record__Center";
    const int  CountMPI            = 10;
@@ -825,7 +825,7 @@ void Record_CenterOfMass( bool record_flag )
        }
        if ( (!record_flag) && (repeat==0) )
        {
-// Only cached the center coordinate by maximum density point of whole halo for passive field, when simuliation BEGINS!!
+// Only cached the center coordinate by CoM coordiante of the whole halo for passive field, when simuliation BEGINS!!
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
            
