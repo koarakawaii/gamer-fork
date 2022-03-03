@@ -36,6 +36,7 @@ void Init_TestProb_ELBDM_GaussianWavePacket();
 void Init_TestProb_ELBDM_LSS();
 void Init_TestProb_ELBDM_Halo_Stability_Test();
 void Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton();
+void Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted();
 
 
 
@@ -92,6 +93,7 @@ void Init_TestProb()
       case TESTPROB_ELBDM_LSS :                             Init_TestProb_ELBDM_LSS();                             break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST :             Init_TestProb_ELBDM_Halo_Stability_Test();             break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON :  Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton();  break;
+      case TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED :  Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted();  break;
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );
    } // switch( TESTPROB_ID )
