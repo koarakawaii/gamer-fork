@@ -435,6 +435,8 @@ static double GetPhase(real dens_sqrt, real real_part, real imag_part)
 
    if ( ( phase < 0. ) || ( phase >= 2.*M_PI ) )
       Aux_Error( ERROR_INFO, "Phase %.8e is not in range [0,2*pi) !!\n", phase );
+   if ( phase!=phase )
+      Aux_Error( ERROR_INFO, "Phase is NaN !!\n" );
    return phase;
 }
 
@@ -503,6 +505,8 @@ static void Init_User_ELBDM_Halo_Stability_Test_Soliton_Substituted(void)
                      modulator =  1./(1. + exp(-2.*TransitionFactor*(double)(r/CoreRadius-CriteriaFactor)));
                      if ( ( modulator < 0. ) || ( modulator > 1.0 ) )
                         Aux_Error( ERROR_INFO, "Modulator %.8e is not in range [0.,1.] !!\n" );
+                     if ( modulator!=modulator )
+                        Aux_Error( ERROR_INFO, "Modulator is NaN !!\n" );
                      else
                         phase *= modulator;
 //                     if ( lv==NLEVEL-1 )
