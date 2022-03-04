@@ -18,11 +18,11 @@
 #EXECUTABLE := gamer_no_passive_field
 
 #EXECUTABLE := gamer_comoving
-#EXECUTABLE := gamer_soliton_substituted
+EXECUTABLE := gamer_soliton_substituted
 #EXECUTABLE := gamer_correlation_function
 #EXECUTABLE := gamer_correlation_function_gnu
 #EXECUTABLE := gamer_correlation_function_double
-EXECUTABLE := gamer_yt_cindy_tsai
+#EXECUTABLE := gamer_yt_cindy_tsai
 
 #EXECUTABLE := gamer_toy_model
 #EXECUTABLE := gamer_toy_model_double
