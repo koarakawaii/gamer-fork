@@ -436,7 +436,7 @@ static double GetPhase(real dens_sqrt, real real_part, real imag_part)
    if ( ( phase < 0. ) || ( phase >= 2.*M_PI ) )
       Aux_Error( ERROR_INFO, "Phase %.8e is not in range [0,2*pi) !!\n", phase );
    if ( phase!=phase )
-      Aux_Error( ERROR_INFO, "Phase is NaN !!\n" );
+      Aux_Error( ERROR_INFO, "Phase is NaN !! Square root of density is %.8e ; real part = %.8e ; imaginary part = %.8e \n", dens_sqrt, real_part, imag_part );
    return phase;
 }
 
@@ -483,36 +483,46 @@ static void Init_User_ELBDM_Halo_Stability_Test_Soliton_Substituted(void)
                   y = y0 + j*dh;
                   for (int i=0; i<PS1; i++)
                   {
-                     x = x0 + i*dh;
-                     dr[0] = x-SolitonSubCenter[0];
-                     dr[1] = y-SolitonSubCenter[1];
-                     dr[2] = z-SolitonSubCenter[2];
-                     r     = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
-                     real dens_sqrt = SQRT( amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i] );
-                     real real_part = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
-                     real imag_part = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
-                     double phase = GetPhase( dens_sqrt, real_part, imag_part ) - global_phase; // phase will be inbetween (-2\pi,2\pi)
-                     // makes the phase always between [-\pi,\pi], so after apply the modulation, the phase will not shrink drastically
-                     if ( phase < -1.*M_PI)
-                        phase += 2.*M_PI;
-                     else if ( phase > 1.*M_PI )
-                        phase -= 2.*M_PI;
-                     if ( (phase<-1.*M_PI) || (phase>1.*M_PI) )
-                        Aux_Error( ERROR_INFO, "Phase %.8e is not in range [-\\pi,\\pi] !!\n" );
-                     //
-//                     if ( lv==NLEVEL-1 )
-//                         printf("dens_sqrt is %.8e ; real_part is %.8e ; imag_part is %.8e ; phase before modulation is %.8e .\n", dens_sqrt, real_part, imag_part, phase);
-                     modulator =  1./(1. + exp(-2.*TransitionFactor*(double)(r/CoreRadius-CriteriaFactor)));
-                     if ( ( modulator < 0. ) || ( modulator > 1.0 ) )
-                        Aux_Error( ERROR_INFO, "Modulator %.8e is not in range [0.,1.] !!\n" );
-                     if ( modulator!=modulator )
-                        Aux_Error( ERROR_INFO, "Modulator is NaN !!\n" );
+                     real dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+                     if ( dens==0.0 )
+                     {
+                         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] = 0.0;
+                         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] = 0.0;
+                         continue;
+                     }
                      else
-                        phase *= modulator;
-//                     if ( lv==NLEVEL-1 )
-//                         printf("Phase after modulation is %.8e .\n", phase);
-                     amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] = dens_sqrt*COS((real)phase);
-                     amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] = dens_sqrt*SIN((real)phase);
+                     {
+                        x = x0 + i*dh;
+                        dr[0] = x-SolitonSubCenter[0];
+                        dr[1] = y-SolitonSubCenter[1];
+                        dr[2] = z-SolitonSubCenter[2];
+                        r     = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
+                        real dens_sqrt = SQRT( dens );
+                        real real_part = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
+                        real imag_part = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+                        double phase = GetPhase( dens_sqrt, real_part, imag_part ) - global_phase; // phase will be inbetween (-2\pi,2\pi)
+                        // makes the phase always between [-\pi,\pi], so after apply the modulation, the phase will not shrink drastically
+                        if ( phase < -1.*M_PI)
+                           phase += 2.*M_PI;
+                        else if ( phase > 1.*M_PI )
+                           phase -= 2.*M_PI;
+                        if ( (phase<-1.*M_PI) || (phase>1.*M_PI) )
+                           Aux_Error( ERROR_INFO, "Phase %.8e is not in range [-\\pi,\\pi] !!\n" );
+                        //
+//                        if ( lv==NLEVEL-1 )
+//                            printf("dens_sqrt is %.8e ; real_part is %.8e ; imag_part is %.8e ; phase before modulation is %.8e .\n", dens_sqrt, real_part, imag_part, phase);
+                        modulator =  1./(1. + exp(-2.*TransitionFactor*(double)(r/CoreRadius-CriteriaFactor)));
+                        if ( ( modulator < 0. ) || ( modulator > 1.0 ) )
+                           Aux_Error( ERROR_INFO, "Modulator %.8e is not in range [0.,1.] !!\n" );
+                        if ( modulator!=modulator )
+                           Aux_Error( ERROR_INFO, "Modulator is NaN !!\n" );
+                        else
+                           phase *= modulator;
+//                        if ( lv==NLEVEL-1 )
+//                            printf("Phase after modulation is %.8e .\n", phase);
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] = dens_sqrt*COS((real)phase);
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] = dens_sqrt*SIN((real)phase);
+                     }
 		  } // end of for loop i
                } // end of for loop j
             } // end of for loop k
