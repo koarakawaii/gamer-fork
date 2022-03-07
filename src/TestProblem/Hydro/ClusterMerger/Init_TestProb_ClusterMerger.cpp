@@ -172,24 +172,24 @@ void SetParameter()
    ReadPara->Add( "Merger_Coll_IsGas1",     &Merger_Coll_IsGas1,     true,             Useless_bool,  Useless_bool   );
    ReadPara->Add( "Merger_Coll_IsGas2",     &Merger_Coll_IsGas2,     true,             Useless_bool,  Useless_bool   );
    ReadPara->Add( "Merger_Coll_IsGas3",     &Merger_Coll_IsGas3,     true,             Useless_bool,  Useless_bool   );
-   ReadPara->Add( "Merger_File_Prof1",       Merger_File_Prof1,      Useless_str,      Useless_str,   Useless_str    );
-   ReadPara->Add( "Merger_File_Par1",        Merger_File_Par1,       Useless_str,      Useless_str,   Useless_str    );
-   ReadPara->Add( "Merger_File_Prof2",       Merger_File_Prof2,      Useless_str,      Useless_str,   Useless_str    );
-   ReadPara->Add( "Merger_File_Par2",        Merger_File_Par2,       Useless_str,      Useless_str,   Useless_str    );
-   ReadPara->Add( "Merger_File_Prof3",       Merger_File_Prof3,      Useless_str,      Useless_str,   Useless_str    );
-   ReadPara->Add( "Merger_File_Par3",        Merger_File_Par3,       Useless_str,      Useless_str,   Useless_str    );
-   ReadPara->Add( "Merger_Coll_PosX1",      &Merger_Coll_PosX1,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_PosY1",      &Merger_Coll_PosY1,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_PosX2",      &Merger_Coll_PosX2,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_PosY2",      &Merger_Coll_PosY2,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_PosX3",      &Merger_Coll_PosX3,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_PosY3",      &Merger_Coll_PosY3,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_VelX1",      &Merger_Coll_VelX1,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_VelY1",      &Merger_Coll_VelY1,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_VelX2",      &Merger_Coll_VelX2,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_VelY2",      &Merger_Coll_VelY2,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_VelX3",      &Merger_Coll_VelX3,      -1.0,             NoMin_double,  NoMax_double   );
-   ReadPara->Add( "Merger_Coll_VelY3",      &Merger_Coll_VelY3,      -1.0,             NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_File_Prof1",       Merger_File_Prof1,      NoDef_str,        Useless_str,   Useless_str    );
+   ReadPara->Add( "Merger_File_Par1",        Merger_File_Par1,       NoDef_str,        Useless_str,   Useless_str    );
+   ReadPara->Add( "Merger_File_Prof2",       Merger_File_Prof2,      NoDef_str,        Useless_str,   Useless_str    );
+   ReadPara->Add( "Merger_File_Par2",        Merger_File_Par2,       NoDef_str,        Useless_str,   Useless_str    );
+   ReadPara->Add( "Merger_File_Prof3",       Merger_File_Prof3,      NoDef_str,        Useless_str,   Useless_str    );
+   ReadPara->Add( "Merger_File_Par3",        Merger_File_Par3,       NoDef_str,        Useless_str,   Useless_str    );
+   ReadPara->Add( "Merger_Coll_PosX1",      &Merger_Coll_PosX1,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_PosY1",      &Merger_Coll_PosY1,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_PosX2",      &Merger_Coll_PosX2,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_PosY2",      &Merger_Coll_PosY2,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_PosX3",      &Merger_Coll_PosX3,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_PosY3",      &Merger_Coll_PosY3,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_VelX1",      &Merger_Coll_VelX1,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_VelY1",      &Merger_Coll_VelY1,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_VelX2",      &Merger_Coll_VelX2,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_VelY2",      &Merger_Coll_VelY2,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_VelX3",      &Merger_Coll_VelX3,     -1.0,              NoMin_double,  NoMax_double   );
+   ReadPara->Add( "Merger_Coll_VelY3",      &Merger_Coll_VelY3,     -1.0,              NoMin_double,  NoMax_double   );
    ReadPara->Add( "Merger_Coll_UseMetals",  &Merger_Coll_UseMetals,  true,             Useless_bool,  Useless_bool   );
 
    ReadPara->Read( FileName );
@@ -442,7 +442,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    double r1, r2, r3, Dens1, Dens2, Dens3, Pres1, Pres2, Pres3;
    double Metl1, Metl2, Metl3, rmax1, rmax2, rmax3;
    double Dens, MomX, MomY, MomZ, Pres, Eint, Etot, Metl;
-  
+
    rmax1 = Table_R1[Merger_NBin1-1];
    rmax2 = Merger_Coll_NumHalos > 1 ? Table_R2[Merger_NBin2-1] : -1.0;
    rmax3 = Merger_Coll_NumHalos > 2 ? Table_R3[Merger_NBin3-1] : -1.0;
