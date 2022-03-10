@@ -16,6 +16,7 @@
 # executable
 #######################################################################################################
 EXECUTABLE := gamer_intel-oneapi
+#EXECUTABLE := gamer_comoving
 #EXECUTABLE := gamer_gnu
 
 
@@ -130,7 +131,7 @@ SIMU_OPTION += -DSTORE_POT_GHOST
 
 # comoving frame for cosmological simulations
 # --> not supported for PARTICLE
-#SIMU_OPTION += -DCOMOVING
+SIMU_OPTION += -DCOMOVING
 endif # GRAVITY
 
 
@@ -154,7 +155,7 @@ endif # PARTICLE
 # ------------------------------------------------------------------------------------
 # maximum number of AMR levels including the root level (level id = 0 ... NLEVEL-1)
 # --> must be set in any cases
-SIMU_OPTION += -DNLEVEL=4
+SIMU_OPTION += -DNLEVEL=10
 
 # maximum number of patches on each AMR level
 # --> must be set in any cases
