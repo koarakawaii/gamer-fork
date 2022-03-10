@@ -209,7 +209,7 @@ SIMU_OPTION += -DSUPPORT_HDF5
 #SIMU_OPTION += -DSUPPORT_GSL
 
 # support yt inline analysis
-#SIMU_OPTION += -DSUPPORT_LIBYT
+SIMU_OPTION += -DSUPPORT_LIBYT
 
 # random number implementation: RNG_GNU_EXT/RNG_CPP11 (GNU extension drand48_r/c++11 <random>)
 # --> use RNG_GNU_EXT for compilers supporting GNU extensions (**not supported on some macOS**)
@@ -347,7 +347,7 @@ MPI_PATH     := /software/openmpi/default
 HDF5_PATH    := /software/hdf5/default
 GRACKLE_PATH :=
 GSL_PATH     := /software/gsl/default
-LIBYT_PATH   := /work1/koarakawaii/libyt/
+LIBYT_PATH   := /work1/koarakawaii/libyt_cindy_tsai
 
 # NTU-hulk (openmpi-intel-qlc)
 #CUDA_PATH    := /opt/gpu/cuda/4.2
