@@ -15,10 +15,10 @@
 
 # executable
 #######################################################################################################
-#EXECUTABLE := gamer_no_passive_field
+EXECUTABLE := gamer_no_passive_field
 
 #EXECUTABLE := gamer_comoving
-EXECUTABLE := gamer_soliton_substituted
+#EXECUTABLE := gamer_soliton_substituted
 #EXECUTABLE := gamer_correlation_function
 #EXECUTABLE := gamer_correlation_function_gnu
 #EXECUTABLE := gamer_correlation_function_double
@@ -121,7 +121,7 @@ SIMU_OPTION += -DLAPLACIAN_4TH
 
 # number of passively advected scalars
 # --> not supported yet and must be set to 0 (or comment it out)
-SIMU_OPTION += -DNCOMP_PASSIVE_USER=1
+SIMU_OPTION += -DNCOMP_PASSIVE_USER=0
 
 endif # MODEL
 
