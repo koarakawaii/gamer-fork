@@ -8,8 +8,6 @@ def yt_inline():
 # ref: https://yt-project.org/doc/examining/low_level_inspection.html#examining-grid-data-in-a-fixed-resolution-array
    ds = yt.frontends.libyt.libytDataset()
    idx = int(str(ds).split("_")[0].split("g")[-1])
-   if yt.is_root():
-       print(idx)
 
    # target field
    field = "Dens"
@@ -22,6 +20,7 @@ def yt_inline():
    
    density = ad[field]
    
+   # save field as .npz file, with key "Dens"
    np.savez("covering-grid_test_Data_%06d_lv=%d.npz"%(idx,lv), Dens=np.array(density).astype(np.float32))
 
 def yt_inline_inputArg( fields ):
