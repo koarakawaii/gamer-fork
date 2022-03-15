@@ -43,7 +43,7 @@ static int      StepInitial;                  // inital step for recording corre
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
-static bool     first_run_flag      = true;                  // flag suggesting first run (for determining whether write header in log file or not )
+static bool     first_run_flag;               // flag suggesting first run (for determining whether write header in log file or not )
 
 static int      step_counter;                                // counter for caching consumed step indices
 static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer to save initial density profile
@@ -622,6 +622,8 @@ static void Record_Particle_Data( char *FileName )
 //-------------------------------------------------------------------------------------------------------
 static void Init_User_ELBDM_Halo_Stability_Test_No_Soliton(void)
 {
+   if ( OPT__INIT == INIT_BY_UM_IC )
+      first_run_flag = true;
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
    for (int lv=0; lv<NLEVEL; lv++)
