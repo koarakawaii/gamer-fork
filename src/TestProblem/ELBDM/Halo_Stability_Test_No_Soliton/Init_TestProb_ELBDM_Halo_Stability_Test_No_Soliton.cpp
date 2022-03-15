@@ -622,7 +622,7 @@ static void Record_Particle_Data( char *FileName )
 //-------------------------------------------------------------------------------------------------------
 static void Init_User_ELBDM_Halo_Stability_Test_No_Soliton(void)
 {
-   if ( OPT__INIT == INIT_BY_UM_IC )
+   if ( OPT__INIT == INIT_BY_FILE )
       first_run_flag = true;
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
