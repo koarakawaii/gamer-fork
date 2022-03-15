@@ -67,7 +67,7 @@ static Profile_t            Correlation_Dens;                       // pointer t
 static Profile_t            *Correlation[] = { &Correlation_Dens };       
 //FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
 static double factor = pow(pow(2.,1./8.)-1.,0.5);  // for soliton density profile calculation
-static double m_23;                           // particle mass in unit of 10^{-23} eV/c^2
+//static double m_23;                           // particle mass in unit of 10^{-23} eV/c^2
 static double soliton_density_factor;         // coefficient for soliton density in unit of UNIT_D
 // =======================================================================================
 
@@ -109,7 +109,7 @@ void Validate()
 #  endif
 
 // only accept OPT__INIT == 2
-   if ( OPT__INIT != 2 )
+   if ( OPT__INIT != INIT_BY_RESTART )
       Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == 2 (restart only from snap shot)!!\n" );
 
 // only accept OPT__INIT_RESTRICT == 1
