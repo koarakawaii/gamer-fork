@@ -447,7 +447,7 @@ void Record_CenterOfMass(void )
          else
          {
             FILE *file_center = fopen( filename_center, "w" );
-            fprintf( file_center, "#%19s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+            fprintf( file_center, "#%s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
                      "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
                      "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
                      "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
