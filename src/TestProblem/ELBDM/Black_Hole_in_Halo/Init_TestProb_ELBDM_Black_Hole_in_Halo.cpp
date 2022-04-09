@@ -1099,7 +1099,7 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
    Aux_Record_User_Ptr         = Do_COM_and_CF;
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
 #    ifdef PARTICLE
-   Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Halo_in_Halo;
+   Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Halo;
 #    endif // #ifdef PARTICLE
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
