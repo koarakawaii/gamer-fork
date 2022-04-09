@@ -237,7 +237,7 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
 
       delete [] PID0List;
 
@@ -353,7 +353,7 @@ void Record_CenterOfMass(void )
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
 
       delete [] PID0List;
 
