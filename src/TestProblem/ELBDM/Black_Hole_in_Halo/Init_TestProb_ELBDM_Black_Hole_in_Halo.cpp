@@ -18,9 +18,10 @@ static double   SolitonSubCenter[3];                // user defined center for s
 static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
 static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
 #ifdef PARTICLE
-static int NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for classifying particles
+static int NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
 
 static bool     ParRefineFlag;                      // flag for refinement based on particles
+static bool     WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary)
 static bool     BH_AddParForRestart;                // flag for adding new particle after restart
 static long     BH_AddParForRestart_NPar;           // number for particle will be added after restart
 static char     Particle_Data_Filename[MAX_STRING]; // filename of the particles mass, initial position, initial velocity data
@@ -128,6 +129,7 @@ void SetParameter()
    ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2],       0.0,          NoMin_double,      NoMax_double      );
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
+   ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,    false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
    ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
@@ -184,6 +186,7 @@ void SetParameter()
 
 #ifdef PARTICLE
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
+      Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
       if ( BH_AddParForRestart )
       {
@@ -322,13 +325,13 @@ static void Par_Init_ByUser()
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
-      Aux_Message( stdout, "=====================================================================================================\n" );
-      Aux_Message( stdout, "Total mass = %13.7e\n",  TotM );
-      for (long p=0; p<NPar_AllRank; p++)
-           Aux_Message( stdout, "Pisition for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Pos_AllRank[0][p], Pos_AllRank[1][p], Pos_AllRank[2][p] );
-      for (long p=0; p<NPar_AllRank; p++)
-           Aux_Message( stdout, "Velocity for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Vel_AllRank[0][p], Vel_AllRank[1][p], Vel_AllRank[2][p] );
-      Aux_Message( stdout, "=====================================================================================================\n" );
+//      Aux_Message( stdout, "=====================================================================================================\n" );
+//      Aux_Message( stdout, "Total mass = %13.7e\n",  TotM );
+//      for (long p=0; p<NPar_AllRank; p++)
+//           Aux_Message( stdout, "Pisition for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Pos_AllRank[0][p], Pos_AllRank[1][p], Pos_AllRank[2][p] );
+//      for (long p=0; p<NPar_AllRank; p++)
+//           Aux_Message( stdout, "Velocity for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Vel_AllRank[0][p], Vel_AllRank[1][p], Vel_AllRank[2][p] );
+//      Aux_Message( stdout, "=====================================================================================================\n" );
 
    } // if ( MPI_Rank == 0 )
 
@@ -384,27 +387,28 @@ static void Par_Init_ByUser()
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Record_Particle_Data
-// Description :  Output the particle position and velocity
+// Function    :  Record_Particle_Data_Text
+// Description :  Output the particle position and velocity in text file
 //
 // Parameter   :  FileName : Output file name
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-static void Record_Particle_Data( char *FileName )
+static void Record_Particle_Data_Text( char *FileName )
 {
 // check
 //   if ( MPI_Rank == 0  &&  Aux_CheckFileExist(FileName) )
 //      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
 
    FILE *File;
+   
 // header
    if ( MPI_Rank == 0 )
    {
       if ( first_run_flag )
       {
           if ( !Aux_CheckFileExist(FileName) )
-              File = fopen( FileName, "w" );
+             File = fopen( FileName, "w" );
           else
               File = fopen( FileName, "a" );
 
@@ -417,7 +421,6 @@ static void Record_Particle_Data( char *FileName )
       }
       else
           File = fopen( FileName, "a" );
-      fprintf( File, "%20.14e    %13ld    %13ld          ", Time[0], Step, amr->Par->NPar_Active_AllRank );
       fclose( File );
    }
 
@@ -433,6 +436,7 @@ static void Record_Particle_Data( char *FileName )
 //          skip inactive particles
             if ( amr->Par->Mass[p] < 0.0 )   continue;
 
+            fprintf( File, "%20.14e    %13ld    %13ld          ", Time[0], Step, amr->Par->NPar_Active_AllRank );
             for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->Attribute[v][p] );
 
             fprintf( File, "\n" );
@@ -443,12 +447,73 @@ static void Record_Particle_Data( char *FileName )
 
       MPI_Barrier( MPI_COMM_WORLD );
    } // for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
-} // FUNCTION : Record_Particle_Data
+} // FUNCTION : Record_Particle_Data_Text
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Record_Particle_Data_Binary
+// Description :  Output the particle position and velocity in binary file
+//
+// Parameter   :  FileName : Output file name
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+static void Record_Particle_Data_Binary( char *FileName )
+{
+// check
+//   if ( MPI_Rank == 0  &&  Aux_CheckFileExist(FileName) )
+//      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
+
+   FILE *File;
+   int par_natt_total = PAR_NATT_TOTAL;
+   
+// open the file by root rank
+   if ( MPI_Rank == 0 )
+   {
+       File = fopen( FileName, "w" );                  // overwrite the file no matter how
+      if ( first_run_flag )
+      {
+//          File = fopen( FileName, "w" );                  // overwrite the file no matter how
+//          int par_natt_total = PAR_NATT_TOTAL;
+//          fwrite(&par_natt_total, sizeof(int), 1, File);  // write number of attribute only at simulation start and first_run_flag == true
+          first_run_flag = false;
+      }
+      fclose( File );
+   }
+   MPI_Barrier( MPI_COMM_WORLD );
+
+// data
+   for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
+   {
+      if ( MPI_Rank == TargetMPIRank )
+      {
+         File = fopen( FileName, "a" );
+         if ( MPI_Rank == 0 )
+         {
+             fwrite(&(Time[0])                      , sizeof(double), 1, File);  // write level 0 time by rank == 0 for each time step
+             fwrite(&Step                           , sizeof(long)  , 1, File);  // write step index by rank == 0 for each time step  
+             fwrite(&par_natt_total                 , sizeof(int)   , 1, File);  // write number of attribute by rank == 0 for each time step 
+             fwrite(&(amr->Par->NPar_Active_AllRank), sizeof(long)  , 1, File);  // write active particle number  by rank ==0 for each time step
+         }
+
+         for (long p=0; p<amr->Par->NPar_AcPlusInac; p++)
+         {
+//          skip inactive particles
+            if ( amr->Par->Mass[p] < 0.0 )   continue;
+            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real), 1, File );  // write all attribute for selected particle for each time step
+         }
+
+         fclose( File );
+      } // if ( MPI_Rank == TargetMPIRank )
+
+      MPI_Barrier( MPI_COMM_WORLD );
+   } // for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
+} // FUNCTION : Record_Particle_Data_Binary
 
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  AddNewParticleAttribute_Black_Hole_in_Halo
-// Description :  Add the problem-specific particle attributes: used for classifying particle
+// Description :  Add the problem-specific particle attributes: used for labelling particle
 //
 // Note        :  1. Ref: https://github.com/gamer-project/gamer/wiki/Adding-New-Simulations#v-add-problem-specific-grid-fields-and-particle-attributes
 //                2. Invoke AddParticleField() for each of the problem-specific particle attribute:
@@ -1043,7 +1108,17 @@ static void Do_COM_and_CF( void )
 {
    Record_CenterOfMass();
 #ifdef PARTICLE
-   Record_Particle_Data(Particle_Log_Filename);
+   char Particle_Log_Filename_Full[MAX_STRING];
+   if ( WriteDataInBinaryFlag )
+   {
+       sprintf(Particle_Log_Filename_Full, "%s_StepIdx=%06ld.bin", Particle_Log_Filename, Step);
+       Record_Particle_Data_Binary(Particle_Log_Filename_Full);
+   }
+   else
+   {
+       sprintf(Particle_Log_Filename_Full, "%s.txt", Particle_Log_Filename);
+       Record_Particle_Data_Text(Particle_Log_Filename_Full);
+   }
 #endif
 }
 
