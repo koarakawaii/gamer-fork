@@ -14,9 +14,10 @@ static double   DensPeakRealPart;                   // real part of soliton peak
 static double   DensPeakImagPart;                   // imaginary part of soliton peak density
 static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*CoreRadius will has nearly constant phase \approx 0
 static double   TransitionFactor;                   // determine how sharp the phase will transist from \approx 0 to its original value
-static double   SolitonSubCenter[3];                // user defined center for soliton substitution
+static double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential center
 static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
 static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
+static bool     AddExternalPotFlag;                 // flag to add external potential to substitute soliton
 #ifdef PARTICLE
 static int NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
 
@@ -119,6 +120,7 @@ void SetParameter()
    ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,        NoMax_double,     Eps_double,       NoMax_double      );
    ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,        0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "EraseSolVelFlag",          &EraseSolVelFlag,           false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "AddExternalPotFlag",       &AddExternalPotFlag,        false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "CoreRadius",               &CoreRadius,              Eps_double,      Eps_double,       NoMax_double      );
    ReadPara->Add( "DensPeakRealPart",         &DensPeakRealPart,          0.0,          NoMin_double,      NoMax_double      );
    ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
@@ -183,6 +185,7 @@ void SetParameter()
          Aux_Message( stdout, "  soliton substitution center_y                = %13.6e\n", SolitonSubCenter[1]       );
          Aux_Message( stdout, "  soliton substitution center_z                = %13.6e\n", SolitonSubCenter[2]       );
       }
+      Aux_Message( stdout, "  add external potential flag                  = %d\n",     AddExternalPotFlag        );
 
 #ifdef PARTICLE
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
