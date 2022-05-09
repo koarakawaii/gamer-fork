@@ -212,6 +212,10 @@ SIMU_OPTION += -DSUPPORT_HDF5
 # support yt inline analysis
 #SIMU_OPTION += -DSUPPORT_LIBYT
 
+# use patch group as unit in libyt, this will speed up inline-analysis, but will increase memory consumption
+# --> must enable SUPPORT_LIBYT
+#SIMU_OPTION += -DLIBYT_USE_PATCH_GROUP
+
 # random number implementation: RNG_GNU_EXT/RNG_CPP11 (GNU extension drand48_r/c++11 <random>)
 # --> use RNG_GNU_EXT for compilers supporting GNU extensions (**not supported on some macOS**)
 #     use RNG_CPP11   for compilers supporting c++11 (**may need to add -std=c++11 to CXXFLAG**)
@@ -648,7 +652,7 @@ vpath %.cpp    LoadBalance
 # ------------------------------------------------------------------------------------
 ifeq "$(filter -DSUPPORT_LIBYT, $(SIMU_OPTION))" "-DSUPPORT_LIBYT"
 CPU_FILE    += YT_Init.cpp  YT_End.cpp  YT_SetParameter.cpp  YT_AddLocalGrid.cpp  YT_Inline.cpp  YT_DerivedFunction.cpp \
-               YT_GetParticleAttribute.cpp
+               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp
 
 vpath %.cpp    YT
 endif # SUPPORT_LIBYT
