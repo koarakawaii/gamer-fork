@@ -15,7 +15,8 @@
 
 # executable
 #######################################################################################################
-EXECUTABLE := gamer_intel-oneapi
+#EXECUTABLE := gamer_intel-oneapi
+EXECUTABLE := gamer_intel-oneapi_particle_ensemble
 #EXECUTABLE := gamer_comoving
 #EXECUTABLE := gamer_gnu
 
@@ -42,7 +43,7 @@ SIMU_OPTION += -DGRAVITY
 
 # enable particles
 # --> must enable GRAVITY
-#SIMU_OPTION += -DPARTICLE
+SIMU_OPTION += -DPARTICLE
 
 # support Grackle, a chemistry and radiative cooling library
 # --> must set NCOMP_PASSIVE_USER according to the primordial chemistry network set by GRACKLE_PRIMORDIAL
@@ -131,7 +132,7 @@ SIMU_OPTION += -DSTORE_POT_GHOST
 
 # comoving frame for cosmological simulations
 # --> not supported for PARTICLE
-SIMU_OPTION += -DCOMOVING
+#SIMU_OPTION += -DCOMOVING
 endif # GRAVITY
 
 
@@ -147,7 +148,7 @@ SIMU_OPTION += -DSTORE_PAR_ACC
 
 # number of user-defined particle attributes
 # --> set it to 0 or comment it out if none is required
-SIMU_OPTION += -DPAR_NATT_USER=0
+SIMU_OPTION += -DPAR_NATT_USER=1
 endif # PARTICLE
 
 
