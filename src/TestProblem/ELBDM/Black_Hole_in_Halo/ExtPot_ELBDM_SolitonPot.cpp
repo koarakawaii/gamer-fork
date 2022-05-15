@@ -6,33 +6,15 @@
 #ifdef GRAVITY
 
 
-//-------------------------------------------------------------------------------------------------------
-// Function    :  SolitonPot
-// Description :  Compute the soliton potential
-//
-// Note        :  1. Invoked by ExtPot_ELBDM_SolitonPot
-//
-// Parameter   :  r_normalized: radius normalized by soliton core radius
-//                PotFactor   : proportional factor for scaling soliton potential
-//
-// Return      :  soliton potential at a given normalized radius
-//-------------------------------------------------------------------------------------------------------
-GPU_DEVICE_NOINLINE
-static real SolitonPot(real r_normalized, real PotFactor)
-{
-   real soliton_potential;
-   return soliton_potential;
-}
-
-
 
 // =================================
 // I. Set auxiliary arrays
 // =================================
 
 #ifndef __CUDACC__
-extern double ELBDM_SolitonPot_M;
 extern double SolitonSubCenter[3];
+extern double CoreRadius;
+extern double SolitonPotScale;
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  SetExtPotAuxArray_ELBDM_SolitonPot
@@ -52,7 +34,8 @@ void SetExtPotAuxArray_ELBDM_SolitonPot( double AuxArray_Flt[], int AuxArray_Int
    AuxArray_Flt[0] = SolitonSubCenter[0];
    AuxArray_Flt[1] = SolitonSubCenter[1];
    AuxArray_Flt[2] = SolitonSubCenter[2];
-   AuxArray_Flt[3] = ELBDM_SolitonPot_Factor;
+   AuxArray_Flt[3] = CoreRadius;
+   AuxArray_Flt[4] = (real)SolitonPotScale;
 
 } // FUNCTION : SetExtPotAuxArray_ELBDM_SolitonPot
 #endif // #ifndef __CUDACC__
@@ -62,7 +45,58 @@ void SetExtPotAuxArray_ELBDM_SolitonPot( double AuxArray_Flt[], int AuxArray_Int
 // =================================
 // II. Specify external potential
 // =================================
-extern double CoreRadius
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  SolitonMass
+// Description :  Compute the soliton mass at given radius
+//
+// Note        :  1. Invoked by SetParameter in Init_TestProb_ELBDM_Black_Hole_in_Halo.cpp 
+//                2. "#ifndef __CUDACC__" since this routine is only useful on CPU
+//
+// Parameter   :  sooliton_mass_scale : proportional factor for scaling soliton mass
+//                r_normalized        : radius normalized by soliton core radius
+//
+// Return      :  soliton mass at a given normalized radius
+//-------------------------------------------------------------------------------------------------------
+#ifndef __CUDACC__
+double SolitonMass(double soliton_mass_scale, double r_normalized)
+{
+    double factor       = pow( (pow(2.,1./8.) -1.) , 0.5 );
+    double soliton_mass = soliton_mass_scale/pow(1.+pow(factor*r_normalized,2),7)*(3465.*pow(factor*r_normalized,13.)+23100.*pow(factor*r_normalized,11.)+65373.*pow(factor*r_normalized,9.)+101376.*pow(factor*r_normalized,7.)+92323.*pow(factor*r_normalized,5.)+48580.*pow(factor*r_normalized,3.)-3465.*(factor*r_normalized)+3465.*pow(pow(factor*r_normalized,2)+1.,7.)*atan(factor*r_normalized));
+   return soliton_mass;
+}
+#endif
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  SolitonPot
+// Description :  Compute the soliton potential at given radius
+//
+// Note        :  1. Invoked by ExtPot_ELBDM_SolitonPot
+//
+// Parameter   :  soliton_pot_scale : proportional factor for scaling soliton potential
+//                r_normalized      : radius normalized by soliton core radius
+//
+// Return      :  soliton potential at a given normalized radius
+//-------------------------------------------------------------------------------------------------------
+GPU_DEVICE_NOINLINE
+#ifdef __CUDACC__
+__device__ static real SolitonPot(real soliton_pot_scale, real r_normalized)
+#else
+static real SolitonPot(real soliton_pot_scale, real r_normalized)
+#endif
+{
+   real factor            = POW( (POW(2.,1./8.) - 1.) , 0.5 );  
+   real X                 = factor*r_normalized;
+
+   real soliton_potential = soliton_pot_scale*(factor*(-1732.5/(X*X+1.)-6641.25/POW(X*X+1.,2.)+3927./POW(X*X+1.,3.)-5915.25/POW(X*X+1.,4.)+324.5/POW(X*X+1.,5.)-1568.75/POW(X*X+1.,6.)+288.75*POW(X,12.)/POW(X*X+1.,6.)+3465.*LOG(factor))-3465.*ATAN(X)/r_normalized); // in code unit
+
+   return soliton_potential;
+}
+
+
 
 //-----------------------------------------------------------------------------------------
 // Function    :  ExtPot_ELBDM_SolitonPot
@@ -73,7 +107,8 @@ extern double CoreRadius
 //                      UserArray_Flt[0] = x coordinate of the external potential center
 //                      UserArray_Flt[1] = y ...
 //                      UserArray_Flt[2] = z ..
-//                      UserArray_Flt[3] = soliton potential factor
+//                      UserArray_Flt[3] = core radius
+//                      UserArray_Flt[3] = soliton potential proportinoal factor
 //                3. GenePtr has the size of EXT_POT_NGENE_MAX defined in Macro.h (default = 6)
 //
 // Parameter   :  x/y/z             : Target spatial coordinates
@@ -95,15 +130,17 @@ static real ExtPot_ELBDM_SolitonPot( const double x, const double y, const doubl
                                      const ExtPotUsage_t Usage, const real PotTable[], void **GenePtr )
 {
 
-   const double Cen[3]        = { UserArray_Flt[0], UserArray_Flt[1], UserArray_Flt[2] };
-   const real   PotFactor     = (real)UserArray_Flt[3];
-   const real   dx            = (real)(x - Cen[0]);
-   const real   dy            = (real)(y - Cen[1]);
-   const real   dz            = (real)(z - Cen[2]);
-   const real   r_normaliized = SQRT( dx*dx + dy*dy + dz*dz )/CoreRadius;
+   const double Cen[3]                  = { UserArray_Flt[0], UserArray_Flt[1], UserArray_Flt[2] };
+   const double r_core                  = UserArray_Flt[3];
+   const double soliton_potential_scale = UserArray_Flt[4];
+   const real   dx                      = (real)(x - Cen[0]);
+   const real   dy                      = (real)(y - Cen[1]);
+   const real   dz                      = (real)(z - Cen[2]);
+   const real   r_normalized            = SQRT( dx*dx + dy*dy + dz*dz )/r_core;
 
-   return SolitonPot(r_normalized, PotFactor);
-
+   real soliton_pot = SolitonPot(soliton_potential_scale, r_normalized);
+    
+   return soliton_pot;
 } // FUNCTION : ExtPot_ELBDM_SolitonPot
 
 

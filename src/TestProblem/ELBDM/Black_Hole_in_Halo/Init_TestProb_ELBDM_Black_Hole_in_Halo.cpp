@@ -1,4 +1,4 @@
-/* Treat halo as a partilce and put it in the center of halo, with zero initial velocity; the soliton velocity is erased by the phase modulation scheme to match with the motion of soliton */
+/* Treat black hole as a partilce and put it in the halo, with given initial position and velocity; the soliton velocity can be erased by the phase modulation scheme */
 /* If BH_AddParForRestart is set, particle position will be reset; if EraseSolVelFlag is further set, soliton initial velocity will be erased by phase modulation. If BH_AddParForRestart is not set, treat the simulation as normal restart. */
 #include "GAMER.h"
 #include "TestProb.h"
@@ -9,17 +9,21 @@ static double   System_CM_MaxR;                     // maximum radius for determ
 static double   System_CM_TolErrR;                  // maximum allowed errors for determining System CM
 static double   Soliton_CM_MaxR;                    // maximum radius for determining Soliton CM
 static double   Soliton_CM_TolErrR;                 // maximum allowed errors for determining Soliton CM
-static double   CoreRadius;                         // soliton core radius (mass core ratio should be included)
+       double   CoreRadius;                         // soliton core radius in Mpc/h (mass core ratio should be included), will be called by extern
+static double   EqualRadius;                        // equal radius in Mpc/h, where NFW density equals soliton density; for rebuilding external potential mimicking soliton
 static double   DensPeakRealPart;                   // real part of soliton peak density
 static double   DensPeakImagPart;                   // imaginary part of soliton peak density
-static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*CoreRadius will has nearly constant phase \approx 0
 static double   TransitionFactor;                   // determine how sharp the phase will transist from \approx 0 to its original value
-static double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential center
+static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*CoreRadius will has nearly constant phase \approx 0
+static double   ScaleFactor;                        // scaling factor, cosmology parameter
+static double   h_0;                                // small h_0, Hubble constant/100, cosmology parameter  
+       double   SolitonPotScale;                    // proportional factor for coverting potential from GM_sun/r_c -> code unit, where r_c in unit of Mpc/h; will be called by extern
+static double   SolitonMassScale;                   // proportional factor for coverting mass from M_sun -> code unit, where r_c in unit of Mpc/h
+       double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential center, will be called by extern
 static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
 static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
-static bool     AddExternalPotFlag;                 // flag to add external potential to substitute soliton
 #ifdef PARTICLE
-static int NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
+static int      NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
 
 static bool     ParRefineFlag;                      // flag for refinement based on particles
 static bool     WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary)
@@ -30,6 +34,13 @@ static char     Particle_Log_Filename[MAX_STRING];  // filename for recording pa
 static double  *Particle_Data_Table = NULL;         // particle data table [mass/position/velocity]
 #endif
 // =======================================================================================
+//
+// external potential routines
+extern void Init_ExtPot_ELBDM_SolitonPot();
+extern double SolitonMass(double soliton_mass_scale, double r_normalized);
+//
+
+
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Validate
@@ -55,9 +66,9 @@ void Validate()
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
 #  endif
 
-#  ifndef PARTICLE
-   Aux_Error( ERROR_INFO, "PARTICLE must be enabled !!\n" );
-#  endif
+//#  ifndef PARTICLE
+//   Aux_Error( ERROR_INFO, "PARTICLE must be enabled !!\n" );
+//#  endif
 
 #  ifdef COMOVING
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
@@ -68,9 +79,18 @@ void Validate()
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
 
-// only accept OPT__INIT == 2
-   if ( OPT__INIT != INIT_BY_RESTART )
-      Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == 2 (restart only from snap shot)!!\n" );
+# ifdef PARTICLE
+   if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
+      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FUNCTION !!\n" );
+# endif
+
+// only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
+   if ( OPT__INIT != INIT_BY_RESTART && OPT__INIT != INIT_BY_FILE )
+      Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE !!\n" );
+
+// only accept OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE for OPT__EXT_POT == EXT_POT_FUNC
+//   if ( ( OPT__EXT_POT == EXT_POT_FUNC ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
+//      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE for OPT__EXT_POT == EXT_POT_FUNC !!\n" );
 
 // only accept OPT__INIT_RESTRICT == 1
    if ( OPT__INIT_RESTRICT != 1 )
@@ -79,6 +99,7 @@ void Validate()
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
 } // FUNCTION : Validate
+
 
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
@@ -120,22 +141,47 @@ void SetParameter()
    ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,        NoMax_double,     Eps_double,       NoMax_double      );
    ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,        0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "EraseSolVelFlag",          &EraseSolVelFlag,           false,         Useless_bool,     Useless_bool      );
-   ReadPara->Add( "AddExternalPotFlag",       &AddExternalPotFlag,        false,         Useless_bool,     Useless_bool      );
-   ReadPara->Add( "CoreRadius",               &CoreRadius,              Eps_double,      Eps_double,       NoMax_double      );
-   ReadPara->Add( "DensPeakRealPart",         &DensPeakRealPart,          0.0,          NoMin_double,      NoMax_double      );
-   ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
-   ReadPara->Add( "TransitionFactor",         &TransitionFactor,       Eps_double,       Eps_double,       NoMax_double      );
-   ReadPara->Add( "CriteriaFactor",           &CriteriaFactor,         Eps_double,       Eps_double,       NoMax_double      );
-   ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0],       0.0,          NoMin_double,      NoMax_double      );
-   ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1],       0.0,          NoMin_double,      NoMax_double      );
-   ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2],       0.0,          NoMin_double,      NoMax_double      );
+   if ( OPT__EXT_POT == EXT_POT_FUNC )
+   {
+      ReadPara->Add( "EqualRadius",              &EqualRadius,            Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "ScaleFactor",              &ScaleFactor,            Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "h_0",                      &h_0,                    Eps_double,       Eps_double,       NoMax_double      );
+   }
+
+   ReadPara->Read( FileName );
+
+   if ( EraseSolVelFlag == 1 )
+   {
+      ReadPara->Add( "DensPeakRealPart",         &DensPeakRealPart,          0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "TransitionFactor",         &TransitionFactor,       Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "CriteriaFactor",           &CriteriaFactor,         Eps_double,       Eps_double,       NoMax_double      );
+   } 
+   if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
+   {
+      ReadPara->Add( "CoreRadius",               &CoreRadius,             Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0],       0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1],       0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2],       0.0,          NoMin_double,      NoMax_double      );
+   }
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,    false,         Useless_bool,      Useless_bool      );
-   ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
-   ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
-   ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
    ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
+   if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+      ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
+   if ( OPT__RESTART_RESET == 1 )
+   {
+      ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
+
+      ReadPara->Read( FileName );
+
+      if ( BH_AddParForRestart == 1 )
+      {
+         ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
+         ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
+      }
+   }
 #endif
    ReadPara->Read( FileName );
 
@@ -145,14 +191,31 @@ void SetParameter()
    if ( System_CM_TolErrR < 0.0 )           System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
-   if ( OPT__INIT == INIT_BY_FUNCTION )
-      Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
+   if ( ( EraseSolVelFlag == 1 ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ))
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if EraseSolVelFlag is enabled !!\n" );
 #ifdef PARTICLE
-   if ( ( BH_AddParForRestart ) && ( OPT__RESTART_RESET !=1 )  )
-      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 if BH_AddParForRestart is enabled !!\n" );
+   if ( ( BH_AddParForRestart ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
 #endif
 
+
 // (2) set the problem-specific derived parameters
+   
+   if ( OPT__EXT_POT == EXT_POT_FUNC )
+   {
+      const double mass_of_sun       = 1.98892e33;             // in unit of g
+      const double newton_g_cgs      = 6.6743e-8;              // in cgs
+      const double m_a_22            = ELBDM_MASS*UNIT_M/(Const_eV/pow(Const_c,2.))/1e-22;        // eV/c^2 -> 10^-22 ev/c^2
+
+      SolitonMassScale  = 4.077703890131877e6/ScaleFactor/pow(m_a_22*10.,2.)/(CoreRadius*1000./h_0);
+      SolitonMassScale *= mass_of_sun/UNIT_M;   // convert to code unit 
+//      printf("SolitonMassSale = %.8e \n", SolitonMassScale);
+      const double SolitonTotalMass  = SolitonMass(SolitonMassScale, 1.e3);                     // approximate the soliton mass by M_sol(1000*r_c)
+      const double SolitonEqualMass  = SolitonMass(SolitonMassScale, EqualRadius/CoreRadius);   // M_sol(r_e)
+      SolitonPotScale   = SolitonEqualMass/SolitonTotalMass*newton_g_cgs*4.077703890131877e6/ScaleFactor/pow(m_a_22*10.,2.)/(CoreRadius*1000./h_0); // to here is in unit of GM_sun/r_c, where  r_c is in unit of Mpc/h
+      SolitonPotScale  *= mass_of_sun/(CoreRadius*UNIT_L)/pow(UNIT_V,2.);  // convert to code unit
+   }
+   
 
 // (3) reset other general-purpose parameters
 //     --> a helper macro PRINT_WARNING is defined in TestProb.h
@@ -167,36 +230,52 @@ void SetParameter()
 // (4) make a note
    if ( MPI_Rank == 0 )
    {
-      Aux_Message( stdout, "=================================================================================\n" );
+      Aux_Message( stdout, "=================================================================================\n"  );
       Aux_Message( stdout, "  test problem ID                              = %d\n",     TESTPROB_ID               );
       Aux_Message( stdout, "  system CM max radius                         = %13.6e\n", System_CM_MaxR            );
       Aux_Message( stdout, "  system CM tolerated error                    = %13.6e\n", System_CM_TolErrR         );
       Aux_Message( stdout, "  soliton CM max radius                        = %13.6e\n", Soliton_CM_MaxR           );
       Aux_Message( stdout, "  soliton CM tolerated error                   = %13.6e\n", Soliton_CM_TolErrR        );
       Aux_Message( stdout, "  erase soliton initial velocity flag          = %d\n",     EraseSolVelFlag           );
+      if ( OPT__EXT_POT == EXT_POT_FUNC )
+      {
+         Aux_Message( stdout, "  scaling factor                               = %13.6e\n", ScaleFactor               );
+         Aux_Message( stdout, "  h_0                                          = %13.6e\n", h_0                       );
+         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
+         Aux_Message( stdout, "  equal radius                                 = %13.6e\n", EqualRadius               );
+         Aux_Message( stdout, "  soliton mass proportional factor             = %13.6e\n", SolitonMassScale          );
+         Aux_Message( stdout, "  soliton potential proportional factor        = %13.6e\n", SolitonPotScale           );
+      }
       if ( EraseSolVelFlag == 1 )
       {
-         Aux_Message( stdout, "  core radius (mass core ration included)      = %13.6e\n", CoreRadius                );
          Aux_Message( stdout, "  criteria factor defining constant phase zone = %13.6e\n", CriteriaFactor            );
          Aux_Message( stdout, "  transition factor for transition zone width  = %13.6e\n", TransitionFactor          );
          Aux_Message( stdout, "  soliton peak density real part               = %13.6e\n", DensPeakRealPart          );
          Aux_Message( stdout, "  soliton peak density imaginary part          = %13.6e\n", DensPeakImagPart          );
+         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
+      }
+      if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
+      {
          Aux_Message( stdout, "  soliton substitution center_x                = %13.6e\n", SolitonSubCenter[0]       );
          Aux_Message( stdout, "  soliton substitution center_y                = %13.6e\n", SolitonSubCenter[1]       );
          Aux_Message( stdout, "  soliton substitution center_z                = %13.6e\n", SolitonSubCenter[2]       );
       }
-      Aux_Message( stdout, "  add external potential flag                  = %d\n",     AddExternalPotFlag        );
 
 #ifdef PARTICLE
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
-      Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
-      if ( BH_AddParForRestart )
-      {
-         Aux_Message( stdout, "  number of particles to be added              = %ld\n",    BH_AddParForRestart_NPar  );
-         Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
-      }
       Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
+      if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+         Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
+      if ( OPT__RESTART_RESET == 1 )
+      {
+         Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
+         if ( BH_AddParForRestart )
+         {
+            Aux_Message( stdout, "  number of particles to be added              = %ld\n",    BH_AddParForRestart_NPar  );
+            Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
+         }
+      }
 #endif
       Aux_Message( stdout, "=================================================================================\n"   );
    }
@@ -206,41 +285,11 @@ void SetParameter()
 } // FUNCTION : SetParameter
 
 
+
 #ifdef PARTICLE
-/*
+
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Par_Init_ByFunction
-// Description :  User-specified function to initialize particle attributes
-//
-// Note        :  1. Invoked by Init_GAMER() using the function pointer "Par_Init_ByFunction_Ptr"
-//                   --> This function pointer may be reset by various test problem initializers, in which case
-//                       this funtion will become useless
-//                2. Periodicity should be taken care of in this function
-//                   --> No particles should lie outside the simulation box when the periodic BC is adopted
-//                   --> However, if the non-periodic BC is adopted, particles are allowed to lie outside the box
-//                       (more specifically, outside the "active" region defined by amr->Par->RemoveCell)
-//                       in this function. They will later be removed automatically when calling Par_Aux_InitCheck()
-//                       in Init_GAMER().
-//                3. Particles set by this function are only temporarily stored in this MPI rank
-//                   --> They will later be redistributed when calling Par_FindHomePatch_UniformGrid()
-//                       and LB_Init_LoadBalance()
-//                   --> Therefore, there is no constraint on which particles should be set by this function
-//
-// Parameter   :  NPar_ThisRank : Number of particles to be set by this MPI rank
-//                NPar_AllRank  : Total Number of particles in all MPI ranks
-//                ParPosX/Y/Z   : Particle position array with the size of NPar_ThisRank
-//                ParVelX/Y/Z   : Particle velocity array with the size of NPar_ThisRank
-//                ParTime       : Particle time     array with the size of NPar_ThisRank
-//                AllAttribute  : Pointer array for all particle attributes
-//                                --> Dimension = [PAR_NATT_TOTAL][NPar_ThisRank]
-//                                --> Use the attribute indices defined in Field.h (e.g., Idx_ParCreTime)
-//                                    to access the data
-//
-// Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime, AllAttribute
-//-------------------------------------------------------------------------------------------------------
-*/
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Par_Init_ByUser()
+// Function    :  Par_Init_ByUser_Black_Hole_in_Halo()
 // Description :  User-specified initialization
 //
 // Note        :  1. Add particles after restart
@@ -250,7 +299,7 @@ void SetParameter()
 //
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime
 //-------------------------------------------------------------------------------------------------------
-static void Par_Init_ByUser() 
+static void Par_Init_ByUser_Black_Hole_in_Halo() 
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -258,13 +307,19 @@ static void Par_Init_ByUser()
    const int  Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
    long       BH_AddParForRestart_Check;         
 
-   BH_AddParForRestart_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
    if ( MPI_Rank == 0 )
    {
        Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
+
+       if ( !Aux_CheckFileExist(Particle_Data_Filename) )
+          Aux_Error( ERROR_INFO, "Error!! Initial particle data file %s does not exists!!\n", Particle_Data_Filename);
+
+       BH_AddParForRestart_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
+
        if ( BH_AddParForRestart_Check != BH_AddParForRestart_NPar )
           Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != BH_AddParForRestart_Npar(%ld) !!\n", BH_AddParForRestart_Check, BH_AddParForRestart_NPar );
    }
+   MPI_Bcast(&BH_AddParForRestart_NPar, 1, MPI_LONG, 0, MPI_COMM_WORLD);
 
    const long   NNewPar        = ( MPI_Rank == 0 ) ? BH_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
@@ -338,7 +393,6 @@ static void Par_Init_ByUser()
 
    } // if ( MPI_Rank == 0 )
 
-
 // add particles here
    Par_AddParticleAfterInit( NNewPar, NewParAtt );
 
@@ -386,7 +440,188 @@ static void Par_Init_ByUser()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
-} // FUNCTION : Par_Init_ByUser
+} // FUNCTION : Par_Init_ByUser_Black_Hole_in_Halo
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Par_Init_ByFunction_Black_Hole_in_Halo
+// Description :  User-specified function to initialize particle attributes
+//
+// Note        :  1. Invoked by Init_GAMER() using the function pointer "Par_Init_ByFunction_Ptr"
+//                   --> This function pointer may be reset by various test problem initializers, in which case
+//                       this funtion will become useless
+//                2. Periodicity should be taken care of in this function
+//                   --> No particles should lie outside the simulation box when the periodic BC is adopted
+//                   --> However, if the non-periodic BC is adopted, particles are allowed to lie outside the box
+//                       (more specifically, outside the "active" region defined by amr->Par->RemoveCell)
+//                       in this function. They will later be removed automatically when calling Par_Aux_InitCheck()
+//                       in Init_GAMER().
+//                3. Particles set by this function are only temporarily stored in this MPI rank
+//                   --> They will later be redistributed when calling Par_FindHomePatch_UniformGrid()
+//                       and LB_Init_LoadBalance()
+//                   --> Therefore, there is no constraint on which particles should be set by this function
+//
+// Parameter   :  NPar_ThisRank : Number of particles to be set by this MPI rank
+//                NPar_AllRank  : Total Number of particles in all MPI ranks
+//                ParPosX/Y/Z   : Particle position array with the size of NPar_ThisRank
+//                ParVelX/Y/Z   : Particle velocity array with the size of NPar_ThisRank
+//                ParTime       : Particle time     array with the size of NPar_ThisRank
+//                AllAttribute  : Pointer array for all particle attributes
+//                                --> Dimension = [PAR_NATT_TOTAL][NPar_ThisRank]
+//                                --> Use the attribute indices defined in Field.h (e.g., Idx_ParCreTime)
+//                                    to access the data
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const long NPar_AllRank,
+                                             real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
+                                             real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
+                                             real *AllAttribute[PAR_NATT_TOTAL] )
+{
+   const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
+   const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
+   const int  NCol_particle_data                    = 7;                     // total number of columns to load for particle data
+   const int  Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
+   long       BH_AddParForRestart_Check;         
+
+   if ( MPI_Rank == 0 )
+   {
+       Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
+
+       if ( !Aux_CheckFileExist(Particle_Data_Filename) )
+          Aux_Error( ERROR_INFO, "Error!! Initial particle data file %s does not exists!!\n", Particle_Data_Filename);
+
+       BH_AddParForRestart_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
+
+       if ( BH_AddParForRestart_Check != NPar_AllRank )
+          Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != NPar_AllRank(%ld) !!\n", BH_AddParForRestart_Check, NPar_AllRank );
+   }
+
+
+   real *NewParAtt[PAR_NATT_TOTAL];
+
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NPar_AllRank];
+
+// set particle attributes
+// ============================================================================================================
+   real *Time_AllRank      = NewParAtt[PAR_TIME];
+   real *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+
+
+// only the master rank will construct the initial condition
+   if ( MPI_Rank == 0 )
+   {
+      double  TotM;
+      const double *Mass_table        = Particle_Data_Table;
+      const double *Position_table[3];
+      const double *Velocity_table[3];
+
+      for (int d=0; d<3; d++)
+      {
+         Position_table[d] = Particle_Data_Table+(1+d)*NPar_AllRank;
+         Velocity_table[d] = Particle_Data_Table+(4+d)*NPar_AllRank;
+      }
+
+
+//    set particle attributes
+      for (long p=0; p<NPar_AllRank; p++)
+      {
+//       time
+         Time_AllRank[p] = Time[0];
+
+
+//       mass
+         Mass_AllRank[p] = Mass_table[p];
+         TotM += Mass_AllRank[p];
+
+
+//       position
+         for (int d=0; d<3; d++)    Pos_AllRank[d][p] = Position_table[d][p];
+
+
+//       check periodicity
+         for (int d=0; d<3; d++)
+         {
+            if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+         }
+
+//       velocity
+         for (int d=0; d<3; d++)    Vel_AllRank[d][p] = Velocity_table[d][p];
+
+//       particle tracer index
+         TracerIdx_AllRank[p] = (real)p;
+
+      } // for (long p=0; p<NPar_AllRank; p++)
+
+//      Aux_Message( stdout, "=====================================================================================================\n" );
+//      Aux_Message( stdout, "Total mass = %13.7e\n",  TotM );
+//      for (long p=0; p<NPar_AllRank; p++)
+//           Aux_Message( stdout, "Pisition for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Pos_AllRank[0][p], Pos_AllRank[1][p], Pos_AllRank[2][p] );
+//      for (long p=0; p<NPar_AllRank; p++)
+//           Aux_Message( stdout, "Velocity for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", p, Vel_AllRank[0][p], Vel_AllRank[1][p], Vel_AllRank[2][p] );
+//      Aux_Message( stdout, "=====================================================================================================\n" );
+
+   } // if ( MPI_Rank == 0 )
+
+// synchronize all particles to the physical time on the base level
+   for (long p=0; p<NPar_ThisRank; p++)   ParTime[p] = Time[0];
+
+
+// get the number of particles in each rank and set the corresponding offsets
+   if ( NPar_AllRank > (long)__INT_MAX__ )
+      Aux_Error( ERROR_INFO, "NPar_Active_AllRank (%ld) exceeds the maximum integer (%ld) --> MPI will likely fail !!\n",
+                 NPar_AllRank, (long)__INT_MAX__ );
+
+   int NSend[MPI_NRank], SendDisp[MPI_NRank];
+   int NPar_ThisRank_int = NPar_ThisRank;    // (i) convert to "int" and (ii) remove the "const" declaration
+                                             // --> (ii) is necessary for OpenMPI version < 1.7
+
+   MPI_Gather( &NPar_ThisRank_int, 1, MPI_INT, NSend, 1, MPI_INT, 0, MPI_COMM_WORLD );
+
+   if ( MPI_Rank == 0 )
+   {
+      SendDisp[0] = 0;
+      for (int r=1; r<MPI_NRank; r++)  SendDisp[r] = SendDisp[r-1] + NSend[r-1];
+   }
+
+
+// send particle attributes from the master rank to all ranks
+   real *Mass      =   ParMass;
+   real *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
+   real *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
+   real *TracerIdx = AllAttribute[NewParAttTracerIdx];
+
+#  ifdef FLOAT8
+   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_DOUBLE, Mass, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_DOUBLE, TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+   for (int d=0; d<3; d++)
+   {
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Pos[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Vel[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+   }
+
+#  else
+   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_FLOAT,  Mass, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_FLOAT,  TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+   for (int d=0; d<3; d++)
+   {
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Pos[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Vel[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+   }
+#  endif
+
+// free memory
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
+
+} // FUNCTION : Par_Init_ByFunction_Black_Hole_in_Halo
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -453,6 +688,7 @@ static void Record_Particle_Data_Text( char *FileName )
 } // FUNCTION : Record_Particle_Data_Text
 
 
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Record_Particle_Data_Binary
 // Description :  Output the particle position and velocity in binary file
@@ -514,6 +750,7 @@ static void Record_Particle_Data_Binary( char *FileName )
 } // FUNCTION : Record_Particle_Data_Binary
 
 
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  AddNewParticleAttribute_Black_Hole_in_Halo
 // Description :  Add the problem-specific particle attributes: used for labelling particle
@@ -535,6 +772,7 @@ static void AddNewParticleAttribute_Black_Hole_in_Halo(void)
 }
 
 #endif // end of ifdef PARTICLE
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -577,11 +815,13 @@ static double GetPhase(real dens_sqrt, real real_part, real imag_part)
    if ( phase!=phase )
       Aux_Error( ERROR_INFO, "Phase is NaN !! Square root of density is %.8e ; real part = %.8e ; imaginary part = %.8e \n", dens_sqrt, real_part, imag_part );
    return phase;
-}
+} // FUNCTION : GetPhase
+
+
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Init_User_ELBDM_Halo_Stability_Test
+// Function    :  Init_User_ELBDM_Black_Hole_in_Halo
 // Description :  Set the particle IC if BH_AddParForRestart is enabled; erase the soliton initial velocity by phase modulation scheme if EraseSolVelFlag is enabled; treated as normal restart if neither of them is enabled 
 //
 // Note        :  1. Invoked by Init_GAMER() using the function pointer "Init_User_Ptr",
@@ -593,14 +833,13 @@ static double GetPhase(real dens_sqrt, real real_part, real imag_part)
 //-------------------------------------------------------------------------------------------------------
 static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 {
-#ifdef PARTICLE
-   if ( BH_AddParForRestart )
-   {
+   if ( ( OPT__INIT == INIT_BY_FILE ) || ( OPT__RESTART_RESET == 1 ) )
       first_run_flag = true;
-      Par_Init_ByUser();
-   }
    else
       first_run_flag = false;
+#ifdef PARTICLE
+   if ( BH_AddParForRestart == 1 )
+      Par_Init_ByUser_Black_Hole_in_Halo();
 #endif
 
    if ( EraseSolVelFlag )  
@@ -696,7 +935,8 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       } // if ( OPT__INIT_RESTRICT )
    } // end of if ( EraseSolVelFlag )
 
-} // FUNCTION : Init_User_ELBDM_Halo_Stability_Test_No_Soliton
+} // FUNCTION : Init_User_ELBDM_Black_Hole_in_Halo
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -747,8 +987,9 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 } // FUNCTION : SetGridIC
 
 
+
 //-------------------------------------------------------------------------------------------------------
-// Function    :  BC
+// Function    :  BC_HALO
 // Description :  Set the extenral boundary condition
 //
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
@@ -771,6 +1012,7 @@ static void BC_HALO( real fluid[], const double x, const double y, const double 
    fluid[DENS] = (real)0.0;
 
 } // FUNCTION : BC_HALO
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -890,6 +1132,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
          Aux_Error( ERROR_INFO, "CM_New[%d] = %14.7e lies outside the domain !!\n", d, CM_New[d] );
 
 } // FUNCTION : GetCenterOfMass
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -1020,17 +1263,22 @@ static void Record_CenterOfMass( void )
 
       if ( first_run_flag )
       {
+         FILE *file_center;
          if ( Aux_CheckFileExist(filename_center) )
-            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
-         else
          {
-            FILE *file_center = fopen( filename_center, "w" );
-            fprintf( file_center, "#%s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
-                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
-                     "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
-                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
-            fclose( file_center );
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
+            file_center = fopen( filename_center, "a" );
          }
+         else
+            file_center = fopen( filename_center, "w" );
+         fprintf( file_center, "#%s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+                  "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                  "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
+                  "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+         fclose( file_center );
+#ifndef PARTICLE
+         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time setp, so in that case no need to turn it to false here
+#endif
       }
 
       FILE *file_center = fopen( filename_center, "a" );
@@ -1094,6 +1342,7 @@ static void Record_CenterOfMass( void )
 } // FUNCTION : Record_CenterOfMass 
 
 
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Do_COM_and_CF
 // Description :  Do record center of mass and calculate correlation function 
@@ -1126,8 +1375,9 @@ static void Do_COM_and_CF( void )
 }
 
 
+
 //-------------------------------------------------------------------------------------------------------
-// Function    :  End_Halo_Stability_Test_No_Soliton
+// Function    :  End_Black_Hole_in_Halo
 // Description :  Free memory before terminating the program
 //
 // Note        :  1. Linked to the function pointer "End_User_Ptr" to replace "End_User()"
@@ -1136,14 +1386,12 @@ static void Do_COM_and_CF( void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Black_Hole_in_Halo()
 {
-//FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
-
 #ifdef PARTICLE
    delete [] Particle_Data_Table;
 #endif
-
-} // FUNCTION : End_Stability_Test_No_Soliton
+} // FUNCTION : End_Black_Hole_in_Halo
 #endif // end of if ( MODEL == ELBDM && defined GRAVITY )
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -1176,8 +1424,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
    BC_User_Ptr                 = BC_HALO;
    Aux_Record_User_Ptr         = Do_COM_and_CF;
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
+   Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_SolitonPot;
 #    ifdef PARTICLE
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Halo;
+   Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Halo;
 #    endif // #ifdef PARTICLE
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
