@@ -82,11 +82,7 @@ double SolitonMass(double soliton_mass_scale, double r_normalized)
 // Return      :  soliton potential at a given normalized radius
 //-------------------------------------------------------------------------------------------------------
 GPU_DEVICE_NOINLINE
-#ifdef __CUDACC__
-__device__ static real SolitonPot(real soliton_pot_scale, real r_normalized)
-#else
 static real SolitonPot(real soliton_pot_scale, real r_normalized)
-#endif
 {
    real factor            = POW( (POW(2.,1./8.) - 1.) , 0.5 );  
    real X                 = factor*r_normalized;
