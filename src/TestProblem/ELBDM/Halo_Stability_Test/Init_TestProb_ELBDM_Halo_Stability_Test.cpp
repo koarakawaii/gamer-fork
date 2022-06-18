@@ -185,8 +185,25 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
 } // FUNCTION : SetGridIC
 
-void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
-         const int lv, double AuxArray[] )
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  BC_HALO
+// Description :  Set the extenral boundary condition
+//
+// Note        :  1. Linked to the function pointer "BC_User_Ptr"
+//                2. Set the BC as isolated
+//
+// Parameter   :  fluid    : Fluid field to be set
+//                x/y/z    : Physical coordinates
+//                Time     : Physical time
+//                lv       : Refinement level
+//                AuxArray : Auxiliary array
+//
+// Return      :  fluid
+////-------------------------------------------------------------------------------------------------------
+static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
+                     const int lv, double AuxArray[] )
 {
 
    fluid[REAL] = (real)0.0;
@@ -195,7 +212,7 @@ void BC_HALO( real fluid[], const double x, const double y, const double z, cons
 
 } // FUNCTION : BC_HALO
 
-#endif // #if ( MODEL == ELBDM && defined GRAVITY )
+
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  GetCenterOfMass
@@ -311,6 +328,8 @@ void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_Ma
          Aux_Error( ERROR_INFO, "CM_New[%d] = %14.7e lies outside the domain !!\n", d, CM_New[d] );
 
 } // FUNCTION : GetCenterOfMass
+
+
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Record_CenterOfMass
@@ -518,6 +537,24 @@ void Record_CenterOfMass(void )
 
 } // FUNCTION : Record_CenterOfMass
 
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  End_Halo_Stability_Test
+// Description :  Free memory before terminating the program
+//
+// Note        :  1. Linked to the function pointer "End_User_Ptr" to replace "End_User()"
+//
+// Parameter   :  None
+//-------------------------------------------------------------------------------------------------------
+static void End_Halo_Stability_Test()
+{
+   
+} // FUNCTION : End_Halo_Stability_Test
+#endif // end of if ( MODEL == ELBDM && defined GRAVITY )
+
+
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Init_TestProb_ELBDM_Halo_Stability_Test
 // Description :  Test problem initializer
@@ -549,7 +586,8 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
-   Src_Init_User_Ptr              = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
+   Src_Init_User_Ptr      = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
+   End_User_Ptr           = End_Halo_Stability_Test;
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
