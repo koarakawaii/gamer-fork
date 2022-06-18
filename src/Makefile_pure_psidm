@@ -15,10 +15,7 @@
 
 # executable
 #######################################################################################################
-#EXECUTABLE := gamer_intel-oneapi
-EXECUTABLE := gamer_intel-oneapi_particle_ensemble
-#EXECUTABLE := gamer_comoving
-#EXECUTABLE := gamer_gnu
+EXECUTABLE := gamer_intel-oneapi
 
 
 
@@ -43,7 +40,7 @@ SIMU_OPTION += -DGRAVITY
 
 # enable particles
 # --> must enable GRAVITY
-SIMU_OPTION += -DPARTICLE
+#SIMU_OPTION += -DPARTICLE
 
 # support Grackle, a chemistry and radiative cooling library
 # --> must set NCOMP_PASSIVE_USER according to the primordial chemistry network set by GRACKLE_PRIMORDIAL
@@ -221,7 +218,6 @@ SIMU_OPTION += -DSUPPORT_HDF5
 # --> use RNG_GNU_EXT for compilers supporting GNU extensions (**not supported on some macOS**)
 #     use RNG_CPP11   for compilers supporting c++11 (**may need to add -std=c++11 to CXXFLAG**)
 SIMU_OPTION += -DRANDOM_NUMBER=RNG_GNU_EXT
-
 
 
 
