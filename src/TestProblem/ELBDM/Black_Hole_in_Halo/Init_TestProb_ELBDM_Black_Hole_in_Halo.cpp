@@ -332,6 +332,7 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 // ============================================================================================================
    real *Time_AllRank      = NewParAtt[PAR_TIME];
    real *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real *Type_AllRank      = NewParAtt[PAR_TYPE];
    real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
    real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
    real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
@@ -377,6 +378,9 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 
 //       velocity
          for (int d=0; d<3; d++)    Vel_AllRank[d][p] = Velocity_table[d][p];
+
+//       particle type
+         Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
          TracerIdx_AllRank[p] = (real)p;
@@ -467,6 +471,7 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 //                ParPosX/Y/Z   : Particle position array with the size of NPar_ThisRank
 //                ParVelX/Y/Z   : Particle velocity array with the size of NPar_ThisRank
 //                ParTime       : Particle time     array with the size of NPar_ThisRank
+//                ParType       : Particle type     array with the size of NPar_ThisRank
 //                AllAttribute  : Pointer array for all particle attributes
 //                                --> Dimension = [PAR_NATT_TOTAL][NPar_ThisRank]
 //                                --> Use the attribute indices defined in Field.h (e.g., Idx_ParCreTime)
@@ -477,7 +482,7 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const long NPar_AllRank,
                                              real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
                                              real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
-                                             real *AllAttribute[PAR_NATT_TOTAL] )
+                                             real *ParType, real *AllAttribute[PAR_NATT_TOTAL] )
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -507,6 +512,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
 // ============================================================================================================
    real *Time_AllRank      = NewParAtt[PAR_TIME];
    real *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real *Type_AllRank      = NewParAtt[PAR_TYPE];
    real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
    real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
    real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
@@ -553,6 +559,9 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
 //       velocity
          for (int d=0; d<3; d++)    Vel_AllRank[d][p] = Velocity_table[d][p];
 
+//       particle type
+         Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
+
 //       particle tracer index
          TracerIdx_AllRank[p] = (real)p;
 
@@ -592,12 +601,14 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
 
 // send particle attributes from the master rank to all ranks
    real *Mass      =   ParMass;
+   real *Type      =   ParType;
    real *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
    real *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
    real *TracerIdx = AllAttribute[NewParAttTracerIdx];
 
 #  ifdef FLOAT8
    MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_DOUBLE, Mass, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_DOUBLE, Type, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
    MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_DOUBLE, TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)
@@ -608,6 +619,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
 
 #  else
    MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_FLOAT,  Mass, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_FLOAT,  Type, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
    MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_FLOAT,  TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)
