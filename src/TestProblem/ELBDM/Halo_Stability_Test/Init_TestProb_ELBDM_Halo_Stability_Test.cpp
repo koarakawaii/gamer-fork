@@ -7,6 +7,7 @@ static double   System_CM_MaxR;                         // maximum radius for de
 static double   System_CM_TolErrR;                      // maximum allowed errors for determining System CM
 static double   Soliton_CM_MaxR;                        // maximum radius for determining Soliton CM
 static double   Soliton_CM_TolErrR;                     // maximum allowed errors for determining Soliton CM
+static bool     Fluid_Periodic_BC_Flag;                 // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 // =======================================================================================
 
 //-------------------------------------------------------------------------------------------------------
@@ -88,8 +89,9 @@ void SetParameter()
 // ********************************************************************************************************************************
    ReadPara->Add( "System_CM_MaxR",           &System_CM_MaxR,           -1.0,           Eps_double,       NoMax_double      );
    ReadPara->Add( "System_CM_TolErrR",        &System_CM_TolErrR,        -1.0,           NoMin_double,     NoMax_double      );
-   ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,          -1.0,          Eps_double,       NoMax_double       );
-   ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,       -1.0,          NoMin_double,     NoMax_double       );
+   ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,          -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,       -1.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Fluid_Periodic_BC_Flag",   &Fluid_Periodic_BC_Flag,  false,           Useless_bool,     Useless_bool      );
 
    ReadPara->Read( FileName );
 
@@ -124,11 +126,12 @@ void SetParameter()
    if ( MPI_Rank == 0 )
    {
       Aux_Message( stdout, "=============================================================================\n" );
-      Aux_Message( stdout, "  test problem ID           = %d\n",     TESTPROB_ID );
-      Aux_Message( stdout, "  system CM max radius                     = %13.6e\n", System_CM_MaxR            );
-      Aux_Message( stdout, "  system CM tolerated error                = %13.6e\n", System_CM_TolErrR         );
-      Aux_Message( stdout, "  soliton CM max radius                    = %13.6e\n", Soliton_CM_MaxR           );
-      Aux_Message( stdout, "  soliton CM tolerated error               = %13.6e\n", Soliton_CM_TolErrR        );
+      Aux_Message( stdout, "  test problem ID           = %d\n",                    TESTPROB_ID              );
+      Aux_Message( stdout, "  system CM max radius                     = %13.6e\n", System_CM_MaxR           );
+      Aux_Message( stdout, "  system CM tolerated error                = %13.6e\n", System_CM_TolErrR        );
+      Aux_Message( stdout, "  soliton CM max radius                    = %13.6e\n", Soliton_CM_MaxR          );
+      Aux_Message( stdout, "  soliton CM tolerated error               = %13.6e\n", Soliton_CM_TolErrR       );
+      Aux_Message( stdout, "  fluid periodic boundary condition flag   = %d\n",     Fluid_Periodic_BC_Flag   );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
@@ -579,9 +582,26 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 // set the problem-specific runtime parameters
    SetParameter();
 
+// check whether fluid boundary condition in Input__Parameter is set properly
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+      BC_User_Ptr            = BC_HALO;
+   }
 
    Init_Function_User_Ptr = SetGridIC;
-   BC_User_Ptr            = BC_HALO;
    Aux_Record_User_Ptr    = Record_CenterOfMass;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
