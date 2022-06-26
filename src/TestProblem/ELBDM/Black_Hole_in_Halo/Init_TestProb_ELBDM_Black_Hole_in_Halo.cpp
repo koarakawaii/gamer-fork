@@ -69,6 +69,7 @@ void Validate()
 //#  ifndef PARTICLE
 //   Aux_Error( ERROR_INFO, "PARTICLE must be enabled !!\n" );
 //#  endif
+   
 
 #  ifdef COMOVING
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
@@ -78,6 +79,12 @@ void Validate()
    if ( OPT__BC_POT != BC_POT_ISOLATED )
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
+
+   for ( int direction = 0; direction < 6; direction++ ) 
+   {
+       if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+          Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+   }
 
 # ifdef PARTICLE
    if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
