@@ -263,6 +263,7 @@ CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 # CXXFLAG     = -g -O3                                    # general flags
 #CXXFLAG     = -g -O3 -std=c++11
 #CXXFLAG     = -g -Ofast
+<<<<<<< HEAD:src/Makefile_pure_psidm
 # CXXFLAG    += -Wall -Wextra                             # warning flags
 # CXXFLAG    += -Wno-unused-variable -Wno-unused-parameter \
 #               -Wno-maybe-uninitialized -Wno-unused-but-set-variable \
@@ -418,7 +419,7 @@ LIBYT_PATH   := /work1/koarakawaii/libyt_cindy_tsai
 #MPI_PATH     := /cluster/intel-2022.1/openmpi-4.1.2
 #HDF5_PATH    := /cluster/intel-2022.1/hdf5-1.10.8_openmpi4
 #GRACKLE_PATH :=
-#GSL_PATH     :=
+#GSL_PATH     := /usr
 #LIBYT_PATH   :=
 
 
