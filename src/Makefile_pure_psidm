@@ -263,7 +263,6 @@ CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 # CXXFLAG     = -g -O3                                    # general flags
 #CXXFLAG     = -g -O3 -std=c++11
 #CXXFLAG     = -g -Ofast
-<<<<<<< HEAD:src/Makefile_pure_psidm
 # CXXFLAG    += -Wall -Wextra                             # warning flags
 # CXXFLAG    += -Wno-unused-variable -Wno-unused-parameter \
 #               -Wno-maybe-uninitialized -Wno-unused-but-set-variable \
