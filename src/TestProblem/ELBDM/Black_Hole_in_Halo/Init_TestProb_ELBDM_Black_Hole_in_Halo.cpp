@@ -1444,6 +1444,7 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
    Aux_Record_User_Ptr         = Do_COM_and_CF;
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_SolitonPot;
+   End_User_Ptr                = End_Black_Hole_in_Halo;
 #    ifdef PARTICLE
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Halo;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Halo;
@@ -1452,7 +1453,6 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
    Src_Init_User_Ptr       = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
-   End_User_Ptr            = End_Black_Hole_in_Halo;
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );

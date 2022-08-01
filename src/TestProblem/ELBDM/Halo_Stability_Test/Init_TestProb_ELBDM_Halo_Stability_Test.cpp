@@ -603,12 +603,11 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 
    Init_Function_User_Ptr = SetGridIC;
    Aux_Record_User_Ptr    = Record_CenterOfMass;
+   End_User_Ptr           = End_Halo_Stability_Test;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
    Src_Init_User_Ptr      = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
-   End_User_Ptr           = End_Halo_Stability_Test;
-
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
