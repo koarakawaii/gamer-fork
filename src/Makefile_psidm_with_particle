@@ -15,7 +15,7 @@
 
 # executable
 #######################################################################################################
-EXECUTABLE := gamer_intel-oneapi_particle_ensemble
+EXECUTABLE := gamer_intel-oneapi_particle_ensemble_flag_user
 
 
 
@@ -211,7 +211,7 @@ SIMU_OPTION += -DOPENMP
 SIMU_OPTION += -DSUPPORT_HDF5
 
 # support GNU scientific library
-#SIMU_OPTION += -DSUPPORT_GSL
+SIMU_OPTION += -DSUPPORT_GSL
 
 # support yt inline analysis
 #SIMU_OPTION += -DSUPPORT_LIBYT

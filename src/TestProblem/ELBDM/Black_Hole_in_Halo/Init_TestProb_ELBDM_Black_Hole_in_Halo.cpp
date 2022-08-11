@@ -23,10 +23,10 @@ static double   SolitonMassScale;                   // proportional factor for c
 static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
 static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
 #ifdef PARTICLE
-static int      NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
+static int      NewParAttTracerIdx = Idx_Undefined; // particle attribute index for labelling particles
+static int      WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary Other: Do not write)
 
 static bool     ParRefineFlag;                      // flag for refinement based on particles
-static bool     WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary)
 static bool     BH_AddParForRestart;                // flag for adding new particle after restart
 static long     BH_AddParForRestart_NPar;           // number for particle will be added after restart
 static char     Particle_Data_Filename[MAX_STRING]; // filename of the particles mass, initial position, initial velocity data
@@ -38,6 +38,7 @@ static double  *Particle_Data_Table = NULL;         // particle data table [mass
 // external potential routines
 extern void Init_ExtPot_ELBDM_SolitonPot();
 extern double SolitonMass(double soliton_mass_scale, double r_normalized);
+extern bool Flag_UM_IC_AMR( const int i, const int j, const int k, const int lv, const int PID, const double *Threshold );
 //
 
 
@@ -102,6 +103,13 @@ void Validate()
 // only accept OPT__INIT_RESTRICT == 1
    if ( OPT__INIT_RESTRICT != 1 )
       Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT_RESTRICT == 1 !!\n" );
+
+// User define AMR refinement criteria (to build similar AMR structure similiar to that of reconstructed halo UM_IC) only accepts cubic box
+   if ( OPT__FLAG_USER )
+   {
+      if ( amr->BoxSize[0] != amr->BoxSize[1]  ||  amr->BoxSize[0] != amr->BoxSize[2] )
+         Aux_Message( stderr, "WARNING : non-cubic box (currently the flag routine \"Flag_UM_IC_AMR()\" assumes a cubic box) !!\n" );
+   }
       
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
@@ -173,7 +181,7 @@ void SetParameter()
    }
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
-   ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,    false,         Useless_bool,      Useless_bool      );
+   ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
    ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
    if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
       ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
@@ -1380,16 +1388,18 @@ static void Do_COM_and_CF( void )
    Record_CenterOfMass();
 #ifdef PARTICLE
    char Particle_Log_Filename_Full[MAX_STRING];
-   if ( WriteDataInBinaryFlag )
+   if ( WriteDataInBinaryFlag == 0 )
+   {
+       sprintf(Particle_Log_Filename_Full, "%s.txt", Particle_Log_Filename);
+       Record_Particle_Data_Text(Particle_Log_Filename_Full);
+   }
+   else if ( WriteDataInBinaryFlag == 1 )
    {
        sprintf(Particle_Log_Filename_Full, "%s_StepIdx=%06ld.bin", Particle_Log_Filename, Step);
        Record_Particle_Data_Binary(Particle_Log_Filename_Full);
    }
    else
-   {
-       sprintf(Particle_Log_Filename_Full, "%s.txt", Particle_Log_Filename);
-       Record_Particle_Data_Text(Particle_Log_Filename_Full);
-   }
+       first_run_flag = false;
 #endif
 }
 
@@ -1452,8 +1462,8 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
-   Src_Init_User_Ptr       = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
-
+   Src_Init_User_Ptr           = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
+   if ( OPT__FLAG_USER )   Flag_User_Ptr = Flag_UM_IC_AMR;
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
