@@ -1052,7 +1052,7 @@ static void BC_HALO( real fluid[], const double x, const double y, const double 
 // Parameter   :  CM_Old[] : Previous CM
 //                CM_New[] : New CM to be returned
 //-------------------------------------------------------------------------------------------------------
-static void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_MaxR )
+static void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_MaxR, const long DensMode )
 {
 
    const double CM_MaxR2          = SQR( CM_MaxR );
@@ -1063,8 +1063,6 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
    const bool   DE_Consistency_No = false;
-
-   long DensMode  = _TOTAL_DENS;
 
    int   *PID0List = NULL;
    double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
@@ -1186,7 +1184,7 @@ static void Record_CenterOfMass( void )
    double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
    double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
    long   DensMode;
-   DensMode  = _DENS;
+   DensMode  = _DENS;  // find peak densit for FDM component only
 
    const bool   IntPhase_No       = false;
    const real   MinDens_No        = -1.0;
@@ -1298,7 +1296,7 @@ static void Record_CenterOfMass( void )
          }
          else
             file_center = fopen( filename_center, "w" );
-         fprintf( file_center, "#%s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+         fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
                   "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
                   "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
                   "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
@@ -1319,7 +1317,7 @@ static void Record_CenterOfMass( void )
 
 // compute the center of mass until convergence
    const double TolErrR2 = SQR( System_CM_TolErrR );
-   const int    NIterMax = 10;
+   const int    NIterMax = 20;
 
    double dR2, CM_Old[3], CM_New[3];
    int NIter = 0;
@@ -1336,9 +1334,9 @@ static void Record_CenterOfMass( void )
       while ( true )
       {
          if (repeat==0)
-            GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR );
+            GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR, _TOTAL_DENS ); // for system center of mass, use total density
          else
-            GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR );
+            GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR, _DENS );      // for soliton center of mass, use FDM density
    
          dR2 = SQR( CM_Old[0] - CM_New[0] )
              + SQR( CM_Old[1] - CM_New[1] )
