@@ -677,7 +677,7 @@ static void Record_Particle_Data_Text( char *FileName )
           else
               File = fopen( FileName, "a" );
 
-          fprintf( File, "#Time                    Step                    Active_Particles   ");
+          fprintf( File, "# Time                    Step                    Active_Particles   ");
 
           for (int v=0; v<PAR_NATT_TOTAL; v++)
               fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
