@@ -490,7 +490,7 @@ void Record_CenterOfMass(void )
 
 // compute the center of mass until convergence
    const double TolErrR2 = SQR( System_CM_TolErrR );
-   const int    NIterMax = 10;
+   const int    NIterMax = 20;
 
    double dR2, CM_Old[3], CM_New[3];
    int NIter = 0;
