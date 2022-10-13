@@ -489,7 +489,7 @@ void Record_CenterOfMass(void )
 
 
 // compute the center of mass until convergence
-   const double TolErrR2 = SQR( System_CM_TolErrR );
+   double TolErrR2;
    const int    NIterMax = 20;
 
    double dR2, CM_Old[3], CM_New[3];
@@ -498,6 +498,10 @@ void Record_CenterOfMass(void )
 // repeat 2 times: first for system CM, next for soliton CM
    for (int repeat=0; repeat<2; repeat++)
    {
+       if (repeat==0)
+          TolErrR2 = SQR( System_CM_TolErrR );
+       else
+          TolErrR2 = SQR( Soliton_CM_TolErrR );
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
@@ -525,7 +529,10 @@ void Record_CenterOfMass(void )
        if ( MPI_Rank == 0 )
        {
           if ( dR2 > TolErrR2 )
-             Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+             if (repeat==0)
+                Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+             else
+                Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
     
           FILE *file_center = fopen( filename_center, "a" );
           if (repeat==0)

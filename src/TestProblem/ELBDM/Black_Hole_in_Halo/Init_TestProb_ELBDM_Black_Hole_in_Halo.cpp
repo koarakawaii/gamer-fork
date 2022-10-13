@@ -182,7 +182,11 @@ void SetParameter()
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
-   ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
+
+   ReadPara->Read( FileName );
+   if ( (WriteDataInBinaryFlag == 0) && (WriteDataInBinaryFlag == 1) )
+      ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
+
    if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
       ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
    if ( OPT__RESTART_RESET == 1 )
@@ -1318,7 +1322,7 @@ static void Record_CenterOfMass( void )
 
 
 // compute the center of mass until convergence
-   const double TolErrR2 = SQR( System_CM_TolErrR );
+   double TolErrR2;
    const int    NIterMax = 20;
 
    double dR2, CM_Old[3], CM_New[3];
@@ -1327,6 +1331,10 @@ static void Record_CenterOfMass( void )
 // repeat 2 times: first for system CM, next for soliton CM
    for (int repeat=0; repeat<2; repeat++)
    {
+      if ( repeat==0 )
+         TolErrR2 = SQR( System_CM_TolErrR );
+      else 
+         TolErrR2 = SQR( Soliton_CM_TolErrR );
 // set an initial guess by the peak density position
       if ( MPI_Rank == 0 )
          for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
@@ -1354,7 +1362,12 @@ static void Record_CenterOfMass( void )
       if ( MPI_Rank == 0 )
       {
          if ( dR2 > TolErrR2 )
-            Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+         {
+            if (repeat==0)
+               Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+            else
+               Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
+         }
    
          FILE *file_center = fopen( filename_center, "a" );
          if (repeat==0)
@@ -1424,7 +1437,7 @@ static void End_Black_Hole_in_Halo()
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Init_TestProb_ELBDM_Halo_Stability_Test
+// Function    :  Init_TestProb_ELBDM_Black_Hole_in_Halo
 // Description :  Test problem initializer
 //
 // Note        :  None
@@ -1467,4 +1480,4 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
-} // FUNCTION : Init_TestProb_ELBDM_Halo_Stability_Test
+} // FUNCTION : Init_TestProb_ELBDM_Black_Hole_in_Halo
