@@ -211,7 +211,7 @@ void SetParameter()
    if ( Soliton_CM_TolErrR < 0.0 )          System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
-   if ( ( EraseSolVelFlag == 1 ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ))
+   if ( ( EraseSolVelFlag == 1 ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if EraseSolVelFlag is enabled !!\n" );
 #ifdef PARTICLE
    if ( ( BH_AddParForRestart ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
@@ -874,7 +874,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       Par_Init_ByUser_Black_Hole_in_Halo();
 #endif
 
-   if ( EraseSolVelFlag )  
+   if ( EraseSolVelFlag == 1 )  
    {
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Applying phase scheme to erase soliton velocity %d ... ");
       double x, y, z, x0, y0, z0, modulator;
