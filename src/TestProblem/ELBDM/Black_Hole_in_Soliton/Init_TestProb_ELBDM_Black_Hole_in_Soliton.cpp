@@ -179,7 +179,7 @@ void SetParameter()
 #endif
 
 
-// (2) load the reference soliton density profile and evaluate the scale factors
+// (2) load the reference soliton density profile
    if ( OPT__INIT != INIT_BY_RESTART )
    {
 //    load the reference profile
@@ -211,8 +211,8 @@ void SetParameter()
       Aux_Message( stdout, "  soliton center_x                             = %13.6e\n", SolitonCenter[0]          );
       Aux_Message( stdout, "  soliton center_y                             = %13.6e\n", SolitonCenter[1]          );
       Aux_Message( stdout, "  soliton center_z                             = %13.6e\n", SolitonCenter[2]          );
-      Aux_Message( stdout, "  density profile filename                     = %s\n",     Soliton_DensProf_Filename  );
-      Aux_Message( stdout, "  number of bins of the density profile        = %d\n",     Soliton_DensProf_NBin      );
+      Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename  );
+      Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
       if ( OPT__EXT_POT == EXT_POT_FUNC )
       {
          Aux_Message( stdout, "  NSD half mass radius                         = %13.6e\n", NSDHalfMassRadius         );
