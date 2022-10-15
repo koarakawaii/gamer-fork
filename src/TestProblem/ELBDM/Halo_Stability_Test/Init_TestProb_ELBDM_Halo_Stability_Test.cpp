@@ -98,7 +98,8 @@ void SetParameter()
    delete ReadPara;
 
 // (1-2) set the default values
-   if ( System_CM_TolErrR < 0.0 )  System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
+   if ( System_CM_TolErrR < 0.0 )   System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
+   if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
 
