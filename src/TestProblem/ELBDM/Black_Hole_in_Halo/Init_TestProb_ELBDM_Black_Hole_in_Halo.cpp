@@ -876,7 +876,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 
    if ( EraseSolVelFlag == 1 )  
    {
-      if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Applying phase scheme to erase soliton velocity %d ... ");
+      if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Applying phase scheme to erase soliton velocity... ");
       double x, y, z, x0, y0, z0, modulator;
       real   dr[3];
       real   r;
@@ -967,7 +967,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
          } // for (int lv=NLEVEL-2; lv>=0; lv--)
       } // if ( OPT__INIT_RESTRICT )
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Phase scheme completed ... ");
-   } // end of if ( EraseSolVelFlag )
+   } // end of if ( EraseSolVelFlag == 1)
 
 } // FUNCTION : Init_User_ELBDM_Black_Hole_in_Halo
 
