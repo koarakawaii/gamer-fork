@@ -214,7 +214,7 @@ void SetParameter()
    if ( ( EraseSolVelFlag == 1 ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if EraseSolVelFlag is enabled !!\n" );
 #ifdef PARTICLE
-   if ( ( BH_AddParForRestart ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
+   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
 #endif
 
@@ -291,7 +291,7 @@ void SetParameter()
       if ( OPT__RESTART_RESET == 1 )
       {
          Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
-         if ( BH_AddParForRestart )
+         if ( BH_AddParForRestart == 1 )
          {
             Aux_Message( stdout, "  number of particles to be added              = %ld\n",    BH_AddParForRestart_NPar  );
             Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
