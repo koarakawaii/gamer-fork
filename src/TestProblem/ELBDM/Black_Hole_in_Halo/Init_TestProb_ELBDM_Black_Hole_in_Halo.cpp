@@ -184,7 +184,7 @@ void SetParameter()
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
 
    ReadPara->Read( FileName );
-   if ( (WriteDataInBinaryFlag == 0) && (WriteDataInBinaryFlag == 1) )
+   if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
 
    if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
@@ -284,7 +284,8 @@ void SetParameter()
 #ifdef PARTICLE
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
-      Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
+      if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
+         Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
       if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
          Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
       if ( OPT__RESTART_RESET == 1 )
@@ -336,8 +337,16 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 
        BH_AddParForRestart_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
 
-       if ( BH_AddParForRestart_Check != BH_AddParForRestart_NPar )
-          Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != BH_AddParForRestart_Npar(%ld) !!\n", BH_AddParForRestart_Check, BH_AddParForRestart_NPar );
+       if ( BH_AddParForRestart == 1 )
+       {
+          if ( BH_AddParForRestart_Check != BH_AddParForRestart_NPar )
+             Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != BH_AddParForRestart_Npar(%ld) !!\n", BH_AddParForRestart_Check, BH_AddParForRestart_NPar );
+       }
+       else if ( OPT__INIT == INIT_BY_FILE  )
+       {
+          if ( BH_AddParForRestart_Check != amr->Par->NPar_Active_AllRank )
+             Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != PAR_NPAR(%ld) !!\n", BH_AddParForRestart_Check, amr->Par->NPar_Active_AllRank );
+       }
    }
    MPI_Bcast(&BH_AddParForRestart_NPar, 1, MPI_LONG, 0, MPI_COMM_WORLD);
 

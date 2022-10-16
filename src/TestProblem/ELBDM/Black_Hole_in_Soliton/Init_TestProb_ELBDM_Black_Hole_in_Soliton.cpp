@@ -277,8 +277,16 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 
        BH_AddParForRestart_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
 
-       if ( BH_AddParForRestart_Check != BH_AddParForRestart_NPar )
-          Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != BH_AddParForRestart_Npar(%ld) !!\n", BH_AddParForRestart_Check, BH_AddParForRestart_NPar );
+       if ( BH_AddParForRestart == 1 )
+       {
+          if ( BH_AddParForRestart_Check != BH_AddParForRestart_NPar )
+             Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != BH_AddParForRestart_Npar(%ld) !!\n", BH_AddParForRestart_Check, BH_AddParForRestart_NPar );
+       }
+       else if ( OPT__INIT == INIT_BY_FUNCTION )
+       {
+          if ( BH_AddParForRestart_Check != amr->Par->NPar_Active_AllRank )
+             Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != PAR_NPAR(%ld) !!\n", BH_AddParForRestart_Check, amr->Par->NPar_Active_AllRank );
+       }
    }
    MPI_Bcast(&BH_AddParForRestart_NPar, 1, MPI_LONG, 0, MPI_COMM_WORLD);
 
