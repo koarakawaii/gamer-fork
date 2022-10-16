@@ -201,7 +201,7 @@ void SetParameter()
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
 
    ReadPara->Read( FileName );
-   if ( (WriteDataInBinaryFlag == 0) && (WriteDataInBinaryFlag == 1) )
+   if ( (WriteDataInBinaryFlag == 0) || (WriteDataInBinaryFlag == 1) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
 
    if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
@@ -230,7 +230,7 @@ void SetParameter()
 // (1-3) check the runtime parameters
    if ( ( EraseSolVelFlag == 1 ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if EraseSolVelFlag is enabled !!\n" );
-   if ( ( AddNewSolVelFlag == 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
+   if ( ( AddNewSolFlag == 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__INIT == INIT_BY_FILE if AddNewSolFlag is enabled !!\n" );
 #ifdef PARTICLE
    if ( ( BH_AddParForRestart ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
@@ -286,6 +286,7 @@ void SetParameter()
       Aux_Message( stdout, "  soliton CM max radius                        = %13.6e\n", Soliton_CM_MaxR           );
       Aux_Message( stdout, "  soliton CM tolerated error                   = %13.6e\n", Soliton_CM_TolErrR        );
       Aux_Message( stdout, "  erase soliton initial velocity flag          = %d\n",     EraseSolVelFlag           );
+      Aux_Message( stdout, "  add soliton new soliton wave function flag   = %d\n",     AddNewSolFlag             );
       if ( OPT__EXT_POT == EXT_POT_FUNC )
       {
          Aux_Message( stdout, "  scaling factor                               = %13.6e\n", ScaleFactor               );
@@ -321,7 +322,8 @@ void SetParameter()
 #ifdef PARTICLE
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
-      Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
+      if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
+         Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
       if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
          Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
       if ( OPT__RESTART_RESET == 1 )
@@ -911,7 +913,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       Par_Init_ByUser_Black_Hole_in_Halo();
 #endif
 
-   if ( ( EraseSolVelFla == 1 ) || ( AddNewSolFlag == 1 ))
+   if ( ( EraseSolVelFlag == 1 ) || ( AddNewSolFlag == 1 ))
    {
       if ( EraseSolVelFlag == 1 )  
       {
@@ -1040,6 +1042,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
                   } // end of for loop j
                } // end of for loop k
             } // end of for loop PID
+         } // end of for loop lv
       } // end of ( AddNewSolFlag ==1 )
 
 //    restrict all variables to be consistent with the finite volume scheme
@@ -1066,11 +1069,10 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       {
          if ( EraseSolVelFlag ==1 )
             Aux_Message( stdout, "   Phase scheme completed ... ");
-         else if ( AddNewSolFalg ==1 )
+         else if ( AddNewSolFlag ==1 )
             Aux_Message( stdout, "   Add new soliton completed ... ");
       }
    } // end of if ( ( EraseSolVelFlag == 1 ) || ( AddNewSolFlag ==1 )  )
-   
 
 } // FUNCTION : Init_User_ELBDM_Black_Hole_in_Halo
 
