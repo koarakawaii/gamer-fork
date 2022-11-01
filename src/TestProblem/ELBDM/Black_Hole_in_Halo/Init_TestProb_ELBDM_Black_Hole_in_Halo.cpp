@@ -1067,9 +1067,9 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       } // if ( OPT__INIT_RESTRICT )
       if ( MPI_Rank == 0 )
       {
-         if ( EraseSolVelFlag ==1 )
+         if ( EraseSolVelFlag == 1 )
             Aux_Message( stdout, "   Phase scheme completed ... ");
-         else if ( AddNewSolFlag ==1 )
+         else if ( AddNewSolFlag == 1 )
             Aux_Message( stdout, "   Add new soliton completed ... ");
       }
    } // end of if ( ( EraseSolVelFlag == 1 ) || ( AddNewSolFlag ==1 )  )
