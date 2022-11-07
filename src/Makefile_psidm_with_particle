@@ -16,7 +16,8 @@
 # executable
 #######################################################################################################
 #EXECUTABLE := gamer_intel-oneapi_particle_ensemble
-EXECUTABLE := gamer_intel-oneapi_particle_ensemble_double
+#EXECUTABLE := gamer_intel-oneapi_particle_ensemble_double
+EXECUTABLE := gamer_intel-oneapi_compressed_soliton_particle_ensemble_double
 
 
 
