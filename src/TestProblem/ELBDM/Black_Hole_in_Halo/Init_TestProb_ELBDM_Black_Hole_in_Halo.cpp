@@ -1176,6 +1176,19 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const real   MinTemp_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
+#  ifdef PARTICLE
+   const bool   TimingSendPar_No  = false;
+   const bool   PredictParPos_No  = false;
+   const bool   JustCountNPar_No  = false;
+#  ifdef LOAD_BALANCE
+   const bool   SibBufPatch       = true;
+   const bool   FaSibBufPatch     = true;
+#  else
+   const bool   SibBufPatch       = NULL_BOOL;
+   const bool   FaSibBufPatch     = NULL_BOOL;
+#  endif // #ifdef LOAD_BALANCE
+#  endif // #ifdef PARTICLE
+
    int   *PID0List = NULL;
    double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
    real (*TotalDens)[PS1][PS1][PS1];
