@@ -1186,6 +1186,16 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
    for (int lv=0; lv<NLEVEL; lv++)
    {
+//    initialize the particle density array (rho_ext) and collect particles to the target level, only used fro ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
+#     ifdef PARTICLE
+      if ( DensMode == _TOTAL_DENS )
+      {
+         Prepare_PatchData_InitParticleDensityArray( lv );
+
+         Par_CollectParticle2OneLevel( lv, _PAR_MASS|_PAR_POSX|_PAR_POSY|_PAR_POSZ|_PAR_TYPE, PredictParPos_No, NULL_REAL,
+                                       SibBufPatch, FaSibBufPatch, JustCountNPar_No, TimingSendPar_No );
+      }
+#     endif
 
 //    get the total density on grids
       TotalDens = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
@@ -1198,6 +1208,16 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
                          MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
 
       delete [] PID0List;
+
+//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext), only used fro ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
+#     ifdef PARTICLE
+      if ( DensMode == _TOTAL_DENS )
+      {
+         Par_CollectParticle2OneLevel_FreeMemory( lv, SibBufPatch, FaSibBufPatch );
+
+         Prepare_PatchData_FreeParticleDensityArray( lv );
+      }
+#     endif
 
 //    calculate the center of mass
       const double dh = amr->dh[lv];
@@ -1307,6 +1327,8 @@ static void Record_CenterOfMass( void )
 // collect local data
    for (int lv=0; lv<NLEVEL; lv++)
    {
+//    no need to initialize the particle density array (rho_ext) and collect particles to the target level since we only want peak density and minimum potential (and their locations) for FDM component.
+    
 //    get the total density on grids
       real (*TotalDens)[PS1][PS1][PS1] = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
       int   *PID0List                  = new int  [ amr->NPatchComma[lv][1]/8 ];
