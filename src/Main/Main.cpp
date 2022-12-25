@@ -42,14 +42,15 @@ int                  MPI_Rank, MPI_Rank_X[3], MPI_SibRank[26], NX0[3], NPatchTot
 int                 *BaseP = NULL;
 int                  Flu_ParaBuf;
 
-double               BOX_SIZE, DT__MAX, DT__FLUID, DT__FLUID_INIT, END_T, OUTPUT_DT, DT__SYNC_PARENT_LV, DT__SYNC_CHILDREN_LV;
+double               BOX_SIZE, DT__MAX, DT__FLUID, DT__FLUID_INIT, END_T, OUTPUT_DT, OUTPUT_WALLTIME, DT__SYNC_PARENT_LV, DT__SYNC_CHILDREN_LV;
 long                 END_STEP;
-int                  NX0_TOT[3], OUTPUT_STEP, REGRID_COUNT, FLU_GPU_NPGROUP, SRC_GPU_NPGROUP, OMP_NTHREAD;
+int                  NX0_TOT[3], OUTPUT_STEP, OUTPUT_WALLTIME_UNIT, REGRID_COUNT, REFINE_NLEVEL, FLU_GPU_NPGROUP, SRC_GPU_NPGROUP, OMP_NTHREAD;
 int                  MPI_NRank, MPI_NRank_X[3];
 int                  GPU_NSTREAM, FLAG_BUFFER_SIZE, FLAG_BUFFER_SIZE_MAXM1_LV, FLAG_BUFFER_SIZE_MAXM2_LV, MAX_LEVEL;
 
 IntScheme_t          OPT__FLU_INT_SCHEME, OPT__REF_FLU_INT_SCHEME;
 double               OUTPUT_PART_X, OUTPUT_PART_Y, OUTPUT_PART_Z, AUTO_REDUCE_DT_FACTOR, AUTO_REDUCE_DT_FACTOR_MIN;
+double               AUTO_REDUCE_INT_MONO_FACTOR, AUTO_REDUCE_INT_MONO_MIN;
 double               OPT__CK_MEMFREE, INT_MONO_COEFF, UNIT_L, UNIT_M, UNIT_T, UNIT_V, UNIT_D, UNIT_E, UNIT_P;
 int                  OPT__UM_IC_LEVEL, OPT__UM_IC_NLEVEL, OPT__UM_IC_NVAR, OPT__UM_IC_LOAD_NRANK, OPT__GPUID_SELECT, OPT__PATCH_COUNT;
 int                  INIT_DUMPID, INIT_SUBSAMPLING_NCELL, OPT__TIMING_BARRIER, OPT__REUSE_MEMORY, RESTART_LOAD_NRANK;
@@ -64,7 +65,7 @@ bool                 OPT__UM_IC_DOWNGRADE, OPT__UM_IC_REFINE, OPT__TIMING_MPI;
 bool                 OPT__CK_CONSERVATION, OPT__RESET_FLUID, OPT__FREEZE_FLUID, OPT__RECORD_USER, OPT__NORMALIZE_PASSIVE, AUTO_REDUCE_DT;
 bool                 OPT__OPTIMIZE_AGGRESSIVE, OPT__INIT_GRID_WITH_OMP, OPT__NO_FLAG_NEAR_BOUNDARY;
 bool                 OPT__RECORD_NOTE, OPT__RECORD_UNPHY, INT_OPP_SIGN_0TH_ORDER;
-bool                 OPT__INT_FRAC_PASSIVE_LR;
+bool                 OPT__INT_FRAC_PASSIVE_LR, OPT__CK_INPUT_FLUID;
 bool                 OPT__INIT_DOUBLE;   // for reading double precision UM_IC
 
 UM_IC_Format_t       OPT__UM_IC_FORMAT;
@@ -84,7 +85,7 @@ OptTimeStepLevel_t   OPT__DT_LEVEL;
 // (2-1) fluid solver in different models
 #if   ( MODEL == HYDRO )
 double               FlagTable_PresGradient[NLEVEL-1], FlagTable_Vorticity[NLEVEL-1], FlagTable_Jeans[NLEVEL-1];
-double               GAMMA, MINMOD_COEFF, MOLECULAR_WEIGHT, ISO_TEMP;
+double               GAMMA, MINMOD_COEFF, AUTO_REDUCE_MINMOD_FACTOR, AUTO_REDUCE_MINMOD_MIN, MOLECULAR_WEIGHT, ISO_TEMP;
 LR_Limiter_t         OPT__LR_LIMITER;
 Opt1stFluxCorr_t     OPT__1ST_FLUX_CORR;
 OptRSolver1st_t      OPT__1ST_FLUX_CORR_SCHEME;
@@ -99,13 +100,13 @@ double               MIN_DENS, MIN_PRES, MIN_EINT, MIN_TEMP, MIN_ENTR;
 double               DUAL_ENERGY_SWITCH;
 #endif
 #ifdef MHD
-double               FlagTable_Current[NLEVEL-1];
+double               FlagTable_Current[NLEVEL-1], INT_MONO_COEFF_B;
 IntScheme_t          OPT__MAG_INT_SCHEME, OPT__REF_MAG_INT_SCHEME;
 bool                 OPT__FIXUP_ELECTRIC, OPT__CK_INTERFACE_B, OPT__OUTPUT_CC_MAG, OPT__FLAG_CURRENT;
 bool                 OPT__OUTPUT_DIVMAG;
 int                  OPT__CK_DIVERGENCE_B;
 double               UNIT_B;
-bool                 OPT__INIT_BFIELD_BYFILE;
+bool                 OPT__INIT_BFIELD_BYFILE, OPT__SAME_INTERFACE_B;
 #endif
 
 #elif ( MODEL == ELBDM )
@@ -187,10 +188,19 @@ ParOutputDens_t      OPT__OUTPUT_PAR_DENS;
 
 // (2-6) yt inline analysis
 #ifdef SUPPORT_LIBYT
+int                  ExecuteYTID            = 0;
+double               ExecuteYTTime          = 0.0;
+
 char                 YT_SCRIPT[MAX_STRING];
 yt_verbose           YT_VERBOSE;
 char                 YT_FIG_BASENAME[MAX_STRING];
+int                  INIT_EXECUTE_YT_ID, EXECUTE_YT_STEP;
 int                  YT_GID_Offset[NLEVEL];
+int                  ExecuteYTTable_NExecute;
+double               EXECUTE_YT_DT;
+double              *ExecuteYTTable = NULL;
+bool                 OPT__EXECUTE_YT_RESTART;
+OptExecuteYTMode_t   OPT__EXECUTE_YT_MODE;
 #endif
 
 // (2-7) Grackle
@@ -468,6 +478,8 @@ Timer_t *Timer_Poi_PrePot_C[NLEVEL];
 Timer_t *Timer_Poi_PrePot_F[NLEVEL];
 #endif
 
+Timer_t  Timer_OutputWalltime;
+
 
 // function pointer for recording the user-specified info
 extern void (*Aux_Record_User_Ptr)();
@@ -486,6 +498,7 @@ int main( int argc, char *argv[] )
 // ======================================================================================================
    Timer_t Timer_Total;
    Timer_Total.Start();
+   Timer_OutputWalltime.Start();
 
 #  ifdef TIMING
    Timer_t  Timer_Init, Timer_Other;
@@ -531,7 +544,7 @@ int main( int argc, char *argv[] )
 #  endif
 
 #  ifdef SUPPORT_LIBYT
-   YT_Inline();
+   Execute_YT( 0 );
 #  endif
 
 #  ifdef TIMING
@@ -564,10 +577,25 @@ int main( int argc, char *argv[] )
 
 
 //    2. apply various corrections
-//       --> synchronize particles, restrict data, recalculate potential and particle acceleration, ...
+//       --> synchronize particles, restrict data, recalculate potential and particle acceleration,
+//           B field consistency ...
 //    ---------------------------------------------------------------------------------------------------
       if ( OPT__CORR_AFTER_ALL_SYNC == CORR_AFTER_SYNC_EVERY_STEP )
       TIMING_FUNC(   Flu_CorrAfterAllSync(),          Timer_Main[6],   TIMER_ON   );
+
+#     if ( MODEL == HYDRO  &&  defined MHD )
+      if ( OPT__SAME_INTERFACE_B )
+      {
+         if ( OPT__VERBOSE  &&  MPI_Rank == 0 )
+            Aux_Message( stdout, "   MHD_SameInterfaceB                       ... " );
+
+         for (int lv=0; lv<NLEVEL; lv++)
+         TIMING_FUNC(   MHD_SameInterfaceB( lv ),     Timer_Main[6],   TIMER_ON   );
+
+         if ( OPT__VERBOSE  &&  MPI_Rank == 0 )
+            Aux_Message( stdout, "done\n" );
+      }
+#     endif
 //    ---------------------------------------------------------------------------------------------------
 
 
@@ -604,7 +632,7 @@ int main( int argc, char *argv[] )
 //    4. perform yt inline analysis
 //    ---------------------------------------------------------------------------------------------------
 #     ifdef SUPPORT_LIBYT
-      TIMING_FUNC(   YT_Inline(),                     Timer_Main[7],   TIMER_ON   );
+      TIMING_FUNC(   Execute_YT( 1 ),                     Timer_Main[7],   TIMER_ON   );
 #     endif
 //    ---------------------------------------------------------------------------------------------------
 
@@ -697,6 +725,12 @@ int main( int argc, char *argv[] )
 // ======================================================================================================
 // output the final result
    Output_DumpData( 2 );
+
+
+// execute the final yt inline analysis
+#  ifdef SUPPORT_LIBYT
+   Execute_YT( 2 );
+#  endif
 
 
 // record the total simulation time

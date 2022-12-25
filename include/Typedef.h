@@ -144,6 +144,16 @@ const OptOutputMode_t
    OUTPUT_USE_TABLE  = 3;
 
 
+#ifdef SUPPORT_LIBYT 
+// yt inline analysis execuation criteria
+typedef int OptExecuteYTMode_t;
+const OptExecuteYTMode_t
+   EXECUTE_YT_CONST_STEP = 1,
+   EXECUTE_YT_CONST_DT   = 2,
+   EXECUTE_YT_USE_TABLE  = 3;
+#endif
+
+
 // OPT__OUTPUT_PART options
 typedef int OptOutputPart_t;
 const OptOutputPart_t
@@ -278,7 +288,8 @@ const OptFluBC_t
    BC_FLU_PERIODIC   = 1,
    BC_FLU_OUTFLOW    = 2,
    BC_FLU_REFLECTING = 3,
-   BC_FLU_USER       = 4;
+   BC_FLU_USER       = 4,
+   BC_FLU_DIODE      = 5;
 
 
 // gravity boundary conditions

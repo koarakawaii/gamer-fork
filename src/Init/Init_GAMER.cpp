@@ -76,10 +76,10 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif // #ifdef GPU
 
 
-// initialize yt inline analysis
-#  ifdef SUPPORT_LIBYT
-   YT_Init( *argc, *argv );
-#  endif
+//// initialize yt inline analysis
+//#  ifdef SUPPORT_LIBYT
+//   YT_Init( *argc, *argv );
+//#  endif
 
 
 // initialize Grackle
@@ -232,6 +232,20 @@ void Init_GAMER( int *argc, char ***argv )
    }
 
 
+// initialize yt inline analysis
+#  ifdef SUPPORT_LIBYT
+   YT_Init( *argc, *argv );
+   if ( OPT__EXECUTE_YT_MODE == EXECUTE_YT_USE_TABLE )   YT_Load_ExecuteTable();
+#  endif
+
+
+// ensure B field consistency on the shared interfaces between sibling patches
+#  if ( MODEL == HYDRO  &&  defined MHD )
+   if ( OPT__SAME_INTERFACE_B )
+   for (int lv=0; lv<NLEVEL; lv++)  MHD_SameInterfaceB( lv );
+#  endif
+
+
 // user-defined initialization
    if ( Init_User_Ptr != NULL )  Init_User_Ptr();
 
@@ -303,5 +317,6 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif // #ifdef TRACER
 
 #  endif // #ifdef PARTICLE
+
 
 } // FUNCTION : Init_GAMER

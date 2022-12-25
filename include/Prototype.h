@@ -308,7 +308,6 @@ bool Flag_Check( const int lv, const int PID, const int i, const int j, const in
                  const real Vel[][PS1][PS1][PS1], const real Pres[][PS1][PS1],
                  const real *Lohner_Var, const real *Lohner_Ave, const real *Lohner_Slope, const int Lohner_NVar,
                  const real ParCount[][PS1][PS1], const real ParDens[][PS1][PS1], const real JeansCoeff );
-bool Flag_Region( const int i, const int j, const int k, const int lv, const int PID );
 bool Flag_Lohner( const int i, const int j, const int k, const OptLohnerForm_t Form, const real *Var1D, const real *Ave1D,
                   const real *Slope1D, const int NVar, const double Threshold, const double Filter, const double Soften );
 void Refine( const int lv, const UseLBFunc_t UseLBFunc );
@@ -455,6 +454,10 @@ void Hydro_BoundaryCondition_Reflecting( real *Array, const int BC_Face, const i
                                          const int ArraySizeX, const int ArraySizeY, const int ArraySizeZ,
                                          const int Idx_Start[], const int Idx_End[], const int TFluVarIdxList[],
                                          const int NVar_Der, const long TDerVarList[] );
+void Hydro_BoundaryCondition_Diode( real *Array, const int BC_Face, const int NVar_Flu, const int GhostSize,
+                                    const int ArraySizeX, const int ArraySizeY, const int ArraySizeZ,
+                                    const int Idx_Start[], const int Idx_End[], const int TFluVarIdxList[],
+                                    const int NVar_Der, const long TDerVarList[] );
 void Hydro_Con2Pri( const real In[], real Out[], const real MinPres,
                     const bool FracPassive, const int NFrac, const int FracIdx[],
                     const bool JeansMinPres, const real JeansMinPres_Coeff,
@@ -482,6 +485,7 @@ void MHD_AllocateElectricArray( const int lv );
 void MHD_Aux_Check_InterfaceB( const char *comment );
 void MHD_Aux_Check_DivergenceB( const bool Verbose, const char *comment );
 void MHD_FixUp_Electric( const int lv );
+void MHD_SameInterfaceB( const int lv );
 void MHD_CopyPatchInterfaceBField( const int lv, const int PID, const int SibID, const int MagSg );
 void MHD_BoundaryCondition_Outflow( real **Array, const int BC_Face, const int NVar, const int GhostSize,
                                     const int ArraySizeX, const int ArraySizeY, const int ArraySizeZ,
@@ -489,6 +493,9 @@ void MHD_BoundaryCondition_Outflow( real **Array, const int BC_Face, const int N
 void MHD_BoundaryCondition_Reflecting( real **Array, const int BC_Face, const int NVar, const int GhostSize,
                                        const int ArraySizeX, const int ArraySizeY, const int ArraySizeZ,
                                        const int Idx_Start[], const int Idx_End[], const int TVarIdxList[] );
+void MHD_BoundaryCondition_Diode( real **Array, const int BC_Face, const int NVar, const int GhostSize,
+                                  const int ArraySizeX, const int ArraySizeY, const int ArraySizeZ,
+                                  const int Idx_Start[], const int Idx_End[], const int TVarIdxList[] );
 void MHD_BoundaryCondition_User( real **Array, const int BC_Face, const int NVar,
                                  const int ArraySizeX, const int ArraySizeY, const int ArraySizeZ,
                                  const int Idx_Start[], const int Idx_End[], const int TVarIdxList[],
@@ -672,6 +679,8 @@ void Par_LB_MapBuffer2RealPatch( const int lv, const int  Buff_NPatchTotal, int 
 void YT_Init( int argc, char *argv[] );
 void YT_End();
 void YT_Inline();
+void Execute_YT( const int Stage );
+void YT_Load_ExecuteTable();
 #endif // #ifdef SUPPORT_LIBYT
 
 
