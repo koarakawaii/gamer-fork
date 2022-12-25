@@ -360,7 +360,7 @@ GSL_PATH     := /software/gsl/default
 #HDF5_PATH    := /software/hdf5/1.10.6-gnu_9.3.0/
 #GSL_PATH     := /work1/koarakawaii/gsl_library/gsl-2.6_gnu
 #GRACKLE_PATH :=
-LIBYT_PATH   := /work1/koarakawaii/libyt_cindytsai_test_module
+LIBYT_PATH   := /work1/koarakawaii/libyt_cindytsai
 
 # NTU-hulk (openmpi-intel-qlc)
 #CUDA_PATH    := /opt/gpu/cuda/4.2
