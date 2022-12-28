@@ -1035,9 +1035,9 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
                               Aux_Error( ERROR_INFO, "interpolation failed at radius %13.7e (min/max radius = %13.7e/%13.7e) !!\n",
                                          r_tar, Table_Radius[0], Table_Radius[Soliton_DensProf_NBin-1] );
                         }
-                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i] += dens_tar;
                         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] += SQRT(dens_tar);
 //                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] += 0.0;
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i] = POW(amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i],2.) + POW(amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i],2.);
            	     } // end of for loop i
                   } // end of for loop j
                } // end of for loop k
