@@ -232,7 +232,7 @@ SIMU_OPTION += -DRANDOM_NUMBER=RNG_GNU_EXT
 
 # intel
 # -------------------------------------------------------------------------------
-## CXX         = icpc                                      # serial compiler
+# CXX         = icpc                                      # serial compiler
 CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 ##CXX         = CC                                        # cray wrapper script
  CXXFLAG     = -g -O3 -fp-model precise                   # general flags
