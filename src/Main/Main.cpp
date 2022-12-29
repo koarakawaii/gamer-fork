@@ -723,14 +723,14 @@ int main( int argc, char *argv[] )
 
 // termination
 // ======================================================================================================
-// output the final result
-   Output_DumpData( 2 );
-
-
 // execute the final yt inline analysis
 #  ifdef SUPPORT_LIBYT
    Execute_YT( 2 );
 #  endif
+
+
+// output the final result
+   Output_DumpData( 2 );
 
 
 // record the total simulation time
