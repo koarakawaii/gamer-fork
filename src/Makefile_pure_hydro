@@ -15,7 +15,7 @@
 
 # executable
 #######################################################################################################
-EXECUTABLE := gamer_intel-oneapi_star_cluster
+EXECUTABLE := gamer_intel-oneapi_hydro
 
 
 
@@ -39,7 +39,7 @@ SIMU_OPTION += -DMODEL=HYDRO
 SIMU_OPTION += -DGRAVITY
 
 # enable particles
-SIMU_OPTION += -DPARTICLE
+#SIMU_OPTION += -DPARTICLE
 
 # support Grackle, a chemistry and radiative cooling library
 # --> must set NCOMP_PASSIVE_USER according to the primordial chemistry network set by GRACKLE_PRIMORDIAL
@@ -146,7 +146,7 @@ SIMU_OPTION += -DSTORE_PAR_ACC
 
 # number of user-defined particle attributes
 # --> set it to 0 or comment it out if none is required
-SIMU_OPTION += -DPAR_NATT_USER=0
+SIMU_OPTION += -DPAR_NATT_USER=1
 endif # PARTICLE
 
 
@@ -158,7 +158,7 @@ SIMU_OPTION += -DNLEVEL=10
 
 # maximum number of patches on each AMR level
 # --> must be set in any cases
-SIMU_OPTION += -DMAX_PATCH=20000000
+SIMU_OPTION += -DMAX_PATCH=2000000
 
 # number of cells along each direction in a single patch
 # --> must be an even number greater than or equal to 8
@@ -210,7 +210,7 @@ SIMU_OPTION += -DOPENMP
 SIMU_OPTION += -DSUPPORT_HDF5
 
 # support GNU scientific library
-SIMU_OPTION += -DSUPPORT_GSL
+#SIMU_OPTION += -DSUPPORT_GSL
 
 # support yt inline analysis
 #SIMU_OPTION += -DSUPPORT_LIBYT
@@ -232,12 +232,12 @@ SIMU_OPTION += -DRANDOM_NUMBER=RNG_GNU_EXT
 
 # intel
 # -------------------------------------------------------------------------------
-# CXX         = icpc                                      # serial compiler
+## CXX         = icpc                                      # serial compiler
 CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
-#CXX         = CC                                        # cray wrapper script
+##CXX         = CC                                        # cray wrapper script
  CXXFLAG     = -g -O3 -fp-model precise                   # general flags
-#CXXFLAG     = -g -O3 -std=c++11 #-gxx-name=YOUR_G++
-#CXXFLAG     = -g -fast
+##CXXFLAG     = -g -O3 -std=c++11 #-gxx-name=YOUR_G++
+##CXXFLAG     = -g -fast
  CXXFLAG    += -w1                                       # warning flags
  OPENMPFLAG  = -fopenmp                                  # openmp flag
  LIB         = -limf                                     # libraries and linker flags
@@ -348,17 +348,15 @@ CUDA_PATH    := /software/cuda/default
 ## intel
 FFTW_PATH    := /software/fftw/default
 MPI_PATH     := /software/openmpi/default
-#HDF5_PATH    := /work1/koarakawaii/hdf5/hdf5-1.10.6_intel
-HDF5_PATH    := /software/hdf5/default
-GSL_PATH     := /software/gsl/default
+HDF5_PATH    := /work1/koarakawaii/hdf5/hdf5-1.10.6_intel
 ## GNU
 #FFTW_PATH    := /software/fftw/2.1.5-gnu-9.3.0-openmpi-4.1.1-ucx_mt
 #MPI_PATH     := /software/openmpi/4.1.1-ucx_mt-gnu-9.3.0
 #HDF5_PATH    := /software/hdf5/1.10.6-gnu_9.3.0
 #HDF5_PATH    := /work1/koarakawaii/hdf5/hdf5-1.10.6_gnu
-#GSL_PATH     := /work1/koarakawaii/gsl_library/gsl-2.6_gnu
-#GRACKLE_PATH :=
-LIBYT_PATH   := /work1/koarakawaii/libyt_cindytsai
+GRACKLE_PATH :=
+GSL_PATH     := /software/gsl/default
+LIBYT_PATH   := /work1/koarakawaii/libyt_cindy_tsai
 
 # NTU-hulk (openmpi-intel-qlc)
 #CUDA_PATH    := /opt/gpu/cuda/4.2
@@ -536,7 +534,7 @@ endif # MHD
 else ifeq "$(filter -DMODEL=ELBDM, $(SIMU_OPTION))" "-DMODEL=ELBDM"
 GPU_FILE    += CUFLU_ELBDMSolver.cu
 
-CPU_FILE    += CPU_ELBDMSolver.cpp  ELBDM_Init_ByFunction_AssignData.cpp  ELBDM_Init_ByFile_AssignData.cpp \
+CPU_FILE    += CPU_ELBDMSolver.cpp  ELBDM_Init_ByFunction_AssignData.cpp \
                ELBDM_GetTimeStep_Fluid.cpp  ELBDM_Flag_EngyDensity.cpp  ELBDM_UnwrapPhase.cpp \
                ELBDM_GetTimeStep_Phase.cpp  ELBDM_SetTaylor3Coeff.cpp  ELBDM_RemoveMotionCM.cpp
 
@@ -660,7 +658,7 @@ vpath %.cpp    LoadBalance
 # ------------------------------------------------------------------------------------
 ifeq "$(filter -DSUPPORT_LIBYT, $(SIMU_OPTION))" "-DSUPPORT_LIBYT"
 CPU_FILE    += YT_Init.cpp  YT_End.cpp  YT_SetParameter.cpp  YT_AddLocalGrid.cpp  YT_Inline.cpp  YT_DerivedFunction.cpp \
-               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp YT_Load_ExecuteTable.cpp Execute_YT.cpp
+               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp
 
 vpath %.cpp    YT
 endif # SUPPORT_LIBYT
