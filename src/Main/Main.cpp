@@ -188,6 +188,7 @@ ParOutputDens_t      OPT__OUTPUT_PAR_DENS;
 
 // (2-6) yt inline analysis
 #ifdef SUPPORT_LIBYT
+bool                 FirstExecuteYT         = true;
 int                  ExecuteYTID            = 0;
 double               ExecuteYTTime          = 0.0;
 
