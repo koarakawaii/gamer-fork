@@ -239,6 +239,14 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif
 
 
+// remove CoM motion if needed
+#  if ( MODEL == ELBDM )
+   if (  ( ELBDM_REMOVE_MOTION_CM == ELBDM_REMOVE_MOTION_CM_INIT && (OPT__INIT != INIT_BY_RESTART || OPT__RESTART_RESET) )  ||
+           ELBDM_REMOVE_MOTION_CM == ELBDM_REMOVE_MOTION_CM_EVERY_STEP  )
+      ELBDM_RemoveMotionCM();
+#  endif
+
+
 // ensure B field consistency on the shared interfaces between sibling patches
 #  if ( MODEL == HYDRO  &&  defined MHD )
    if ( OPT__SAME_INTERFACE_B )
