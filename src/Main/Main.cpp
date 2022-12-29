@@ -600,7 +600,15 @@ int main( int argc, char *argv[] )
 //    ---------------------------------------------------------------------------------------------------
 
 
-//    3. output data and execute auxiliary functions
+//    3. perform yt inline analysis
+//    ---------------------------------------------------------------------------------------------------
+#     ifdef SUPPORT_LIBYT
+      TIMING_FUNC(   Execute_YT( 1 ),                     Timer_Main[7],   TIMER_ON   );
+#     endif
+//    ---------------------------------------------------------------------------------------------------
+
+
+//    4. output data and execute auxiliary functions
 //    ---------------------------------------------------------------------------------------------------
       TIMING_FUNC(   Output_DumpData( 1 ),            Timer_Main[3],   TIMER_ON   );
 
@@ -626,14 +634,6 @@ int main( int argc, char *argv[] )
 #     if ( MODEL == ELBDM )
       if ( ELBDM_REMOVE_MOTION_CM == ELBDM_REMOVE_MOTION_CM_EVERY_STEP )
       TIMING_FUNC(   ELBDM_RemoveMotionCM(),          Timer_Main[4],   TIMER_ON   );
-#     endif
-//    ---------------------------------------------------------------------------------------------------
-
-
-//    4. perform yt inline analysis
-//    ---------------------------------------------------------------------------------------------------
-#     ifdef SUPPORT_LIBYT
-      TIMING_FUNC(   Execute_YT( 1 ),                     Timer_Main[7],   TIMER_ON   );
 #     endif
 //    ---------------------------------------------------------------------------------------------------
 
