@@ -111,7 +111,7 @@ void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchL
 
 #  elif ( MODEL == ELBDM )
    const int srhd = 0;
-   if (yt_add_user_parameter_int("srhd", 1, &srhd) != YT_SUCCESS ) Aux_Error( ERROR_INFO, "yt_add_user_parameter() add srhd failed !!\n" );
+   if ( yt_set_UserParameterInt("srhd", 1, &srhd) != YT_SUCCESS ) Aux_Error( ERROR_INFO, "yt_set_UserParameterInt() set srhd failed !!\n" );
 #  endif
 
    if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
