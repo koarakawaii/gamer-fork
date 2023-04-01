@@ -43,6 +43,9 @@ TESTPROB_ID                   0           # test problem ID [0]
                                           #   15: HYDRO MHD linear wave (+MHD)
                                           #   16: HYDRO Jeans instability (+GRAVITY) [+MHD]
                                           #   17: HYDRO particle in equilibrium (+GRAVITY & PARTICLE)
+                                          #   19: HYDRO energy power spectrum
+                                          #  100: HYDRO CDM cosmological simulation (+GRAVITY & COMOVING & PARTICLE)
+                                          #  101: HYDRO Zeldovich pancake collapse (+GRAVITY & COMOVING & PARTICLE)
                                           # 1000: ELBDM external potential (+GRAVITY)
                                           # 1001: ELBDM Jeans instability in the comoving frame (+GRAVITY, +COMOVING)
                                           # 1002: ELBDM Jeans instability in the physical frame (+GRAVITY)
@@ -221,6 +224,7 @@ ELBDM_TAYLOR3_COEFF           0.166666667 # 3rd Taylor expansion coefficient [1.
 ELBDM_TAYLOR3_AUTO            0           # Optimize ELBDM_TAYLOR3_COEFF automatically to minimize the damping at kmax [0]
 ELBDM_REMOVE_MOTION_CM        0           # remove the motion of center-of-mass (must enable OPT__CK_CONSERVATION):
                                           # (0=off, 1=init, 2=every step) [0]
+ELBDM_BASE_SPECTRAL           0           # adopt the spectral method to evolve base-level wave function (must enable SUPPORT_FFTW) [0]
 
 
 # fluid solvers in all models
@@ -235,6 +239,7 @@ OPT__NORMALIZE_PASSIVE        1           # ensure "sum(passive_scalar_density) 
 OPT__INT_FRAC_PASSIVE_LR      1           # convert specified passive scalars to mass fraction during data reconstruction [1]
 OPT__OVERLAP_MPI              0           # overlap MPI communication with CPU/GPU computations [0] ##NOT SUPPORTED YET##
 OPT__RESET_FLUID              0           # reset fluid variables after each update -> edit "Flu_ResetByUser.cpp" [0]
+OPT__RESET_FLUID_INIT        -1           # reset fluid variables during initialization (<0=auto -> OPT__RESET_FLUID, 0=off, 1=on) [-1]
 OPT__FREEZE_FLUID             0           # do not evolve fluid at all [0]
 OPT__CHECK_PRES_AFTER_FLU    -1           # check unphysical pressure at the end of the fluid solver (<0=auto) [-1]
 OPT__LAST_RESORT_FLOOR        1           # apply floor values as the last resort when the fluid solver fails [1] ##HYDRO and MHD ONLY##
@@ -305,6 +310,7 @@ INIT_SUBSAMPLING_NCELL        0           # perform sub-sampling during initiali
 OPT__INT_TIME                 1           # perform "temporal" interpolation for OPT__DT_LEVEL == 2/3 [1]
 OPT__INT_PRIM                 1           # switch to primitive variables when the interpolation on conserved variables fails [1] ##HYDRO ONLY##
 OPT__INT_PHASE                1           # interpolation on phase (does not support MinMod-1D) [1] ##ELBDM ONLY##
+OPT__RES_PHASE                0           # restriction on phase [0] ##ELBDM ONLY##
 OPT__FLU_INT_SCHEME          -1           # ghost-zone fluid variables for the fluid solver [-1]
 OPT__REF_FLU_INT_SCHEME      -1           # newly allocated fluid variables during grid refinement [-1]
 OPT__MAG_INT_SCHEME           4           # ghost-zone magnetic field for the MHD solver (2,3,4,6 only) [4]

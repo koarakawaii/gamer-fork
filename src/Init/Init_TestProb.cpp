@@ -24,6 +24,8 @@ void Init_TestProb_Hydro_ParEqmIC();
 void Init_TestProb_Hydro_BarredPot();
 void Init_TestProb_Hydro_ParticleTest();
 void Init_TestProb_Hydro_CDM_LSS();
+void Init_TestProb_Hydro_Zeldovich();
+void Init_TestProb_Hydro_EnergyPowerSpectrum();
 
 void Init_TestProb_ELBDM_ExtPot();
 void Init_TestProb_ELBDM_JeansInstabilityComoving();
@@ -38,6 +40,8 @@ void Init_TestProb_ELBDM_LSS();
 void Init_TestProb_ELBDM_Halo_Stability_Test();
 void Init_TestProb_ELBDM_Black_Hole_in_Halo();
 void Init_TestProb_ELBDM_Black_Hole_in_Soliton();
+void Init_TestProb_ELBDM_PlaneWave();
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -81,6 +85,8 @@ void Init_TestProb()
       case TESTPROB_HYDRO_PARTICLE_EQUILIBRIUM_IC :      Init_TestProb_Hydro_ParEqmIC();                    break;
       case TESTPROB_HYDRO_PARTICLE_TEST :                Init_TestProb_Hydro_ParticleTest();                break;
       case TESTPROB_HYDRO_CDM_LSS :                      Init_TestProb_Hydro_CDM_LSS();                     break;
+      case TESTPROB_HYDRO_ZELDOVICH :                    Init_TestProb_Hydro_Zeldovich();                   break;
+      case TESTPROB_HYDRO_ENERGY_POWER_SPECTRUM :        Init_TestProb_Hydro_EnergyPowerSpectrum();         break;
 
       case TESTPROB_ELBDM_EXTPOT :                       Init_TestProb_ELBDM_ExtPot();                      break;
       case TESTPROB_ELBDM_JEANS_INSTABILITY_COMOVING :   Init_TestProb_ELBDM_JeansInstabilityComoving();    break;
@@ -92,9 +98,13 @@ void Init_TestProb()
       case TESTPROB_ELBDM_ISOLATED_HALO :                Init_TestProb_ELBDM_IsolatedHalo();                break;
       case TESTPROB_ELBDM_GAUSSIAN_WAVE_PACKET :         Init_TestProb_ELBDM_GaussianWavePacket();          break;
       case TESTPROB_ELBDM_LSS :                          Init_TestProb_ELBDM_LSS();                         break;
+<<<<<<< HEAD
       case TESTPROB_ELBDM_HALO_STABILITY_TEST :          Init_TestProb_ELBDM_Halo_Stability_Test();         break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_HALO :           Init_TestProb_ELBDM_Black_Hole_in_Halo();          break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON :        Init_TestProb_ELBDM_Black_Hole_in_Soliton();       break;
+=======
+      case TESTPROB_ELBDM_PLANE_WAVE :                   Init_TestProb_ELBDM_PlaneWave();                   break;
+>>>>>>> FETCH_HEAD
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );
    } // switch( TESTPROB_ID )

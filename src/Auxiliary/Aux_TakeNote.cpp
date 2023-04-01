@@ -356,6 +356,12 @@ void Aux_TakeNote()
       fprintf( Note, "SUPPORT_GSL                     OFF\n" );
 #     endif
 
+#     ifdef SUPPORT_FFTW
+      fprintf( Note, "SUPPORT_FFTW                    ON\n" );
+#     else
+      fprintf( Note, "SUPPORT_FFTW                    OFF\n" );
+#     endif
+
 #     ifdef SUPPORT_LIBYT
       fprintf( Note, "SUPPORT_LIBYT                   ON\n" );
 #     else
@@ -1007,6 +1013,7 @@ void Aux_TakeNote()
       fprintf( Note, "ELBDM_TAYLOR3_COEFF             %13.7e\n",     ELBDM_TAYLOR3_COEFF    );
       fprintf( Note, "ELBDM_TAYLOR3_AUTO              %d\n",         ELBDM_TAYLOR3_AUTO     );
       fprintf( Note, "ELBDM_REMOVE_MOTION_CM          %d\n",         ELBDM_REMOVE_MOTION_CM );
+      fprintf( Note, "ELBDM_BASE_SPECTRAL             %d\n",         ELBDM_BASE_SPECTRAL    );
 
 #     else
 #     error : ERROR : unsupported MODEL !!
@@ -1052,6 +1059,7 @@ void Aux_TakeNote()
 
       fprintf( Note, "OPT__OVERLAP_MPI                %d\n",      OPT__OVERLAP_MPI         );
       fprintf( Note, "OPT__RESET_FLUID                %d\n",      OPT__RESET_FLUID         );
+      fprintf( Note, "OPT__RESET_FLUID_INIT           %d\n",      OPT__RESET_FLUID_INIT    );
       fprintf( Note, "OPT__FREEZE_FLUID               %d\n",      OPT__FREEZE_FLUID        );
 #     if ( MODEL == HYDRO  ||  MODEL == ELBDM )
       fprintf( Note, "MIN_DENS                        %13.7e\n",  MIN_DENS                 );
@@ -1182,6 +1190,7 @@ void Aux_TakeNote()
 #     endif
 #     if ( MODEL == ELBDM )
       fprintf( Note, "OPT__INT_PHASE                  %d\n",      OPT__INT_PHASE          );
+      fprintf( Note, "OPT__RES_PHASE                  %d\n",      OPT__RES_PHASE          );
 #     endif
       fprintf( Note, "OPT__FLU_INT_SCHEME             %s\n",      ( OPT__FLU_INT_SCHEME == INT_MINMOD3D ) ? "MINMOD3D" :
                                                                   ( OPT__FLU_INT_SCHEME == INT_MINMOD1D ) ? "MINMOD1D" :
