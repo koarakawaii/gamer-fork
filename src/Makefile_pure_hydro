@@ -215,7 +215,7 @@ SIMU_OPTION += -DSUPPORT_HDF5
 
 # support FFTW library
 # --> must be enabled when GRAVITY is enabled
-#SIMU_OPTION += -DSUPPORT_FFTW
+SIMU_OPTION += -DSUPPORT_FFTW
 
 # support yt inline analysis
 #SIMU_OPTION += -DSUPPORT_LIBYT
@@ -353,15 +353,16 @@ CUDA_PATH    := /software/cuda/default
 ## intel
 FFTW_PATH    := /software/fftw/default
 MPI_PATH     := /software/openmpi/default
-HDF5_PATH    := /work1/koarakawaii/hdf5/hdf5-1.10.6_intel
+#HDF5_PATH    := /work1/koarakawaii/hdf5/hdf5-1.10.6_intel
+HDF5_PATH    := /software/hdf5/default
 ## GNU
 #FFTW_PATH    := /software/fftw/2.1.5-gnu-9.3.0-openmpi-4.1.1-ucx_mt
 #MPI_PATH     := /software/openmpi/4.1.1-ucx_mt-gnu-9.3.0
 #HDF5_PATH    := /software/hdf5/1.10.6-gnu_9.3.0
 #HDF5_PATH    := /work1/koarakawaii/hdf5/hdf5-1.10.6_gnu
-GRACKLE_PATH :=
+#GRACKLE_PATH :=
 GSL_PATH     := /software/gsl/default
-LIBYT_PATH   := /work1/koarakawaii/libyt_cindy_tsai
+LIBYT_PATH   := /work1/koarakawaii/libyt_cindytsai
 
 # NTU-hulk (openmpi-intel-qlc)
 #CUDA_PATH    := /opt/gpu/cuda/4.2
@@ -664,7 +665,7 @@ vpath %.cpp    LoadBalance
 # ------------------------------------------------------------------------------------
 ifeq "$(filter -DSUPPORT_LIBYT, $(SIMU_OPTION))" "-DSUPPORT_LIBYT"
 CPU_FILE    += YT_Init.cpp  YT_End.cpp  YT_SetParameter.cpp  YT_AddLocalGrid.cpp  YT_Inline.cpp  YT_DerivedFunction.cpp \
-               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp
+               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp YT_Load_ExecuteTable.cpp Execute_YT.cpp
 
 vpath %.cpp    YT
 endif # SUPPORT_LIBYT

@@ -98,13 +98,10 @@ void Init_TestProb()
       case TESTPROB_ELBDM_ISOLATED_HALO :                Init_TestProb_ELBDM_IsolatedHalo();                break;
       case TESTPROB_ELBDM_GAUSSIAN_WAVE_PACKET :         Init_TestProb_ELBDM_GaussianWavePacket();          break;
       case TESTPROB_ELBDM_LSS :                          Init_TestProb_ELBDM_LSS();                         break;
-<<<<<<< HEAD
       case TESTPROB_ELBDM_HALO_STABILITY_TEST :          Init_TestProb_ELBDM_Halo_Stability_Test();         break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_HALO :           Init_TestProb_ELBDM_Black_Hole_in_Halo();          break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON :        Init_TestProb_ELBDM_Black_Hole_in_Soliton();       break;
-=======
       case TESTPROB_ELBDM_PLANE_WAVE :                   Init_TestProb_ELBDM_PlaneWave();                   break;
->>>>>>> FETCH_HEAD
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );
    } // switch( TESTPROB_ID )
