@@ -19,7 +19,7 @@ static double   ScaleFactor;                        // scaling factor, cosmology
 static double   h_0;                                // small h_0, Hubble constant/100, cosmology parameter  
        double   SolitonPotScale;                    // proportional factor for coverting potential from GM_sun/r_c -> code unit, where r_c in unit of Mpc/h; will be called by extern
 static double   SolitonMassScale;                   // proportional factor for coverting mass from M_sun -> code unit, where r_c in unit of Mpc/h
-       double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential center, will be called by extern
+       double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential, will be called by extern
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the compressed soliton density profile
 static int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
 static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
