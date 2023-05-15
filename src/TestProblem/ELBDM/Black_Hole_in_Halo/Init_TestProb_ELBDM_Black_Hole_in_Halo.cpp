@@ -187,15 +187,15 @@ void SetParameter()
    if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
    {
       ReadPara->Add( "CoreRadius",               &CoreRadius,             Eps_double,       Eps_double,       NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0],       0.0,          NoMin_double,      NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1],       0.0,          NoMin_double,      NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2],       0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0], amr->BoxCenter[0],  NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1], amr->BoxCenter[1],  NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2], amr->BoxCenter[2],  NoMin_double,      NoMax_double      );
    }
    else if ( AddNewSolFlag == 1 )
    {
-      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0],       0.0,          NoMin_double,      NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1],       0.0,          NoMin_double,      NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2],       0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0], amr->BoxCenter[0],  NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1], amr->BoxCenter[1],  NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2], amr->BoxCenter[2],  NoMin_double,      NoMax_double      );
       ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
    }
 #ifdef PARTICLE
