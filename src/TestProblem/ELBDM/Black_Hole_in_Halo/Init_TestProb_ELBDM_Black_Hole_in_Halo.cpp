@@ -83,6 +83,8 @@ void Validate()
 #  ifdef GRAVITY
    if ( OPT__BC_POT != BC_POT_ISOLATED )
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
+   if ( OPT__EXT_POT == EXT_POT_TABLE )
+      Aux_Error( ERROR_INFO, "do not support OPT__EXT_POT = %d !!\n", EXT_POT_TABLE );
 #  endif
 
    for ( int direction = 0; direction < 6; direction++ ) 
