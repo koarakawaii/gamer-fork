@@ -36,6 +36,26 @@
 #  define  __mul24( a, b )   ( (a)*(b) )
 #endif
 
+// define GPU compute capabilities
+#ifdef GPU
+#  if   ( GPU_ARCH == FERMI )
+   #define GPU_COMPUTE_CAPABILITY 200
+#  elif ( GPU_ARCH == KEPLER )
+   #define GPU_COMPUTE_CAPABILITY 300
+#  elif ( GPU_ARCH == MAXWELL )
+   #define GPU_COMPUTE_CAPABILITY 500
+#  elif ( GPU_ARCH == PASCAL )
+   #define GPU_COMPUTE_CAPABILITY 600
+#  elif ( GPU_ARCH == VOLTA )
+   #define GPU_COMPUTE_CAPABILITY 700
+#  elif ( GPU_ARCH == TURING )
+   #define GPU_COMPUTE_CAPABILITY 750
+#  elif ( GPU_ARCH == AMPERE )
+   #define GPU_COMPUTE_CAPABILITY 800
+#  else
+#  error : ERROR : Please add GPU_COMPUTE_CAPABILITY for GPU_ARCH!
+#  endif // GPU_ARCH
+#endif // GPU
 
 
 // #################################
@@ -271,27 +291,6 @@
 //       5.x             4    32       128
 // ###############################################################################################
 
-// define GPU compute capabilities
-#ifdef GPU
-#  if   ( GPU_ARCH == FERMI )
-   #define GPU_COMPUTE_CAPABILITY 200
-#  elif ( GPU_ARCH == KEPLER )
-   #define GPU_COMPUTE_CAPABILITY 300
-#  elif ( GPU_ARCH == MAXWELL )
-   #define GPU_COMPUTE_CAPABILITY 500
-#  elif ( GPU_ARCH == PASCAL )
-   #define GPU_COMPUTE_CAPABILITY 600
-#  elif ( GPU_ARCH == VOLTA )
-   #define GPU_COMPUTE_CAPABILITY 700
-#  elif ( GPU_ARCH == TURING )
-   #define GPU_COMPUTE_CAPABILITY 750
-#  elif ( GPU_ARCH == AMPERE )
-   #define GPU_COMPUTE_CAPABILITY 800
-#  else
-#  error : ERROR : Please add GPU_COMPUTE_CAPABILITY for GPU_ARCH!
-#  endif // GPU_ARCH
-#endif // GPU
-
 // 1. hydro solver
 //=========================================================================================
 #if ( MODEL == HYDRO )
@@ -476,6 +475,7 @@
 #        error : UNKNOWN GPU_ARCH !!
 #        endif
 #  endif
+
 
 // set number of threads and blocks used in GRAMFE GPU scheme
 # if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
