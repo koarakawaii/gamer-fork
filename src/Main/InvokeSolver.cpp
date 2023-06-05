@@ -466,10 +466,11 @@ void Solver( const Solver_t TSolver, const int lv, const double TimeNew, const d
 
 #  if ( MODEL != HYDRO )
    const LR_Limiter_t  OPT__LR_LIMITER = LR_LIMITER_NONE;
-   const bool   Flu_XYZ      = true;
-   const double MINMOD_COEFF = NULL_REAL;
+   const bool   Flu_XYZ         = true;
+   const double MINMOD_COEFF    = NULL_REAL;
+   const int    MINMOD_MAX_ITER = NULL_INT;
 #  else
-   const bool   Flu_XYZ      = 1 - ( AdvanceCounter[lv]%2 );   // forward/backward sweep
+   const bool   Flu_XYZ         = 1 - ( AdvanceCounter[lv]%2 );   // forward/backward sweep
 #  endif
 
 #  if ( MODEL != HYDRO  &&  MODEL != ELBDM )
@@ -532,12 +533,16 @@ void Solver( const Solver_t TSolver, const int lv, const double TimeNew, const d
    {
       case FLUID_SOLVER :
 
-#        ifdef GPU
+//       only use GPU for Gram FE wave scheme if GRAMFE_ENABLE_GPU is defined
+#        if (   ( defined(GPU) && ( MODEL != ELBDM ) ) \
+             || ( defined(GPU) && ( MODEL == ELBDM ) && ( WAVE_SCHEME == WAVE_FD     ) ) \
+             || ( defined(GPU) && ( MODEL == ELBDM ) && ( WAVE_SCHEME == WAVE_GRAMFE ) && defined( GRAMFE_ENABLE_GPU ) ) )
          CUAPI_Asyn_FluidSolver( h_Flu_Array_F_In[ArrayID], h_Flu_Array_F_Out[ArrayID],
                                  h_Mag_Array_F_In[ArrayID], h_Mag_Array_F_Out[ArrayID],
                                  h_DE_Array_F_Out[ArrayID], h_Flux_Array[ArrayID], h_Ele_Array[ArrayID],
                                  h_Corner_Array_F[ArrayID], h_Pot_Array_USG_F[ArrayID],
-                                 NPG, dt, dh, OPT__FIXUP_FLUX, OPT__FIXUP_ELECTRIC, Flu_XYZ, OPT__LR_LIMITER, MINMOD_COEFF,
+                                 NPG, dt, dh, OPT__FIXUP_FLUX, OPT__FIXUP_ELECTRIC, Flu_XYZ,
+                                 OPT__LR_LIMITER, MINMOD_COEFF, MINMOD_MAX_ITER,
                                  ELBDM_ETA, ELBDM_TAYLOR3_COEFF, ELBDM_TAYLOR3_AUTO,
                                  TimeOld, (OPT__SELF_GRAVITY || OPT__EXT_POT), OPT__EXT_ACC,
                                  MIN_DENS, MIN_PRES, MIN_EINT, DUAL_ENERGY_SWITCH,
@@ -550,7 +555,8 @@ void Solver( const Solver_t TSolver, const int lv, const double TimeNew, const d
                                  h_Mag_Array_F_In[ArrayID], h_Mag_Array_F_Out[ArrayID],
                                  h_DE_Array_F_Out[ArrayID], h_Flux_Array[ArrayID], h_Ele_Array[ArrayID],
                                  h_Corner_Array_F[ArrayID], h_Pot_Array_USG_F[ArrayID],
-                                 NPG, dt, dh, OPT__FIXUP_FLUX, OPT__FIXUP_ELECTRIC, Flu_XYZ, OPT__LR_LIMITER, MINMOD_COEFF,
+                                 NPG, dt, dh, OPT__FIXUP_FLUX, OPT__FIXUP_ELECTRIC, Flu_XYZ,
+                                 OPT__LR_LIMITER, MINMOD_COEFF, MINMOD_MAX_ITER,
                                  ELBDM_ETA, ELBDM_TAYLOR3_COEFF, ELBDM_TAYLOR3_AUTO,
                                  TimeOld, (OPT__SELF_GRAVITY || OPT__EXT_POT), OPT__EXT_ACC,
                                  MIN_DENS, MIN_PRES, MIN_EINT, DUAL_ENERGY_SWITCH,

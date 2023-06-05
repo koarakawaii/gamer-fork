@@ -22,6 +22,11 @@ typedef double real;
 typedef float  real;
 #endif
 
+#ifdef GRAMFE_FLOAT8
+typedef double gramfe_float;
+#else
+typedef float  gramfe_float;
+#endif
 
 // short names for unsigned type
 typedef unsigned short     ushort;
@@ -32,41 +37,46 @@ typedef unsigned long int  ulong;
 // test problem IDs
 typedef int TestProbID_t;
 const TestProbID_t
-   TESTPROB_NONE                                  =    0,
+   TESTPROB_NONE                                          =    0,
 
-   TESTPROB_HYDRO_BLAST_WAVE                      =    1,
-   TESTPROB_HYDRO_ACOUSTIC_WAVE                   =    2,
-   TESTPROB_HYDRO_BONDI                           =    3,
-   TESTPROB_HYDRO_CLUSTER_MERGER                  =    4,
-   TESTPROB_HYDRO_AGORA_ISOLATED_GALAXY           =    5,
-   TESTPROB_HYDRO_CAUSTIC                         =    6,
-   TESTPROB_HYDRO_SPHERICAL_COLLAPSE              =    7,
-   TESTPROB_HYDRO_KELVIN_HELMHOLTZ_INSTABILITY    =    8,
-   TESTPROB_HYDRO_RIEMANN                         =    9,
-   TESTPROB_HYDRO_JET                             =   10,
-   TESTPROB_HYDRO_PLUMMER                         =   11,
-   TESTPROB_HYDRO_GRAVITY                         =   12,
-   TESTPROB_HYDRO_MHD_ABC                         =   13,
-   TESTPROB_HYDRO_MHD_ORSZAG_TANG_VORTEX          =   14,
-   TESTPROB_HYDRO_MHD_LINEAR_WAVE                 =   15,
-   TESTPROB_HYDRO_JEANS_INSTABILITY               =   16,
-   TESTPROB_HYDRO_PARTICLE_EQUILIBRIUM_IC         =   17,
-   TESTPROB_HYDRO_BARRED_POT                      =   51,
+   TESTPROB_HYDRO_BLAST_WAVE                              =    1,
+   TESTPROB_HYDRO_ACOUSTIC_WAVE                           =    2,
+   TESTPROB_HYDRO_BONDI                                   =    3,
+   TESTPROB_HYDRO_CLUSTER_MERGER                          =    4,
+   TESTPROB_HYDRO_AGORA_ISOLATED_GALAXY                   =    5,
+   TESTPROB_HYDRO_CAUSTIC                                 =    6,
+   TESTPROB_HYDRO_SPHERICAL_COLLAPSE                      =    7,
+   TESTPROB_HYDRO_KELVIN_HELMHOLTZ_INSTABILITY            =    8,
+   TESTPROB_HYDRO_RIEMANN                                 =    9,
+   TESTPROB_HYDRO_JET                                     =   10,
+   TESTPROB_HYDRO_PLUMMER                                 =   11,
+   TESTPROB_HYDRO_GRAVITY                                 =   12,
+   TESTPROB_HYDRO_MHD_ABC                                 =   13,
+   TESTPROB_HYDRO_MHD_ORSZAG_TANG_VORTEX                  =   14,
+   TESTPROB_HYDRO_MHD_LINEAR_WAVE                         =   15,
+   TESTPROB_HYDRO_JEANS_INSTABILITY                       =   16,
+   TESTPROB_HYDRO_PARTICLE_EQUILIBRIUM_IC                 =   17,
+   TESTPROB_HYDRO_PARTICLE_TEST                           =   18,
+   TESTPROB_HYDRO_ENERGY_POWER_SPECTRUM                   =   19,
+   TESTPROB_HYDRO_BARRED_POT                              =   51,
+   TESTPROB_HYDRO_CDM_LSS                                 =  100,
+   TESTPROB_HYDRO_ZELDOVICH                               =  101,
+   TESTPROB_ELBDM_EXTPOT                                  = 1000,
+   TESTPROB_ELBDM_JEANS_INSTABILITY_COMOVING              = 1001,
+   TESTPROB_ELBDM_JEANS_INSTABILITY_PHYSICAL              = 1002,
+   TESTPROB_ELBDM_SOLITON                                 = 1003,
+   TESTPROB_ELBDM_SELF_SIMILAR_HALO                       = 1004,
+   TESTPROB_ELBDM_VORTEX_PAIR_ROTATING                    = 1005,
+   TESTPROB_ELBDM_VORTEX_PAIR_LINEAR                      = 1006,
+   TESTPROB_ELBDM_ISOLATED_HALO                           = 1007,
+   TESTPROB_ELBDM_GAUSSIAN_WAVE_PACKET                    = 1008,
+   TESTPROB_ELBDM_LSS                                     = 1009,
+   TESTPROB_ELBDM_PLANE_WAVE                              = 1010,
 
-   TESTPROB_ELBDM_EXTPOT                          = 1000,
-   TESTPROB_ELBDM_JEANS_INSTABILITY_COMOVING      = 1001,
-   TESTPROB_ELBDM_JEANS_INSTABILITY_PHYSICAL      = 1002,
-   TESTPROB_ELBDM_SOLITON                         = 1003,
-   TESTPROB_ELBDM_SELF_SIMILAR_HALO               = 1004,
-   TESTPROB_ELBDM_VORTEX_PAIR_ROTATING            = 1005,
-   TESTPROB_ELBDM_VORTEX_PAIR_LINEAR              = 1006,
-   TESTPROB_ELBDM_ISOLATED_HALO                   = 1007,
-   TESTPROB_ELBDM_GAUSSIAN_WAVE_PACKET            = 1008,
-   TESTPROB_ELBDM_LSS                             = 1009,
-   TESTPROB_ELBDM_HALO_STABILITY_TEST             = 1010,
-   TESTPROB_ELBDM_SOLITON_TOY_MODEL               = 1011,
-   TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON  = 1012,
-   TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED  = 1013;
+   TESTPROB_ELBDM_HALO_STABILITY_TEST                     = 2010,
+   TESTPROB_ELBDM_SOLITON_TOY_MODEL                       = 2011,
+   TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON          = 2012,
+   TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED = 2013;
 
 
 // program initialization options
@@ -75,6 +85,14 @@ const OptInit_t
    INIT_BY_FUNCTION = 1,
    INIT_BY_RESTART  = 2,
    INIT_BY_FILE     = 3;
+
+
+// program initialization options for the magnetic field by vector potential
+typedef int OptInitMagByVecPot_t;
+const OptInitMagByVecPot_t
+   INIT_MAG_BYVECPOT_NONE = 0,
+   INIT_MAG_BYVECPOT_FILE = 1,
+   INIT_MAG_BYVECPOT_FUNC = 2;
 
 
 // data format for OPT__INIT=INIT_BY_FILE
@@ -91,6 +109,14 @@ const ParICFormat_t
    PAR_IC_FORMAT_NONE   = 0,
    PAR_IC_FORMAT_ATT_ID = 1,
    PAR_IC_FORMAT_ID_ATT = 2;
+
+
+// FFTW startup options
+typedef int FFTWStartup_t;
+const FFTWStartup_t
+   FFTW_STARTUP_ESTIMATE = 0,
+   FFTW_STARTUP_MEASURE  = 1,
+   FFTW_STARTUP_PATIENT  = 2;
 
 
 // program restart options
@@ -191,6 +217,43 @@ const Check_t
    CHECK_ON  = 1;
 
 
+// check unphysical quantities
+typedef int CheckUnphysical_t;
+const CheckUnphysical_t
+   UNPHY_MODE_SING         = 0,  // check single field
+   UNPHY_MODE_CONS         = 1,  // check conserved variables, including passive scalars
+   UNPHY_MODE_PRIM         = 2,  // check primitive variables, including passive scalars
+   UNPHY_MODE_PASSIVE_ONLY = 3;  // only check passive scalars
+
+
+// verbosity levels of Hydro_CheckUnphysical()
+typedef int VerbosityLevelUnphy_t;
+const VerbosityLevelUnphy_t
+   UNPHY_SILENCE = 0,   // print nothing
+   UNPHY_VERBOSE = 1;   // print out unphysical values
+
+
+// whether the interpolated fields include all conserved variables in hydrodynamics
+typedef bool AllCons_t;
+const AllCons_t
+   ALL_CONS_NO  = false,
+   ALL_CONS_YES = true;
+
+
+// locally reduce the monotonic coefficient or not
+typedef bool ReduceOrFixMonoCoeff_t;
+const ReduceOrFixMonoCoeff_t
+   INT_FIX_MONO_COEFF    = false,   // fix the coefficient
+   INT_REDUCE_MONO_COEFF = true;    // locally reduce the coefficient
+
+
+// whether switch from conserved to primitive variables when interpolation fails
+typedef bool IntPrim_t;
+const IntPrim_t
+   INT_PRIM_NO  = false,
+   INT_PRIM_YES = true;
+
+
 // target solver in InvokeSolver()
 // --> must start from 0 because of the current TIMING_SOLVER implementation
 // --> when adding new solvers, please modify the NSOLVER constant accordingly
@@ -240,7 +303,8 @@ const OptFluBC_t
    BC_FLU_PERIODIC   = 1,
    BC_FLU_OUTFLOW    = 2,
    BC_FLU_REFLECTING = 3,
-   BC_FLU_USER       = 4;
+   BC_FLU_USER       = 4,
+   BC_FLU_DIODE      = 5;
 
 
 // gravity boundary conditions
@@ -266,16 +330,22 @@ const ParInit_t
 
 typedef int ParInterp_t;
 const ParInterp_t
-   PAR_INTERP_NONE    = 0,
-   PAR_INTERP_NGP     = 1,
-   PAR_INTERP_CIC     = 2,
-   PAR_INTERP_TSC     = 3;
+   PAR_INTERP_NONE = 0,
+   PAR_INTERP_NGP  = 1,
+   PAR_INTERP_CIC  = 2,
+   PAR_INTERP_TSC  = 3;
 
 typedef int ParInteg_t;
 const ParInteg_t
-   PAR_INTEG_NONE    = 0,
-   PAR_INTEG_EULER   = 1,
-   PAR_INTEG_KDK     = 2;
+   PAR_INTEG_NONE  = 0,
+   PAR_INTEG_EULER = 1,
+   PAR_INTEG_KDK   = 2;
+
+typedef int TracerInteg_t;
+const TracerInteg_t
+   TRACER_INTEG_NONE  = 0,
+   TRACER_INTEG_EULER = 1,
+   TRACER_INTEG_RK2   = 2;
 
 typedef int ParUpStep_t;
 const ParUpStep_t
@@ -285,9 +355,9 @@ const ParUpStep_t
 
 typedef int ParSync_t;
 const ParSync_t
-   PAR_SYNC_NONE    = 0,
-   PAR_SYNC_TEMP    = 1,
-   PAR_SYNC_FORCE   = 2;
+   PAR_SYNC_NONE  = 0,
+   PAR_SYNC_TEMP  = 1,
+   PAR_SYNC_FORCE = 2;
 
 typedef int ParOutputDens_t;
 const ParOutputDens_t
@@ -342,9 +412,9 @@ const OptLohnerForm_t
 #if ( MODEL == HYDRO )
 typedef int Opt1stFluxCorr_t;
 const Opt1stFluxCorr_t
-   FIRST_FLUX_CORR_NONE    = 0,
-   FIRST_FLUX_CORR_3D      = 1,
-   FIRST_FLUX_CORR_3D1D    = 2;
+   FIRST_FLUX_CORR_NONE = 0,
+   FIRST_FLUX_CORR_3D   = 1,
+   FIRST_FLUX_CORR_3D1D = 2;
 
 typedef int OptRSolver1st_t;
 const OptRSolver1st_t
@@ -422,7 +492,7 @@ const ELBDMRemoveMotionCM_t
 #endif
 
 
-// options in Aux_ComputeProfile()
+// options in Aux_ComputeProfile() and Aux_FindExtrema()
 typedef int PatchType_t;
 const PatchType_t
    PATCH_LEAF                 = 0,
@@ -431,30 +501,43 @@ const PatchType_t
    PATCH_LEAF_PLUS_MAXNONLEAF = 3;
 
 
+// options in Aux_FindExtrema()
+typedef int ExtremaMode_t;
+const ExtremaMode_t
+   EXTREMA_MIN = 1,
+   EXTREMA_MAX = 2;
+
+
 // function pointers
-typedef real (*EoS_DE2P_t)( const real Dens, const real Eint, const real Passive[],
-                            const double AuxArray_Flt[], const int AuxArray_Int[],
-                            const real *const Table[EOS_NTABLE_MAX] );
-typedef real (*EoS_DP2E_t)( const real Dens, const real Pres, const real Passive[],
-                            const double AuxArray_Flt[], const int AuxArray_Int[],
-                            const real *const Table[EOS_NTABLE_MAX] );
-typedef real (*EoS_DP2C_t)( const real Dens, const real Pres, const real Passive[],
-                            const double AuxArray_Flt[], const int AuxArray_Int[],
-                            const real *const Table[EOS_NTABLE_MAX] );
-typedef void (*EoS_GENE_t)( const int Mode, real Out[], const real In_Flt[], const int In_Int[],
-                            const double AuxArray_Flt[], const int AuxArray_Int[],
-                            const real *const Table[EOS_NTABLE_MAX] );
-typedef real (*EoS_DE2T_t)( const real Dens, const real Eint, const real Passive[],
-                            const double AuxArray_Flt[], const int AuxArray_Int[],
-                            const real *const Table[EOS_NTABLE_MAX] );
-typedef real (*EoS_DT2P_t)( const real Dens, const real Temp, const real Passive[],
-                            const double AuxArray_Flt[], const int AuxArray_Int[],
-                            const real *const Table[EOS_NTABLE_MAX] );
-typedef void (*ExtAcc_t)( real Acc[], const double x, const double y, const double z, const double Time,
-                          const double UserArray[] );
-typedef real (*ExtPot_t)( const double x, const double y, const double z, const double Time,
-                          const double UserArray_Flt[], const int UserArray_Int[],
-                          const ExtPotUsage_t Usage, const real PotTable[], void **GenePtr );
+typedef real (*EoS_DE2P_t)     ( const real Dens, const real Eint, const real Passive[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef real (*EoS_DP2E_t)     ( const real Dens, const real Pres, const real Passive[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef real (*EoS_DP2C_t)     ( const real Dens, const real Pres, const real Passive[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef void (*EoS_GENE_t)     ( const int Mode, real Out[], const real In_Flt[], const int In_Int[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef real (*EoS_DE2T_t)     ( const real Dens, const real Eint, const real Passive[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef real (*EoS_DT2P_t)     ( const real Dens, const real Temp, const real Passive[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef real (*EoS_DE2S_t)     ( const real Dens, const real Eint, const real Passive[],
+                                 const double AuxArray_Flt[], const int AuxArray_Int[],
+                                 const real *const Table[EOS_NTABLE_MAX] );
+typedef void (*ExtAcc_t)       ( real Acc[], const double x, const double y, const double z, const double Time,
+                                 const double UserArray[] );
+typedef real (*ExtPot_t)       ( const double x, const double y, const double z, const double Time,
+                                 const double UserArray_Flt[], const int UserArray_Int[],
+                                 const ExtPotUsage_t Usage, const real PotTable[], void **GenePtr );
+typedef void (*IntSchemeFunc_t)( real CData[], const int CSize[3], const int CStart[3], const int CRange[3],
+                                 real FData[], const int FSize[3], const int FStart[3], const int NComp,
+                                 const bool UnwrapPhase, const bool Monotonic[], const real MonoCoeff, const bool OppSign0thOrder );
 
 
 

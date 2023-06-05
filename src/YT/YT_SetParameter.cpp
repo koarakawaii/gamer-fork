@@ -19,7 +19,7 @@
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchLocalLv )
+void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchLocalAllLv )
 {
 
    if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
@@ -29,7 +29,8 @@ void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchL
    yt_param_yt param_yt;
 
    param_yt.frontend                = "gamer";           // simulation frontend
-// param_yt.fig_basename            = "fig_basename";    // figure base name (default=Fig%09d)
+   if ( strcmp(YT_FIG_BASENAME, "") != 0 )
+       param_yt.fig_basename = YT_FIG_BASENAME;          // figure base name, use default if not set (default=Fig%09d)
 
    param_yt.length_unit             = UNIT_L;            // units are in cgs
    param_yt.mass_unit               = UNIT_M;
@@ -42,7 +43,25 @@ void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchL
    param_yt.current_time            = Time[0];
    param_yt.dimensionality          = 3;
    param_yt.refine_by               = 2;
+   param_yt.num_fields              = NField;
+
+#  ifdef LIBYT_USE_PATCH_GROUP
+   if ( NPatchAllLv % 8 != 0 || NPatchLocalAllLv % 8 != 0 ) Aux_Error( ERROR_INFO, "Using patch group in libyt failed !!\n" );
+   param_yt.num_grids               = NPatchAllLv / 8;
+   param_yt.num_grids_local         = NPatchLocalAllLv / 8;
+#  else
    param_yt.num_grids               = NPatchAllLv;
+   param_yt.num_grids_local         = NPatchLocalAllLv;
+#  endif
+
+#  ifdef PARTICLE
+   yt_par_type par_type_list[1];
+   par_type_list[0].par_type = "io";
+   par_type_list[0].num_attr = PAR_NATT_TOTAL;
+
+   param_yt.num_par_types = 1;
+   param_yt.par_type_list = par_type_list;
+#  endif
 
    param_yt.num_fields              = NField;
    param_yt.num_grids_local         = NPatchLocalLv;
@@ -80,12 +99,7 @@ void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchL
 
 
 // 2. transfer simulation information to libyt
-   if ( yt_set_parameter( &param_yt ) != YT_SUCCESS )    Aux_Error( ERROR_INFO, "yt_set_parameter() failed !!\n" );
-
-// 2-1. free no longer used resource
-#  ifdef PARTICLE
-   delete [] species_list;
-#  endif
+   if ( yt_set_Parameters( &param_yt ) != YT_SUCCESS )    Aux_Error( ERROR_INFO, "yt_set_Parameters() failed !!\n" );
 
 // 3. set code specific parameter
 #  ifdef MHD
@@ -93,18 +107,23 @@ void YT_SetParameter( const int NPatchAllLv, const int NField, const int NPatchL
 #  else
    const int mhd = 0;
 #  endif
-   if (yt_add_user_parameter_int("mhd", 1, &mhd) != YT_SUCCESS)  Aux_Error( ERROR_INFO, "yt_add_user_parameter() add mhd failed !!\n" );
+   if (yt_set_UserParameterInt("mhd", 1, &mhd) != YT_SUCCESS)  Aux_Error( ERROR_INFO, "yt_set_UserParameterInt() set mhd failed !!\n" );
 
 #  if ( MODEL == HYDRO )
    const double gamma = (double) GAMMA;
    const double mu = (double) MOLECULAR_WEIGHT;
-   const int srhd = 0; // TODO: No SRHydrodynamics found inside gamer.
-   if (yt_add_user_parameter_double("gamma", 1, &gamma) != YT_SUCCESS )  Aux_Error( ERROR_INFO, "yt_add_user_parameter() add GAMMA failed !!\n" );
-   if (yt_add_user_parameter_double("mu", 1, &mu) != YT_SUCCESS )  Aux_Error( ERROR_INFO, "yt_add_user_parameter() add MOLECULAR_WEIGHT failed !!\n" );
-   if (yt_add_user_parameter_int("srhd", 1, &srhd) != YT_SUCCESS ) Aux_Error( ERROR_INFO, "yt_add_user_parameter() add srhd failed !!\n" );
+#  ifdef SRHD
+   const int srhd = 1;
+#  else
+   const int srhd = 0;
+#  endif
+   if (yt_set_UserParameterDouble("gamma", 1, &gamma) != YT_SUCCESS )  Aux_Error( ERROR_INFO, "yt_set_UserParameterDouble() set GAMMA failed !!\n" );
+   if (yt_set_UserParameterDouble("mu", 1, &mu) != YT_SUCCESS )        Aux_Error( ERROR_INFO, "yt_set_UserParameterDouble() set MOLECULAR_WEIGHT failed !!\n" );
+   if (yt_set_UserParameterInt("srhd", 1, &srhd) != YT_SUCCESS )       Aux_Error( ERROR_INFO, "yt_set_UserParameterInt() set srhd failed !!\n" );
+
 #  elif ( MODEL == ELBDM )
    const int srhd = 0;
-   if (yt_add_user_parameter_int("srhd", 1, &srhd) != YT_SUCCESS ) Aux_Error( ERROR_INFO, "yt_add_user_parameter() add srhd failed !!\n" );
+   if (yt_set_UserParameterInt("srhd", 1, &srhd) != YT_SUCCESS )       Aux_Error( ERROR_INFO, "yt_set_UserParameterInt() set srhd failed !!\n" );
 #  endif
 
    if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );

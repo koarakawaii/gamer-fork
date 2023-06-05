@@ -15,15 +15,19 @@
 #include "CUFLU_Shared_ConstrainedTransport.cu"
 #endif
 
-#if   ( RSOLVER == EXACT )
+#if ( RSOLVER == EXACT  ||  RSOLVER_RESCUE == EXACT )
 # include "CUFLU_Shared_RiemannSolver_Exact.cu"
-#elif ( RSOLVER == ROE )
+#endif
+#if ( RSOLVER == ROE    ||  RSOLVER_RESCUE == ROE   )
 # include "CUFLU_Shared_RiemannSolver_Roe.cu"
-#elif ( RSOLVER == HLLE )
+#endif
+#if ( RSOLVER == HLLE   ||  RSOLVER_RESCUE == HLLE  )
 # include "CUFLU_Shared_RiemannSolver_HLLE.cu"
-#elif ( RSOLVER == HLLC )
+#endif
+#if ( RSOLVER == HLLC   ||  RSOLVER_RESCUE == HLLC  )
 # include "CUFLU_Shared_RiemannSolver_HLLC.cu"
-#elif ( RSOLVER == HLLD )
+#endif
+#if ( RSOLVER == HLLD   ||  RSOLVER_RESCUE == HLLD  )
 # include "CUFLU_Shared_RiemannSolver_HLLD.cu"
 #endif
 
@@ -54,28 +58,32 @@ void Hydro_FullStepUpdate( const real g_Input[][ CUBE(FLU_NXT) ], real g_Output[
                            const real g_FC_B[][ PS2P1*SQR(PS2) ], const real g_Flux[][NCOMP_TOTAL_PLUS_MAG][ CUBE(N_FC_FLUX) ],
                            const real dt, const real dh, const real MinDens, const real MinEint,
                            const real DualEnergySwitch, const bool NormPassive, const int NNorm, const int NormIdx[],
-                           const EoS_t *EoS );
-#if   ( RSOLVER == EXACT )
+                           const EoS_t *EoS, int *s_FullStepFailure, const int Iteration, const int MinMod_MaxIter );
+#if ( RSOLVER == EXACT  ||  RSOLVER_RESCUE == EXACT )
 void Hydro_RiemannSolver_Exact( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                 const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
                                 const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
                                 const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
-#elif ( RSOLVER == ROE )
+#endif
+#if ( RSOLVER == ROE    ||  RSOLVER_RESCUE == ROE   )
 void Hydro_RiemannSolver_Roe( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                               const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
                               const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
                               const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
-#elif ( RSOLVER == HLLE )
+#endif
+#if ( RSOLVER == HLLE   ||  RSOLVER_RESCUE == HLLE  )
 void Hydro_RiemannSolver_HLLE( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
                                const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
                                const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
-#elif ( RSOLVER == HLLC )
+#endif
+#if ( RSOLVER == HLLC   ||  RSOLVER_RESCUE == HLLC  )
 void Hydro_RiemannSolver_HLLC( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
                                const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
                                const int EoS_AuxArray_Int[], const real* const EoS_Table[EOS_NTABLE_MAX] );
-#elif ( RSOLVER == HLLD )
+#endif
+#if ( RSOLVER == HLLD   ||  RSOLVER_RESCUE == HLLD  )
 void Hydro_RiemannSolver_HLLD( const int XYZ, real Flux_Out[], const real L_In[], const real R_In[],
                                const real MinDens, const real MinPres, const EoS_DE2P_t EoS_DensEint2Pres,
                                const EoS_DP2C_t EoS_DensPres2CSqr, const double EoS_AuxArray_Flt[],
@@ -147,6 +155,11 @@ static void Hydro_RiemannPredict( const real g_ConVar_In[][ CUBE(FLU_NXT) ],
 //                4. See include/CUFLU.h for the values and description of different symbolic constants
 //                   such as N_FC_VAR, N_FC_FLUX, N_SLOPE_PPM, N_FL_FLUX, N_HF_VAR
 //                5. Arrays with a prefix "g_" are stored in the global memory of GPU
+//                6. If an unphysical result occurs in the full-step update, we redo data reconstruction by
+//                   reducing the original minmod coefficient repeatedly until either the unphysical result is
+//                   solved or the reduced minmod coefficient equals zero. Note that interpolating with a
+//                   vanished minmod coefficient is equivalent to the piecewise constant spatial reconstruction.
+//
 //
 // Parameter   :  g_Flu_Array_In     : Array storing the input fluid variables
 //                g_Flu_Array_Out    : Array to store the output fluid variables
@@ -172,6 +185,7 @@ static void Hydro_RiemannPredict( const real g_ConVar_In[][ CUBE(FLU_NXT) ],
 //                                     (0/1/2/3/4) = (vanLeer/generalized MinMod/vanAlbada/
 //                                                    vanLeer + generalized MinMod/extrema-preserving) limiter
 //                MinMod_Coeff       : Coefficient of the generalized MinMod limiter
+//                MinMod_MaxIter     : Maximum number of iterations to reduce MinMod_Coeff
 //                Time               : Current physical time                                 (for UNSPLIT_GRAVITY only)
 //                UsePot             : Add self-gravity and/or external potential            (for UNSPLIT_GRAVITY only)
 //                ExtAcc             : Add external acceleration                             (for UNSPLIT_GRAVITY only)
@@ -224,7 +238,7 @@ void CUFLU_FluidSolver_MHM(
          real   g_EC_Ele       [][NCOMP_MAG][ CUBE(N_EC_ELE) ],
    const real dt, const real dh,
    const bool StoreFlux, const bool StoreElectric,
-   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff, const double Time,
+   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff, const int MinMod_MaxIter, const double Time,
    const bool UsePot, const OptExtAcc_t ExtAcc, const ExtAcc_t ExtAcc_Func,
    const real MinDens, const real MinPres, const real MinEint,
    const real DualEnergySwitch,
@@ -252,7 +266,7 @@ void CPU_FluidSolver_MHM(
    const int NPatchGroup,
    const real dt, const real dh,
    const bool StoreFlux, const bool StoreElectric,
-   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff, const double Time,
+   const LR_Limiter_t LR_Limiter, const real MinMod_Coeff, const int MinMod_MaxIter, const double Time,
    const bool UsePot, const OptExtAcc_t ExtAcc, const ExtAcc_t ExtAcc_Func,
    const double c_ExtAcc_AuxArray[],
    const real MinDens, const real MinPres, const real MinEint,
@@ -280,6 +294,13 @@ void CPU_FluidSolver_MHM(
 #  endif
 #  if ( defined __CUDACC__  &&  !defined GRAVITY )
    const double *c_ExtAcc_AuxArray = NULL;
+#  endif
+
+   int Iteration;
+#  ifdef __CUDACC__
+   __shared__ int s_FullStepFailure;
+#  else
+   int s_FullStepFailure;
 #  endif
 
 
@@ -323,10 +344,11 @@ void CPU_FluidSolver_MHM(
 #     ifdef __CUDACC__
       const int P = blockIdx.x;
 #     else
-#     pragma omp for schedule( runtime )
+#     pragma omp for schedule( runtime ) private ( Iteration, s_FullStepFailure )
       for (int P=0; P<NPatchGroup; P++)
 #     endif
       {
+         Iteration = 0;
 
 //       1. half-step prediction
 //       1-a. MHM_RP: use Riemann solver to calculate the half-step fluxes
@@ -389,58 +411,103 @@ void CPU_FluidSolver_MHM(
                                JeansMinPres, JeansMinPres_Coeff, &EoS );
 
 
-//       1-a-5. evaluate the face-centered values by data reconstruction
-//              --> note that g_PriVar_Half_1PG[] returned by Hydro_RiemannPredict() stores the primitive variables
-         Hydro_DataReconstruction( NULL, g_FC_Mag_Half_1PG, g_PriVar_Half_1PG, g_FC_Var_1PG, g_Slope_PPM_1PG,
-                                   Con2Pri_No, LR_Limiter, MinMod_Coeff, dt, dh,
-                                   MinDens, MinPres, MinEint, FracPassive, NFrac, c_FracIdx,
-                                   JeansMinPres, JeansMinPres_Coeff, &EoS );
+         do {
+
+#           ifdef __CUDACC__
+            __syncthreads();
+#           endif
+            s_FullStepFailure = 0;
+#           ifdef __CUDACC__
+            __syncthreads();
+#           endif
+
+            real AdaptiveMinModCoeff = ( MinMod_MaxIter == 0 ) ? MinMod_Coeff :
+            MinMod_Coeff - (real)Iteration * MinMod_Coeff / (real)MinMod_MaxIter;
+
+
+//          ensure adaptive MinMod_Coeff is non-negative
+            AdaptiveMinModCoeff = FMAX( AdaptiveMinModCoeff, (real)0.0 );
+
+
+//          1-a-5. evaluate the face-centered values by data reconstruction
+//                 --> note that g_PriVar_Half_1PG[] returned by Hydro_RiemannPredict() stores the primitive variables
+            Hydro_DataReconstruction( NULL, g_FC_Mag_Half_1PG, g_PriVar_Half_1PG, g_FC_Var_1PG, g_Slope_PPM_1PG,
+                                      Con2Pri_No, LR_Limiter, AdaptiveMinModCoeff, dt, dh,
+                                      MinDens, MinPres, MinEint, FracPassive, NFrac, c_FracIdx,
+                                      JeansMinPres, JeansMinPres_Coeff, &EoS );
 
 
 //       1-b. MHM: use interpolated face-centered values to calculate the half-step fluxes
 #        elif ( FLU_SCHEME == MHM )
 
-//       evaluate the face-centered values by data reconstruction
-         Hydro_DataReconstruction( g_Flu_Array_In[P], NULL, g_PriVar_1PG, g_FC_Var_1PG, g_Slope_PPM_1PG,
-                                   Con2Pri_Yes, LR_Limiter, MinMod_Coeff, dt, dh,
-                                   MinDens, MinPres, MinEint, FracPassive, NFrac, c_FracIdx,
-                                   JeansMinPres, JeansMinPres_Coeff, &EoS );
+         do {
+
+#           ifdef __CUDACC__
+            __syncthreads();
+#           endif
+            s_FullStepFailure = 0;
+#           ifdef __CUDACC__
+            __syncthreads();
+#           endif
+
+            real AdaptiveMinModCoeff = ( MinMod_MaxIter == 0 ) ? MinMod_Coeff :
+            MinMod_Coeff - (real)Iteration * MinMod_Coeff / (real)MinMod_MaxIter;
+
+
+//          ensure adaptive MinMod_Coeff is non-negative
+            AdaptiveMinModCoeff = FMAX( AdaptiveMinModCoeff, (real)0.0 );
+
+
+//          evaluate the face-centered values by data reconstruction
+            Hydro_DataReconstruction( g_Flu_Array_In[P], NULL, g_PriVar_1PG, g_FC_Var_1PG, g_Slope_PPM_1PG,
+                                      Con2Pri_Yes, LR_Limiter, AdaptiveMinModCoeff, dt, dh,
+                                      MinDens, MinPres, MinEint, FracPassive, NFrac, c_FracIdx,
+                                      JeansMinPres, JeansMinPres_Coeff, &EoS );
 
 #        endif // #if ( FLU_SCHEME == MHM_RP ) ... else ...
 
 
-//       2. evaluate the full-step fluxes
-#        ifdef MHD
-         const int NSkip_N = 0;
-         const int NSkip_T = 0;
-#        else
-         const int NSkip_N = 0;
-         const int NSkip_T = 1;
-#        endif
-         Hydro_ComputeFlux( g_FC_Var_1PG, g_FC_Flux_1PG, N_FL_FLUX, NSkip_N, NSkip_T,
-                            CorrHalfVel, g_Pot_Array_USG[P], g_Corner_Array[P],
-                            dt, dh, Time, UsePot, ExtAcc, ExtAcc_Func, c_ExtAcc_AuxArray,
-                            MinDens, MinPres, StoreFlux, g_Flux_Array[P], &EoS );
+//          2. evaluate the full-step fluxes
+#           ifdef MHD
+            const int NSkip_N = 0;
+            const int NSkip_T = 0;
+#           else
+            const int NSkip_N = 0;
+            const int NSkip_T = 1;
+#           endif
+
+            Hydro_ComputeFlux( g_FC_Var_1PG, g_FC_Flux_1PG, N_FL_FLUX, NSkip_N, NSkip_T,
+                               CorrHalfVel, g_Pot_Array_USG[P], g_Corner_Array[P],
+                               dt, dh, Time, UsePot, ExtAcc, ExtAcc_Func, c_ExtAcc_AuxArray,
+                               MinDens, MinPres, StoreFlux, g_Flux_Array[P], &EoS );
 
 
-//       3. evaluate electric field and update B field at the full time-step
-//          --> must update B field before Hydro_FullStepUpdate() since the latter requires
-//              the updated magnetic energy when adopting the dual-energy formalism
-#        ifdef MHD
-         MHD_ComputeElectric( g_EC_Ele_1PG, g_FC_Flux_1PG, g_PriVar_Half_1PG, N_FL_ELE, N_FL_FLUX,
-                              N_HF_VAR, LR_GHOST_SIZE, dt, dh, StoreElectric, g_Ele_Array[P],
-                              CorrHalfVel, g_Pot_Array_USG[P], g_Corner_Array[P], Time,
-                              UsePot, ExtAcc, ExtAcc_Func, c_ExtAcc_AuxArray );
+//          3. evaluate electric field and update B field at the full time-step
+//             --> must update B field before Hydro_FullStepUpdate() since the latter requires
+//                 the updated magnetic energy when adopting the dual-energy formalism
+#           ifdef MHD
+            MHD_ComputeElectric( g_EC_Ele_1PG, g_FC_Flux_1PG, g_PriVar_Half_1PG, N_FL_ELE, N_FL_FLUX,
+                                 N_HF_VAR, LR_GHOST_SIZE, dt, dh, StoreElectric, g_Ele_Array[P],
+                                 CorrHalfVel, g_Pot_Array_USG[P], g_Corner_Array[P], Time,
+                                 UsePot, ExtAcc, ExtAcc_Func, c_ExtAcc_AuxArray );
 
-         MHD_UpdateMagnetic( g_Mag_Array_Out[P][0], g_Mag_Array_Out[P][1], g_Mag_Array_Out[P][2],
-                             g_Mag_Array_In[P], g_EC_Ele_1PG, dt, dh, PS2, N_FL_ELE, FLU_GHOST_SIZE );
-#        endif
+            MHD_UpdateMagnetic( g_Mag_Array_Out[P][0], g_Mag_Array_Out[P][1], g_Mag_Array_Out[P][2],
+                                g_Mag_Array_In[P], g_EC_Ele_1PG, dt, dh, PS2, N_FL_ELE, FLU_GHOST_SIZE );
+#           endif
 
 
-//       4. full-step evolution
-         Hydro_FullStepUpdate( g_Flu_Array_In[P], g_Flu_Array_Out[P], g_DE_Array_Out[P], g_Mag_Array_Out[P],
-                               g_FC_Flux_1PG, dt, dh, MinDens, MinEint, DualEnergySwitch,
-                               NormPassive, NNorm, c_NormIdx, &EoS );
+//          4. full-step evolution
+            Hydro_FullStepUpdate( g_Flu_Array_In[P], g_Flu_Array_Out[P], g_DE_Array_Out[P], g_Mag_Array_Out[P],
+                                  g_FC_Flux_1PG, dt, dh, MinDens, MinEint, DualEnergySwitch,
+                                  NormPassive, NNorm, c_NormIdx, &EoS, &s_FullStepFailure, Iteration, MinMod_MaxIter );
+
+
+//          5. counter increment
+            Iteration++;
+
+
+
+         } while ( s_FullStepFailure  &&  Iteration <= MinMod_MaxIter );
 
       } // loop over all patch groups
    } // OpenMP parallel region
@@ -588,6 +655,56 @@ void Hydro_RiemannPredict_Flux( const real g_ConVar[][ CUBE(FLU_NXT) ],
 #        else
 #        error : ERROR : unsupported Riemann solver (EXACT/ROE/HLLE/HLLC/HLLD) !!
 #        endif
+
+//       switch to a different Riemann solver if the default one fails
+#        if ( RSOLVER_RESCUE != NONE )
+         for (int v=0; v<NCOMP_TOTAL_PLUS_MAG; v++)
+         {
+//          only check NaN for now
+            if ( Flux_1Face[v] != Flux_1Face[v] )
+            {
+#              ifdef CHECK_UNPHYSICAL_IN_FLUID
+               printf( "WARNING : default Riemann solver failed in Hydro_RiemannPredict_Flux() --> switch to RSOLVER_RESCUE (%d) !!\n", RSOLVER_RESCUE );
+#              endif
+
+#              if   ( RSOLVER_RESCUE == EXACT  &&  !defined MHD )
+               Hydro_RiemannSolver_Exact( d, Flux_1Face, ConVar_L, ConVar_R, MinDens, MinPres,
+                                          EoS->DensEint2Pres_FuncPtr, EoS->DensPres2CSqr_FuncPtr,
+                                          EoS->AuxArrayDevPtr_Flt, EoS->AuxArrayDevPtr_Int, EoS->Table );
+#              elif ( RSOLVER_RESCUE == ROE )
+               Hydro_RiemannSolver_Roe  ( d, Flux_1Face, ConVar_L, ConVar_R, MinDens, MinPres,
+                                          EoS->DensEint2Pres_FuncPtr, EoS->DensPres2CSqr_FuncPtr,
+                                          EoS->AuxArrayDevPtr_Flt, EoS->AuxArrayDevPtr_Int, EoS->Table );
+#              elif ( RSOLVER_RESCUE == HLLE )
+               Hydro_RiemannSolver_HLLE ( d, Flux_1Face, ConVar_L, ConVar_R, MinDens, MinPres,
+                                          EoS->DensEint2Pres_FuncPtr, EoS->DensPres2CSqr_FuncPtr,
+                                          EoS->AuxArrayDevPtr_Flt, EoS->AuxArrayDevPtr_Int, EoS->Table );
+#              elif ( RSOLVER_RESCUE == HLLC  &&  !defined MHD )
+               Hydro_RiemannSolver_HLLC ( d, Flux_1Face, ConVar_L, ConVar_R, MinDens, MinPres,
+                                          EoS->DensEint2Pres_FuncPtr, EoS->DensPres2CSqr_FuncPtr,
+                                          EoS->AuxArrayDevPtr_Flt, EoS->AuxArrayDevPtr_Int, EoS->Table );
+#              elif ( RSOLVER_RESCUE == HLLD  &&  defined MHD )
+               Hydro_RiemannSolver_HLLD ( d, Flux_1Face, ConVar_L, ConVar_R, MinDens, MinPres,
+                                          EoS->DensEint2Pres_FuncPtr, EoS->DensPres2CSqr_FuncPtr,
+                                          EoS->AuxArrayDevPtr_Flt, EoS->AuxArrayDevPtr_Int, EoS->Table );
+#              else
+#              error : ERROR : unsupported Riemann solver (EXACT/ROE/HLLE/HLLC/HLLD) !!
+#              endif
+
+//             check again
+#              ifdef CHECK_UNPHYSICAL_IN_FLUID
+               for (int w=0; w<NCOMP_TOTAL_PLUS_MAG; w++) {
+                  if ( Flux_1Face[w] != Flux_1Face[w] ) {
+                     printf( "ERROR : RSOLVER_RESCUE still failed !!\n" );
+                     break;
+                  }
+               }
+#              endif
+
+               break;
+            } // if ( Flux_1Face[v] != Flux_1Face[v] )
+         } // for (int v=0; v<NCOMP_TOTAL_PLUS_MAG; v++)
+#        endif // #if ( RSOLVER_RESCUE != NONE )
 
 //       store the results in g_Flux_Half[]
          for (int v=0; v<NCOMP_TOTAL_PLUS_MAG; v++)   g_Flux_Half[d][v][idx_flux] = Flux_1Face[v];

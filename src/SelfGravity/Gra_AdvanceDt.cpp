@@ -97,8 +97,8 @@ void Gra_AdvanceDt( const int lv, const double TimeNew, const double TimeOld, co
       TIMING_FUNC(   Prepare_PatchData_InitParticleDensityArray( lv ),
                      Timer_Par_Collect[lv],   Timing   );
 
-      TIMING_FUNC(   Par_CollectParticle2OneLevel( lv, _PAR_MASS|_PAR_POSX|_PAR_POSY|_PAR_POSZ, PredictPos, TimeNew,
-                                                   SibBufPatch, FaSibBufPatch, JustCountNPar_No, TimingSendPar_Yes ),
+      TIMING_FUNC(   Par_CollectParticle2OneLevel( lv, _PAR_MASS|_PAR_POSX|_PAR_POSY|_PAR_POSZ|_PAR_TYPE, PredictPos,
+                                                   TimeNew, SibBufPatch, FaSibBufPatch, JustCountNPar_No, TimingSendPar_Yes ),
                      Timer_Par_Collect[lv],   Timing   );
    }
 #  endif // #ifdef PARTICLE
@@ -117,9 +117,11 @@ void Gra_AdvanceDt( const int lv, const double TimeNew, const double TimeOld, co
 //    do not need to calculate the gravitational potential if self-gravity is disabled
       if ( UsePot )
       {
+#        ifdef SUPPORT_FFTW
          if ( OPT__SELF_GRAVITY )
          TIMING_FUNC(   CPU_PoissonSolver_FFT( Poi_Coeff, SaveSg_Pot, TimeNew ),
                         Timer_Gra_Advance[lv],   Timing   );
+#        endif
 
          if ( OPT__EXT_POT )
          TIMING_FUNC(   CPU_ExtPotSolver_BaseLevel( CPUExtPot_Ptr, ExtPot_AuxArray_Flt, ExtPot_AuxArray_Int,

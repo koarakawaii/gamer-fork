@@ -27,7 +27,7 @@ void End_GAMER()
 
    if ( End_User_Ptr != NULL )   End_User_Ptr();
 
-#  ifdef GRAVITY
+#  ifdef SUPPORT_FFTW
    End_FFTW();
 #  endif
 
@@ -44,6 +44,10 @@ void End_GAMER()
 #  endif
 
    Src_End();
+
+#  ifdef FEEDBACK
+   FB_End();
+#  endif
 
 #  ifdef GRAVITY
    End_ExtAccPot();

@@ -1111,10 +1111,6 @@ void Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
 
-//#  if ( NCOMP_PASSIVE_USER > 0 )
-//   if ( MPI_Rank == 0)     Aux_Message( stdout, "NCOMP_PASSIVE_USER = %d \n", NCOMP_PASSIVE);
-//#  endif
-
 // validate the compilation flags and runtime parameters
    Validate();
 

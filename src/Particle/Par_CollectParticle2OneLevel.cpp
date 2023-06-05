@@ -64,8 +64,8 @@ extern bool Particle_Collected;
 //                                         (do nothing if FaLv==0) (for LOAD_BALANCE only)
 //                JustCountNPar : Just count the number of particles in each real patch at FaLv. Don't collect
 //                                particle indices (or collect particle mass and position for LOAD_BALANCE)
-//                TimingSendPar : Measure the elapsed time of the routine "Par_LB_SendParticleData" in
-//                                Par_LB_CollectParticle2OneLevel (for LOAD_BALANCE only)
+//                TimingSendPar : Measure the elapsed time of Par_LB_SendParticleData() in
+//                                Par_LB_CollectParticle2OneLevel() (for LOAD_BALANCE only)
 //
 // Return      :  NPar_Copy and ParList_Copy (if JustCountNPar == false) for all non-leaf real patches at FaLv
 //-------------------------------------------------------------------------------------------------------
@@ -126,9 +126,9 @@ void Par_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, const b
       {
          const long ParID = amr->patch[0][FaLv][FaPID]->ParList[p];
 
-         if ( amr->Par->Time[ParID] >= (real)0.0 )
-            Aux_Error( ERROR_INFO, "This particle shouldn't be here (FaLv %d, FaPID %d, ParID %ld, ParTime %21.14e) !!\n",
-                       FaLv, FaPID, ParID, amr->Par->Time[ParID] );
+         if ( amr->Par->Time[ParID] >= (real)0.0  &&  amr->Par->Type[ParID] != PTYPE_TRACER )
+            Aux_Error( ERROR_INFO, "This particle shouldn't be here (FaLv %d, FaPID %d, ParID %ld, ParTime %21.14e, ParType %d) !!\n",
+                       FaLv, FaPID, ParID, amr->Par->Time[ParID], (int)amr->Par->Type[ParID] );
       }
 #     endif
 

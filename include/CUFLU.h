@@ -25,12 +25,37 @@
 #endif
 
 
+// include CUDA FFT library if GPU kinetic ELBDM Gram-Fourier extension solver is enabled
+#if ( defined(__CUDACC__) && MODEL == ELBDM && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+#  include <cufftdx.hpp>
+#endif // #if ( defined(__CUDACC__) && MODEL == ELBDM && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+
 // faster integer multiplication in Fermi
 #if ( defined __CUDACC__  &&  __CUDA_ARCH__ >= 200 )
 #  define __umul24( a, b )   ( (a)*(b) )
 #  define  __mul24( a, b )   ( (a)*(b) )
 #endif
 
+// define GPU compute capabilities
+#ifdef GPU
+#  if   ( GPU_ARCH == FERMI )
+   #define GPU_COMPUTE_CAPABILITY 200
+#  elif ( GPU_ARCH == KEPLER )
+   #define GPU_COMPUTE_CAPABILITY 300
+#  elif ( GPU_ARCH == MAXWELL )
+   #define GPU_COMPUTE_CAPABILITY 500
+#  elif ( GPU_ARCH == PASCAL )
+   #define GPU_COMPUTE_CAPABILITY 600
+#  elif ( GPU_ARCH == VOLTA )
+   #define GPU_COMPUTE_CAPABILITY 700
+#  elif ( GPU_ARCH == TURING )
+   #define GPU_COMPUTE_CAPABILITY 750
+#  elif ( GPU_ARCH == AMPERE )
+   #define GPU_COMPUTE_CAPABILITY 800
+#  else
+#  error : ERROR : Please add GPU_COMPUTE_CAPABILITY for GPU_ARCH!
+#  endif // GPU_ARCH
+#endif // GPU
 
 
 // #################################
@@ -121,14 +146,13 @@
 #endif // #if ( FLU_SCHEME == MHM  ||  FLU_SCHEME == MHM_RP  ||  FLU_SCHEME == CTU )
 
 
-// check non-physical negative values (e.g., negative density) for the fluid solver
+// check non-physical values (e.g., negative density) for the fluid solver
 #if ( defined GAMER_DEBUG  &&  MODEL == HYDRO )
-#  define CHECK_NEGATIVE_IN_FLUID
+#  define CHECK_UNPHYSICAL_IN_FLUID
 #endif
 
-#ifdef CHECK_NEGATIVE_IN_FLUID
+#ifdef CHECK_UNPHYSICAL_IN_FLUID
 #  include "stdio.h"
-   bool Hydro_CheckNegative( const real Input );
 #endif
 
 
@@ -163,7 +187,7 @@
 
 // verify that the density and pressure in the intermediate states of Roe's Riemann solver are positive.
 // --> if either is negative, we switch to other Riemann solvers (EXACT/HLLE/HLLC/HLLD)
-#if (  ( FLU_SCHEME == MHM || FLU_SCHEME == MHM_RP || FLU_SCHEME == CTU )  &&  RSOLVER == ROE  )
+#if (  ( FLU_SCHEME == MHM || FLU_SCHEME == MHM_RP || FLU_SCHEME == CTU )  &&  ( RSOLVER == ROE || RSOLVER_RESCUE == ROE )  )
 #  ifdef MHD
 //#     define CHECK_INTERMEDIATE    HLLD
 #     define CHECK_INTERMEDIATE    HLLE
@@ -174,8 +198,32 @@
 #endif
 
 
-// use Eulerian with Y factor for Roe Solver in MHD
-#if (  defined MHD  &&  ( RSOLVER == ROE || RSOLVER == HLLE )  )
+// switch to a different Riemann solver if the default one fails
+// --> to disable it, either comment out this line or set RSOLVER_RESCUE to NONE
+// --> used by Hydro_ComputeFlux() and Hydro_RiemannPredict_Flux()
+// --> doesn't support either RSOLVER==ROE or RSOLVER_RESCUE==ROE/EXACT for now due to HLL_NO_REF_STATE/HLL_INCLUDE_ALL_WAVES
+#  define RSOLVER_RESCUE   HLLE
+
+#if ( RSOLVER_RESCUE == ROE  ||  RSOLVER_RESCUE == EXACT )
+#  error : ERROR : does not support RSOLVER_RESCUE == ROE/EXACT !!
+#endif
+
+#if ( defined MHD  &&  RSOLVER_RESCUE == HLLC )
+#  error : ERROR : RSOLVER_RESCUE == HLLC for MHD simulations !!
+#endif
+
+#if ( !defined MHD  &&  RSOLVER_RESCUE == HLLD )
+#  error : ERROR : RSOLVER_RESCUE == HLLD for non-MHD simulations !!
+#endif
+
+#if ( RSOLVER_RESCUE == RSOLVER  ||  RSOLVER == ROE  ||  !defined RSOLVER )
+#  undef  RSOLVER_RESCUE
+#  define RSOLVER_RESCUE   NONE
+#endif
+
+
+// use Eulerian with Y factor for the Roe Solver in MHD
+#ifdef MHD
 #  define EULERY
 #endif
 
@@ -225,7 +273,6 @@
 // 2. ELBDM macro
 //=========================================================================================
 #elif ( MODEL == ELBDM )
-
 
 #else
 #  error : ERROR : unsupported MODEL !!
@@ -429,7 +476,57 @@
 #        endif
 #  endif
 
-#endif // MODEL
+
+// set number of threads and blocks used in GRAMFE GPU scheme
+# if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+
+
+// cuFFTdx supports the following GPU architectures at the time of writing (23.05.23)
+//
+//    Volta: 700 and 720 (sm_70, sm_72),
+//
+//    Turing: 750 (sm_75), and
+//
+//    Ampere: 800, 860 and 870 (sm_80, sm_86, sm_87).
+//
+//    Ada: 890 (sm_89).
+//
+//    Hopper: 900 (sm_90).
+#  if   ( GPU_COMPUTE_CAPABILITY != 700 && GPU_COMPUTE_CAPABILITY != 720 && GPU_COMPUTE_CAPABILITY != 750 \
+      &&  GPU_COMPUTE_CAPABILITY != 800 && GPU_COMPUTE_CAPABILITY != 860 && GPU_COMPUTE_CAPABILITY != 870 \
+      &&  GPU_COMPUTE_CAPABILITY != 890 \
+      &&  GPU_COMPUTE_CAPABILITY != 900 )
+#     error : ERROR : GPU_COMPUTE_CAPABILITY unsupported by cuFFTdx (please visit cuFFTdx website to check whether your GPU is supported and update CUFLU.h accordingly if it is) !
+#  endif
+
+// number of blocks suggested by cufftdx disabled by default
+// profiling the code showed that a different number of blocks provides better performance
+// this is because the code does not only compute the FFT, but also the Fourier extension
+#  define GRAMFE_USE_SUGGESTED_BLOCKS        0
+#  define GRAMFE_CUSTOM_ELEMENTS_PER_THREAD  4
+#  define GRAMFE_CUSTOM_FFTS_PER_BLOCK       12
+
+
+using CUFFTDX_ARCH = decltype(cufftdx::SM<GPU_COMPUTE_CAPABILITY>());
+
+using fft_base     = decltype(cufftdx::Block() + cufftdx::Size<GRAMFE_FLU_NXT>() + cufftdx::Type<cufftdx::fft_type::c2c>() + cufftdx::Precision<gramfe_float>() + CUFFTDX_ARCH() );
+using forward_fft  = decltype(fft_base() + cufftdx::Direction<cufftdx::fft_direction::forward>());
+using inverse_fft  = decltype(fft_base() + cufftdx::Direction<cufftdx::fft_direction::inverse>());
+
+// complete FFT description
+static constexpr unsigned int elements_per_thread = GRAMFE_USE_SUGGESTED_BLOCKS ? forward_fft::elements_per_thread      : GRAMFE_CUSTOM_ELEMENTS_PER_THREAD;
+static constexpr unsigned int ffts_per_block      = GRAMFE_USE_SUGGESTED_BLOCKS ? inverse_fft::suggested_ffts_per_block : GRAMFE_CUSTOM_FFTS_PER_BLOCK;
+
+using FFT          = decltype( forward_fft() + cufftdx::ElementsPerThread<elements_per_thread>() + cufftdx::FFTsPerBlock<ffts_per_block>());
+using IFFT         = decltype( inverse_fft() + cufftdx::ElementsPerThread<elements_per_thread>() + cufftdx::FFTsPerBlock<ffts_per_block>());
+
+using complex_type = typename FFT::value_type;
+
+# endif // # if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+
+# else
+# error : ERROR : Unsupported model in CUFLU.h
+# endif // MODEL
 
 
 // 3. dt solver for fluid
@@ -474,9 +571,11 @@
 #ifdef __CUDACC__
 # define GPU_DEVICE          __forceinline__ __device__
 # define GPU_DEVICE_NOINLINE    __noinline__ __device__
+# define GPU_DEVICE_VARIABLE                 __device__
 #else
 # define GPU_DEVICE
 # define GPU_DEVICE_NOINLINE
+# define GPU_DEVICE_VARIABLE
 #endif
 
 // unified CPU/GPU loop
@@ -485,6 +584,7 @@
 #else
 # define CGPU_LOOP( var, niter )    for (int (var)=0;           (var)<(niter); (var)++          )
 #endif
+
 
 
 

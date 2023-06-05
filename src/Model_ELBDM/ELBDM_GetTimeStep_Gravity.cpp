@@ -62,41 +62,51 @@ real GetMaxPot( const int lv )
    real   Pot, MaxPot=0.0;       // Pot = PotG + PotS
    double x0, y0, z0, x, y, z;
    int    SibPID;
-   bool   Skip;
+   bool   Skip, AnyCell=false;
 
 
 // get the maximum potential in this rank
-#  pragma omp parallel for private( PotG, PotS, Pot, x0, y0, z0, x, y, z, SibPID, Skip ) reduction( max:MaxPot ) schedule( runtime )
+#  pragma omp parallel for private( PotG, PotS, Pot, x0, y0, z0, x, y, z, SibPID, Skip ) \
+                           reduction( max:MaxPot ) reduction( ||:AnyCell ) schedule( runtime )
    for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
    {
-//    skip all non-leaf patches not adjacent to any coarse-fine boundaries (since their data are useless)
-      Skip = true;
+//    if OPT__FIXUP_RESTRICT is enabled, skip all non-leaf patches not adjacent to any coarse-fine boundaries
+//    because their data is not used for providing ghost boundaries and they are later overwritten by the refined patches
+//    we still need to update their mass density for the Poisson solver but their phase is irrelevant
+//    so they need not be considered in the gravity time step calculation
+//    note that this leads to the gravity timestep being "inf" when a level is completely refined
+      if ( OPT__FIXUP_RESTRICT ) {
+         Skip = true;
 
-      if ( amr->patch[0][lv][PID]->son == -1 )  Skip = false;
-      else
-      {
-         for (int s=0; s<26; s++)
+         if ( amr->patch[0][lv][PID]->son == -1 )  Skip = false;
+         else
          {
-            SibPID = amr->patch[0][lv][PID]->sibling[s];
-
-//          proper-nesting check
-#           ifdef GAMER_DEBUG
-            if ( SibPID == -1 )  Aux_Error( ERROR_INFO, "SibPID == -1 (Lv %d, PID %d) !!\n", lv, PID );
-#           endif
-
-//          non-periodic BC.
-            if ( SibPID < -1 )   continue;
-
-//          check whether this patch is adjacent to a coarse-fine boundary
-            if ( amr->patch[0][lv][SibPID]->son == -1 )
+            for (int s=0; s<26; s++)
             {
-               Skip = false;
-               break;
-            }
-         } // for (int s=0; s<26; s++)
-      } // if ( amr->patch[0][lv][PID]->son == -1 ) ... else ...
+               SibPID = amr->patch[0][lv][PID]->sibling[s];
+
+//             proper-nesting check
+#              ifdef GAMER_DEBUG
+               if ( SibPID == -1 )  Aux_Error( ERROR_INFO, "SibPID == -1 (Lv %d, PID %d) !!\n", lv, PID );
+#              endif
+
+//             non-periodic BC.
+               if ( SibPID < -1 )   continue;
+
+//             check whether this patch is adjacent to a coarse-fine boundary
+               if ( amr->patch[0][lv][SibPID]->son == -1 )
+               {
+                  Skip = false;
+                  break;
+               }
+            } // for (int s=0; s<26; s++)
+         } // if ( amr->patch[0][lv][PID]->son == -1 ) ... else ...
+      } else { // if ( OPT__FIXUP_RESTRICT ) {
+         Skip = false;
+      } // if ( OPT__FIXUP_RESTRICT ) { ... else
 
       if ( Skip )    continue;
+      else           AnyCell = true;
 
 
 //    calculate the potential
@@ -126,16 +136,18 @@ real GetMaxPot( const int lv )
 
 // get the maximum potential in all ranks
    real MaxPot_AllRank;
+   bool AnyCell_AllRank;
 #  ifdef FLOAT8
    MPI_Allreduce( &MaxPot, &MaxPot_AllRank, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD );
 #  else
    MPI_Allreduce( &MaxPot, &MaxPot_AllRank, 1, MPI_FLOAT,  MPI_MAX, MPI_COMM_WORLD );
 #  endif
+   MPI_Reduce( &AnyCell, &AnyCell_AllRank, 1, MPI_C_BOOL, MPI_LOR, 0, MPI_COMM_WORLD );
 
 
 // check
-   if ( MaxPot_AllRank == 0.0  &&  MPI_Rank == 0 )
-      Aux_Message( stderr, "WARNING : MaxPot == 0.0 at lv %d !!\n", lv );
+   if ( MaxPot_AllRank == 0.0  &&  AnyCell  &&  MPI_Rank == 0 )
+      Aux_Error( ERROR_INFO, "MaxPot == 0.0 at lv %d !!\n", lv );
 
 
    return MaxPot_AllRank;

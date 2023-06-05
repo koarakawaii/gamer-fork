@@ -699,6 +699,7 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
+   const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
    long DensMode;
@@ -724,12 +725,9 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
 
       for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
 
-//      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS, _NONE,
-//                         OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-//                         MinDens_No, MinPres_No, MinTemp_No, DE_Consistency_No );
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
 
       delete [] PID0List;
 
@@ -838,6 +836,7 @@ void Record_CenterOfMass( bool record_flag , int loop_terminated)  // use loop_t
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
+   const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
 // collect local data
@@ -851,7 +850,7 @@ void Record_CenterOfMass( bool record_flag , int loop_terminated)  // use loop_t
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
 
       delete [] PID0List;
 
@@ -1245,10 +1244,6 @@ void Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted()
 {
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
-
-//#  if ( NCOMP_PASSIVE_USER > 0 )
-//   if ( MPI_Rank == 0)     Aux_Message( stdout, "NCOMP_PASSIVE_USER = %d \n", NCOMP_PASSIVE);
-//#  endif
 
 // validate the compilation flags and runtime parameters
    Validate();

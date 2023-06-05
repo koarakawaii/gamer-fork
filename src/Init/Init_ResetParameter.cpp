@@ -71,15 +71,25 @@ void Init_ResetParameter()
 #     endif
 
 #     elif  ( MODEL == ELBDM )
+#     if ( WAVE_SCHEME == WAVE_FD )
 #     ifdef GRAVITY
       DT__FLUID = 0.20;                   // 1D k-max mode rotates 0.20*2*PI
-#     else
+#     else // # ifdef GRAVITY
 #     ifdef LAPLACIAN_4TH
       DT__FLUID = SQRT(27.0)*M_PI/32.0;   // stability limit (~0.51)
-#     else
+#     else // # ifdef LAPLACIAN_4TH
       DT__FLUID = SQRT(3.0)*M_PI/8.0;     // stability limit (~0.68)
-#     endif
-#     endif // #ifdef GRAVITY ... else ...
+#     endif // # ifdef LAPLACIAN_4TH ... # else
+#     endif // # ifdef GRAVITY ... # else
+#     elif ( WAVE_SCHEME == WAVE_GRAMFE )
+#     ifdef GRAVITY
+      DT__FLUID = 0.20;                   // 1D k-max mode rotates 0.20*2*PI
+#     else // # ifdef GRAVITY
+      DT__FLUID = 0.30;                   // stability limit depends on ghost boundary and extension order
+#     endif // # ifdef GRAVITY ... # else
+#     else // #  if (WAVE_SCHEME == WAVE_FD )
+#        error : ERROR : unsupported WAVE_SCHEME !!
+#     endif // WAVE_SCHEME
 
 #     else
 #     error : ERROR : unsupported MODEL !!
@@ -381,6 +391,20 @@ void Init_ResetParameter()
 
       PRINT_WARNING( amr->Par->GhostSize, FORMAT_INT, "for the adopted PAR_INTERP scheme" );
    }
+
+   if ( amr->Par->GhostSizeTracer < 0 )
+   {
+      switch ( amr->Par->InterpTracer )
+      {
+         case ( PAR_INTERP_NGP ): amr->Par->GhostSizeTracer = 1;  break;
+         case ( PAR_INTERP_CIC ): amr->Par->GhostSizeTracer = 2;  break;
+         case ( PAR_INTERP_TSC ): amr->Par->GhostSizeTracer = 2;  break;
+         default: Aux_Error( ERROR_INFO, "unsupported particle interpolation scheme !!\n" );
+      }
+
+      PRINT_WARNING( amr->Par->GhostSizeTracer, FORMAT_INT, "for the adopted PAR_TR_INTERP scheme" );
+   }
+
 #  endif // #ifdef PARTICLE
 
 
@@ -703,13 +727,13 @@ void Init_ResetParameter()
 #  endif
 
 
-// OPT__OUTPUT_BASEPS is not supported if GRAVITY is disabled
-#  ifndef GRAVITY
+// OPT__OUTPUT_BASEPS is not supported if SUPPORT_FFTW is disabled
+#  ifndef SUPPORT_FFTW
    if ( OPT__OUTPUT_BASEPS )
    {
       OPT__OUTPUT_BASEPS = false;
 
-      PRINT_WARNING( OPT__OUTPUT_BASEPS, FORMAT_INT, "since GRAVITY is disabled" );
+      PRINT_WARNING( OPT__OUTPUT_BASEPS, FORMAT_INT, "since SUPPORT_FFTW is disabled" );
    }
 #  endif
 
@@ -878,6 +902,23 @@ void Init_ResetParameter()
 #  endif
 
 
+#  if ( MODEL == HYDRO )
+   if      ( MU_NORM < 0.0 )
+   {
+      MU_NORM = Const_mH;
+
+      PRINT_WARNING( MU_NORM, FORMAT_FLT, "" );
+   }
+
+   else if ( MU_NORM == 0.0 )
+   {
+      MU_NORM = Const_amu;
+
+      PRINT_WARNING( MU_NORM, FORMAT_FLT, "" );
+   }
+#  endif
+
+
 // AUTO_REDUCE_DT only works for DT_LEVEL_FLEXIBLE
    if ( AUTO_REDUCE_DT  &&  OPT__DT_LEVEL != DT_LEVEL_FLEXIBLE )
    {
@@ -887,14 +928,24 @@ void Init_ResetParameter()
    }
 
 
-// FLAG_BUFFER_SIZE at the level MAX_LEVEL-1 and MAX_LEVEL-2
-   if ( FLAG_BUFFER_SIZE_MAXM1_LV < 0 )
+// FLAG_BUFFER_SIZE on different levels
+// levels other than MAX_LEVEL-1 and MAX_LEVEL-2
+   if ( FLAG_BUFFER_SIZE < 0 )
    {
-      FLAG_BUFFER_SIZE_MAXM1_LV = FLAG_BUFFER_SIZE;
+      FLAG_BUFFER_SIZE = PS1;
 
-      PRINT_WARNING( FLAG_BUFFER_SIZE_MAXM1_LV, FORMAT_INT, "" );
+      PRINT_WARNING( FLAG_BUFFER_SIZE, FORMAT_INT, "to match PATCH_SIZE" );
    }
 
+// level MAX_LEVEL-1
+   if ( FLAG_BUFFER_SIZE_MAXM1_LV < 0 )
+   {
+      FLAG_BUFFER_SIZE_MAXM1_LV = REGRID_COUNT;
+
+      PRINT_WARNING( FLAG_BUFFER_SIZE_MAXM1_LV, FORMAT_INT, "to match REGRID_COUNT" );
+   }
+
+// level MAX_LEVEL-2
 // must set FLAG_BUFFER_SIZE_MAXM1_LV in advance
    if ( FLAG_BUFFER_SIZE_MAXM2_LV < 0 )
    {
@@ -925,6 +976,17 @@ void Init_ResetParameter()
 
    }
 #  endif // #ifdef STAR_FORMATION
+
+
+// feedback options
+#  ifdef FEEDBACK
+   if ( FB_LEVEL < 0 )
+   {
+      FB_LEVEL = MAX_LEVEL;
+
+      PRINT_WARNING( FB_LEVEL, FORMAT_INT, "" );
+   }
+#  endif // #ifdef FEEDBACK
 
 
 // convert to code units
@@ -962,6 +1024,15 @@ void Init_ResetParameter()
       PRINT_WARNING( OPT__INIT_GRID_WITH_OMP, FORMAT_INT, "since OPENMP is disabled" );
    }
 #  endif
+
+
+// set OPT__RESET_FLUID_INIT = OPT__RESET_FLUID by default
+   if ( OPT__RESET_FLUID_INIT < 0 )
+   {
+      OPT__RESET_FLUID_INIT = OPT__RESET_FLUID;
+
+      PRINT_WARNING( OPT__RESET_FLUID_INIT, FORMAT_INT, "to match OPT__RESET_FLUID" );
+   }
 
 
 // remove symbolic constants and macros only used in this structure
