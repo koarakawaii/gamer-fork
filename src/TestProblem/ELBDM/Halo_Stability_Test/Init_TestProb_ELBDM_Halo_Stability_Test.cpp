@@ -35,6 +35,7 @@ static double   LogBinRatio_corr;             // ratio of bin size growing rate 
 static double   RadiusMax_corr;               // maximum radius for correlation function statistics (correlation)
 //static double   PrepTime;                     // time for doing statistics
 static bool     ComputeCorrelation;           // flag for compute correlation
+static bool     ReComputeCorrelation;         // flag for recompute correlation for restart; use the simulation time of RESTART as initial time for computing time correlation; only available for RESTART
 static bool     LogBin_prof;                  // logarithmic bin or not (profile)
 static bool     RemoveEmpty_prof;             // remove 0 sample bins; false: Data[empty_bin]=Weight[empty_bin]=NCell[empty_bin]=0 (profile)
 static bool     LogBin_corr;                  // logarithmic bin or not (correlation)
@@ -45,6 +46,7 @@ static int      OutputCorrelationMode;        // output correlation function mod
 static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0) 
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
+static bool     Fluid_Periodic_BC_Flag;       // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
 
 static int step_counter;                             // counter for caching consumed step indices
@@ -52,7 +54,6 @@ static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer t
 static Profile_with_Sigma_t *Prof[] = { &Prof_Dens_initial };
 static Profile_t            Correlation_Dens;                       // pointer to save density correlation function
 static Profile_t            *Correlation[] = { &Correlation_Dens };       
-//FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
 // =======================================================================================
 
 //-------------------------------------------------------------------------------------------------------
@@ -135,32 +136,35 @@ void SetParameter()
    ReadPara->Add( "System_CM_MaxR",           &System_CM_MaxR,         NoMax_double,     Eps_double,       NoMax_double      );
    ReadPara->Add( "System_CM_TolErrR",        &System_CM_TolErrR,         0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,        NoMax_double,     Eps_double,       NoMax_double      );
-   ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,        0.0,          NoMin_double,     NoMax_double       );
-   ReadPara->Add( "ComputeCorrelation",       &ComputeCorrelation,      false,          Useless_bool,     Useless_bool       );
-   ReadPara->Add( "dr_min_corr",              &dr_min_corr,            Eps_double,       Eps_double,       NoMax_double      );
-   ReadPara->Add( "LogBinRatio_corr",         &LogBinRatio_corr,          1.0,           Eps_double,      NoMax_double       );
-   ReadPara->Add( "RadiusMax_corr",           &RadiusMax_corr,         Eps_double,       Eps_double,      NoMax_double       );
-   ReadPara->Add( "LogBin_corr",              &LogBin_corr,             false,          Useless_bool,     Useless_bool       );
-   ReadPara->Add( "RemoveEmpty_corr",         &RemoveEmpty_corr,        false,          Useless_bool,     Useless_bool       );
-   ReadPara->Add( "dr_min_prof",              &dr_min_prof,            Eps_double,       Eps_double,       NoMax_double      );
-//   ReadPara->Add( "LogBinRatio_prof",         &LogBinRatio_prof,          1.0,           Eps_double,      NoMax_double       );
-//   ReadPara->Add( "RadiusMax_prof",           &RadiusMax_prof,         NoMax_double,     Eps_double,      NoMax_double       );
-//   ReadPara->Add( "LogBin_prof",              &LogBin_prof,             false,          Useless_bool,     Useless_bool       );
-//   ReadPara->Add( "RemoveEmpty_prof",         &RemoveEmpty_prof,        false,          Useless_bool,     Useless_bool       );
-//   ReadPara->Add( "PrepTime",                 &PrepTime,                  0.0,          NoMin_double,     NoMax_double       );
-   ReadPara->Add( "MinLv",                    &MinLv,                       0,                     0,        MAX_LEVEL       );
-   ReadPara->Add( "MaxLv",                    &MaxLv,               MAX_LEVEL,                     0,        MAX_LEVEL       );
-   ReadPara->Add( "OutputCorrelationMode",    &OutputCorrelationMode,       0,                     0,             1          );
-   ReadPara->Add( "StepInitial",              &StepInitial,             NoMin_int,         NoMin_int,       NoMax_int        );
-   ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,        NoMax_int       );
-   ReadPara->Add( "FilePath_corr",            FilePath_corr,       Useless_str,           Useless_str,      Useless_str      );
+   ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,        0.0,          NoMin_double,      NoMax_double      );
+   ReadPara->Add( "ComputeCorrelation",       &ComputeCorrelation,      false,          Useless_bool,      Useless_bool      );
+   ReadPara->Add( "Fluid_Periodic_BC_Flag",   &Fluid_Periodic_BC_Flag,  false,          Useless_bool,      Useless_bool      );
    ReadPara->Read( FileName );
+
+   if ( ComputeCorrelation )
+   {
+      ReadPara->Add( "dr_min_corr",              &dr_min_corr,            Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "LogBinRatio_corr",         &LogBinRatio_corr,          1.0,           Eps_double,      NoMax_double       );
+      ReadPara->Add( "RadiusMax_corr",           &RadiusMax_corr,         Eps_double,       Eps_double,      NoMax_double       );
+      ReadPara->Add( "LogBin_corr",              &LogBin_corr,             false,          Useless_bool,     Useless_bool       );
+      ReadPara->Add( "RemoveEmpty_corr",         &RemoveEmpty_corr,        false,          Useless_bool,     Useless_bool       );
+      ReadPara->Add( "dr_min_prof",              &dr_min_prof,            Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "MinLv",                    &MinLv,                       0,                     0,        MAX_LEVEL       );
+      ReadPara->Add( "MaxLv",                    &MaxLv,               MAX_LEVEL,                     0,        MAX_LEVEL       );
+      ReadPara->Add( "OutputCorrelationMode",    &OutputCorrelationMode,       0,                     0,             1          );
+      ReadPara->Add( "StepInitial",              &StepInitial,             NoMin_int,         NoMin_int,       NoMax_int        );
+      ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,        NoMax_int       );
+      ReadPara->Add( "FilePath_corr",            FilePath_corr,       Useless_str,           Useless_str,      Useless_str      );
+      if ( OPT__INIT == INIT_BY_RESTART )
+         ReadPara->Add( "ReComputeCorrelation",     &ReComputeCorrelation,     false,         Useless_bool,      Useless_bool      );
+      ReadPara->Read( FileName );
+   }
 
    delete ReadPara;
 
 // (1-2) set the default values
-   if ( System_CM_TolErrR < 0.0 )           System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
-   if ( Soliton_CM_TolErrR < 0.0 )          Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
+   if ( System_CM_TolErrR < 0.0 )   System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
+   if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
    if (ComputeCorrelation)
    {
@@ -169,10 +173,10 @@ void SetParameter()
        if ( LogBinRatio_corr<=1.0 )             LogBinRatio_corr = 2.0;
 
        if ( dr_min_prof <=Eps_double )          dr_min_prof = dr_min_corr;
-            RadiusMax_prof                      = RadiusMax_corr * 1.05;   // assigned by Test Problem
-            LogBinRatio_prof                    = 1.0;                     // assigned by Test Problem (no effect)
-            LogBin_prof                         = false;                   // assigned by Test Problem
-            RemoveEmpty_prof                    = false;                   // assigned by Test Problem
+       RadiusMax_prof                           = RadiusMax_corr * 1.05;   // assigned by Test Problem
+       LogBinRatio_prof                         = 1.0;                     // hard-coded by Test Problem (no effect)
+       LogBin_prof                              = false;                   // hard-coded by Test Problem
+       RemoveEmpty_prof                         = false;                   // hard-coded by Test Problem
 
        if ( MinLv < 0 ) MinLv = 0;
        if ( MaxLv <= MinLv ) MaxLv = MAX_LEVEL;
@@ -216,6 +220,7 @@ void SetParameter()
       Aux_Message( stdout, "  system CM tolerated error                   = %13.6e\n", System_CM_TolErrR         );
       Aux_Message( stdout, "  soliton CM max radius                       = %13.6e\n", Soliton_CM_MaxR           );
       Aux_Message( stdout, "  soliton CM tolerated error                  = %13.6e\n", Soliton_CM_TolErrR        );
+      Aux_Message( stdout, "  fluid periodic boundary condition flag      = %d\n"    , Fluid_Periodic_BC_Flag    );
       Aux_Message( stdout, "  compute correlation                         = %d\n"    , ComputeCorrelation        );
       if (ComputeCorrelation)
       {
@@ -234,6 +239,8 @@ void SetParameter()
          Aux_Message( stdout, "  maximum level                               = %d\n"    , MaxLv                  );
          Aux_Message( stdout, "  output correlation function mode            = %d\n"    , OutputCorrelationMode  );
          Aux_Message( stdout, "  file path for correlation text file         = %s\n"    , FilePath_corr          );
+         if ( OPT__INIT == INIT_BY_RESTART )
+         Aux_Message( stdout, "  re-compute correlation using restart time as initial time = %d\n", ReComputeCorrelation );
       }
       Aux_Message( stdout, "=================================================================================\n" );
    }
@@ -379,8 +386,8 @@ static void Init_User_ELBDM_Halo_Stability_Test(void)
    for (int i=0; i<PS1; i++)
    {
 //    store the initial density in both Sg so that we don't have to worry about which Sg to be used
-//    a. for restart, the initial density has already been loaded and we just need to copy the data to another Sg
-      if ( OPT__INIT == INIT_BY_RESTART ) {
+//    a. for restart and ReComputeCorrelation disabled, the initial density has already been loaded and we just need to copy the data to another Sg
+      if ( ( OPT__INIT == INIT_BY_RESTART ) && ( !ReComputeCorrelation ) ) {
          const real Dens0 = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i];
 
          amr->patch[ 1-amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i] = Dens0;
@@ -479,8 +486,25 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
 } // FUNCTION : SetGridIC
 
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  BC_HALO
+// Description :  Set the extenral boundary condition
+//
+// Note        :  1. Linked to the function pointer "BC_User_Ptr"
+//                2. Set the BC as isolated
+//
+// Parameter   :  fluid    : Fluid field to be set
+//                x/y/z    : Physical coordinates
+//                Time     : Physical time
+//                lv       : Refinement level
+//                AuxArray : Auxiliary array
+//
+// Return      :  fluid
+////-------------------------------------------------------------------------------------------------------
 static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
-         const int lv, double AuxArray[] )
+                     const int lv, double AuxArray[] )
 {
 
    fluid[REAL] = (real)0.0;
@@ -488,6 +512,7 @@ static void BC_HALO( real fluid[], const double x, const double y, const double 
    fluid[DENS] = (real)0.0;
 
 } // FUNCTION : BC_HALO
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -499,7 +524,7 @@ static void BC_HALO( real fluid[], const double x, const double y, const double 
 //
 // Parameter   :  CM_Old[] : Previous CM
 //                CM_New[] : New CM to be returned
-static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_New[], const double CM_MaxR )
+static void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_MaxR, const long DensMode)
 {
 
    const double CM_MaxR2          = SQR( CM_MaxR );
@@ -512,9 +537,6 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
    const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
-   long DensMode;
-   if (record_flag)       DensMode  = _TOTAL_DENS;
-   else                   DensMode  = BIDX(Idx_Dens0);
 
    int   *PID0List = NULL;
    double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
@@ -610,6 +632,8 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
 
 } // FUNCTION : GetCenterOfMass
 
+
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Record_CenterOfMass
 // Description :  Record the maximum density and center coordinates
@@ -635,9 +659,8 @@ static void Record_CenterOfMass( bool record_flag )
    double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
    double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
    long   DensMode;
-   if (record_flag)       DensMode  = _TOTAL_DENS;
+   if (record_flag)       DensMode  = _DENS;  // find peak density for FDM component only
    else                   DensMode  = BIDX(Idx_Dens0);
-//   const long DensMode  = _TOTAL_DENS;
 
    const bool   IntPhase_No       = false;
    const real   MinDens_No        = -1.0;
@@ -671,8 +694,6 @@ static void Record_CenterOfMass( bool record_flag )
          for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*amr->dh[lv];
 
             dens = TotalDens[PID][k][j][i];
-//            if ( !record_flag )         dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i];   // set as passive field
-//            else                        dens = TotalDens[PID][k][j][i];                                            // set as density field
             pote = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
 
             if ( dens > max_dens_loc )
@@ -774,8 +795,8 @@ static void Record_CenterOfMass( bool record_flag )
 
 
 // compute the center of mass until convergence
-   const double TolErrR2 = SQR( System_CM_TolErrR );
-   const int    NIterMax = 10;
+   double TolErrR2;
+   const int    NIterMax = 20;
 
    double dR2, CM_Old[3], CM_New[3];
    int NIter = 0;
@@ -783,6 +804,10 @@ static void Record_CenterOfMass( bool record_flag )
 // repeat 2 times: first for system CM, next for soliton CM
    for (int repeat=0; repeat<2; repeat++)
    {
+       if (repeat==0)
+          TolErrR2 = SQR( System_CM_TolErrR );
+       else
+          TolErrR2 = SQR( Soliton_CM_TolErrR );
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
@@ -792,9 +817,9 @@ static void Record_CenterOfMass( bool record_flag )
        while ( true )
        {
           if (repeat==0)
-              GetCenterOfMass( record_flag, CM_Old, CM_New, System_CM_MaxR );
+              GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR, _TOTAL_DENS ); // for system center of mass, use total density
           else
-              GetCenterOfMass( record_flag, CM_Old, CM_New, Soliton_CM_MaxR );
+              GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR, _DENS );      // for soliton center of mass, use FDM density
     
           dR2 = SQR( CM_Old[0] - CM_New[0] )
               + SQR( CM_Old[1] - CM_New[1] )
@@ -810,7 +835,10 @@ static void Record_CenterOfMass( bool record_flag )
        if ( MPI_Rank == 0 )
        {
           if ( dR2 > TolErrR2 )
-             Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+             if (repeat==0)
+                Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+             else
+                Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
     
           if (record_flag)
           {
@@ -862,14 +890,8 @@ static void Do_COM_and_CF( void )
       if ( ((OutputCorrelationMode==1) && (Step==StepTable[step_counter])) || ((OutputCorrelationMode==0) && (Step>=StepInitial) && (((Step-StepInitial)%StepInterval)==0)) )
       {
          const long TVar[] = {_DENS};
-//         if ( MPI_Rank == 0 )    Aux_Message( stdout, "calculate correlation function at step = %d , prepared time =  %20.14e:\n", Step, Time[0] );
-// for GNU compiler  
-//         const Profile_with_Sigma_t **Prof_init = (const Profile_with_Sigma_t**)(Prof);
          Aux_ComputeCorrelation( Correlation, (const Profile_with_Sigma_t**)Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
                                  RemoveEmpty_corr, TVar, 1, MinLv, MaxLv, PATCH_LEAF, Time[0], dr_min_prof);
-// for intel compiler
-//         Aux_ComputeCorrelation( Correlation, Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
-//                                 RemoveEmpty_corr, TVar, 1, MinLv, MaxLv, PATCH_LEAF, Time[0], dr_min_prof);
 
          char Filename[MAX_STRING];
          sprintf( Filename, "%s/correlation_function_t=%.4e.txt", FilePath_corr, Time[0] );
@@ -884,7 +906,23 @@ static void Do_COM_and_CF( void )
       }
    }  // end of if ComputeCorrelation
 }
-#endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  End_Halo_Stability_Test
+// Description :  Free memory before terminating the program
+//
+// Note        :  1. Linked to the function pointer "End_User_Ptr" to replace "End_User()"
+//
+// Parameter   :  None
+//-------------------------------------------------------------------------------------------------------
+static void End_Halo_Stability_Test()
+{
+   
+} // FUNCTION : End_Halo_Stability_Test
+#endif // end of if ( MODEL == ELBDM && defined GRAVITY )
+
 
 
 //-------------------------------------------------------------------------------------------------------
@@ -911,17 +949,34 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 // set the problem-specific runtime parameters
    SetParameter();
 
+// check whether fluid boundary condition in Input__Parameter is set properly
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+      BC_User_Ptr            = BC_HALO;
+   }
+
    Init_Function_User_Ptr = SetGridIC;
    Init_Field_User_Ptr    = AddNewField_ELBDM_Halo_Stability_Test;
-   BC_User_Ptr            = BC_HALO;
-   Aux_Record_User_Ptr    = Do_COM_and_CF;
    Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test;
+   Aux_Record_User_Ptr    = Do_COM_and_CF;
+   End_User_Ptr           = End_Halo_Stability_Test;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
-   Src_Init_User_Ptr              = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
-   End_User_Ptr                   = NULL;
-
+   Src_Init_User_Ptr      = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 

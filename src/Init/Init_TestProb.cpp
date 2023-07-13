@@ -31,7 +31,6 @@ void Init_TestProb_ELBDM_ExtPot();
 void Init_TestProb_ELBDM_JeansInstabilityComoving();
 void Init_TestProb_ELBDM_JeansInstabilityPhysical();
 void Init_TestProb_ELBDM_Soliton();
-void Init_TestProb_ELBDM_Soliton_Toy_Model();
 void Init_TestProb_ELBDM_SelfSimilarHalo();
 void Init_TestProb_ELBDM_VortexPairRotating();
 void Init_TestProb_ELBDM_VortexPairLinear();
@@ -41,8 +40,11 @@ void Init_TestProb_ELBDM_LSS();
 void Init_TestProb_ELBDM_PlaneWave();
 
 void Init_TestProb_ELBDM_Halo_Stability_Test();
+void Init_TestProb_ELBDM_Soliton_Toy_Model();
 void Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton();
 void Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted();
+void Init_TestProb_ELBDM_Black_Hole_in_Halo();
+void Init_TestProb_ELBDM_Black_Hole_in_Soliton();
 
 
 
@@ -94,7 +96,6 @@ void Init_TestProb()
       case TESTPROB_ELBDM_JEANS_INSTABILITY_COMOVING :      Init_TestProb_ELBDM_JeansInstabilityComoving();        break;
 //    case TESTPROB_ELBDM_JEANS_INSTABILITY_PHYSICAL :      Init_TestProb_ELBDM_JeansInstabilityPhysical();        break;
       case TESTPROB_ELBDM_SOLITON :                         Init_TestProb_ELBDM_Soliton();                         break;
-      case TESTPROB_ELBDM_SOLITON_TOY_MODEL :               Init_TestProb_ELBDM_Soliton_Toy_Model();               break;
       case TESTPROB_ELBDM_SELF_SIMILAR_HALO :               Init_TestProb_ELBDM_SelfSimilarHalo();                 break;
       case TESTPROB_ELBDM_VORTEX_PAIR_ROTATING :            Init_TestProb_ELBDM_VortexPairRotating();              break;
       case TESTPROB_ELBDM_VORTEX_PAIR_LINEAR :              Init_TestProb_ELBDM_VortexPairLinear();                break;
@@ -103,8 +104,11 @@ void Init_TestProb()
       case TESTPROB_ELBDM_LSS :                             Init_TestProb_ELBDM_LSS();                             break;
       case TESTPROB_ELBDM_PLANE_WAVE :                      Init_TestProb_ELBDM_PlaneWave();                       break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST :             Init_TestProb_ELBDM_Halo_Stability_Test();             break;
+      case TESTPROB_ELBDM_SOLITON_TOY_MODEL :               Init_TestProb_ELBDM_Soliton_Toy_Model();               break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON :  Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton();  break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED :  Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted();  break;
+      case TESTPROB_ELBDM_BLACK_HOLE_IN_HALO :              Init_TestProb_ELBDM_Black_Hole_in_Halo();              break;
+      case TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON :           Init_TestProb_ELBDM_Black_Hole_in_Soliton();           break;
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );
    } // switch( TESTPROB_ID )

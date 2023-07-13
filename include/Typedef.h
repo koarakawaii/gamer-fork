@@ -76,7 +76,9 @@ const TestProbID_t
    TESTPROB_ELBDM_HALO_STABILITY_TEST                     = 2010,
    TESTPROB_ELBDM_SOLITON_TOY_MODEL                       = 2011,
    TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON          = 2012,
-   TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED = 2013;
+   TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED = 2013,
+   TESTPROB_ELBDM_BLACK_HOLE_IN_HALO                      = 2014,  
+   TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON                   = 2015; 
 
 
 // program initialization options
@@ -167,6 +169,16 @@ const OptOutputMode_t
    OUTPUT_CONST_STEP = 1,
    OUTPUT_CONST_DT   = 2,
    OUTPUT_USE_TABLE  = 3;
+
+
+#ifdef SUPPORT_LIBYT 
+// yt inline analysis execuation criteria
+typedef int OptExecuteYTMode_t;
+const OptExecuteYTMode_t
+   EXECUTE_YT_CONST_STEP = 1,
+   EXECUTE_YT_CONST_DT   = 2,
+   EXECUTE_YT_USE_TABLE  = 3;
+#endif
 
 
 // OPT__OUTPUT_PART options
