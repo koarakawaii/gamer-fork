@@ -850,9 +850,9 @@ static void Record_CenterOfMass( bool record_flag )
              fclose( file_center );
           }
        }
-       if ( (!record_flag) && (repeat==0) )
+       if ( (!record_flag) && (repeat==0) ) // Only cached the center coordinate by CoM coordiante of the whole halo for passive field, when simuliation BEGINS!!
+//       if ( (!record_flag) && (repeat==1) ) // Only cached the center coordinate by CoM coordiante of the soliton for passive field, when simuliation BEGINS!!
        {
-// Only cached the center coordinate by CoM coordiante of the whole halo for passive field, when simuliation BEGINS!!
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
            
