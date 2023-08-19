@@ -51,7 +51,9 @@
 #  elif ( GPU_ARCH == TURING )
    #define GPU_COMPUTE_CAPABILITY 750
 #  elif ( GPU_ARCH == AMPERE )
-   #define GPU_COMPUTE_CAPABILITY 800
+// #define GPU_COMPUTE_CAPABILITY 800
+   #define GPU_COMPUTE_CAPABILITY 860
+// #define GPU_COMPUTE_CAPABILITY 870
 #  else
 #  error : ERROR : Please add GPU_COMPUTE_CAPABILITY for GPU_ARCH!
 #  endif // GPU_ARCH
@@ -78,7 +80,7 @@
 //                            --> for example, in MHM_RP FC_Flux[] is also linked to Half_Flux[] used by
 //                                Hydro_RiemannPredict_Flux() and Hydro_RiemannPredict()
 //                            --> for the latter two routines, Half_Flux[] is accessed with N_HF_FLUX
-//                                that is smaller than N_FC_FLUX
+//                                that is equal to N_FC_FLUX and larger than N_FL_FLUX
 // N_HF_VAR             : for accessing PriVar_Half[], which is linked to PriVar[] with the size FLU_NXT^3
 //                        --> also for accessing FC_B_Half[] in MHD
 
