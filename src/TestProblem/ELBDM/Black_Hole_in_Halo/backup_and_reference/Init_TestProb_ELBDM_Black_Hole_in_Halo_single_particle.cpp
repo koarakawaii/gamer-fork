@@ -337,15 +337,14 @@ static void Par_Init_ByUser()
 // refine the grids
    if ( ParRefineFlag )
    {
+#  ifdef LOAD_BALANCE
       const bool   Redistribute_Yes = true;
       const bool   SendGridData_Yes = true;
       const bool   ResetLB_Yes      = true;
-#  ifdef LOAD_BALANCE
       const double Par_Weight       = amr->LB->Par_Weight;
       const UseLBFunc_t UseLB       = USELB_YES;
       const bool   SortRealPatch_No = false;
 #  else
-      const double Par_Weight       = 0.0;
       const UseLBFunc_t UseLB       = USELB_NO;
 #  endif
 

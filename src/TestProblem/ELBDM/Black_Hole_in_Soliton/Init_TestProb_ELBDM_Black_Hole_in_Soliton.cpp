@@ -368,15 +368,11 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 // refine the grids
    if ( ParRefineFlag )
    {
+#  ifdef LOAD_BALANCE
       const bool   Redistribute_Yes = true;
       const bool   SendGridData_Yes = true;
       const bool   ResetLB_Yes      = true;
-#  if ( defined PARTICLE  &&  defined LOAD_BALANCE )
       const double Par_Weight       = amr->LB->Par_Weight;
-#  else
-      const double Par_Weight       = 0.0;
-#  endif
-#  ifdef LOAD_BALANCE
       const UseLBFunc_t UseLB       = USELB_YES;
       const bool   SortRealPatch_No = false;
 #  else
