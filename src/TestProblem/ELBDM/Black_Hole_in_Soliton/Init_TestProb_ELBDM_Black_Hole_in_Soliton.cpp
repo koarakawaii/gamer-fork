@@ -378,6 +378,7 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 #  endif
 #  ifdef LOAD_BALANCE
       const UseLBFunc_t UseLB       = USELB_YES;
+      const bool   SortRealPatch_No = false;
 #  else
       const UseLBFunc_t UseLB       = USELB_NO;
 #  endif
@@ -396,7 +397,7 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 
          Buf_GetBufferData( lv+1, amr->FluSg[lv+1], NULL_INT, NULL_INT, DATA_AFTER_REFINE, _TOTAL, _NONE, Flu_ParaBuf, USELB_YES );
 
-         LB_Init_LoadBalance( Redistribute_Yes, SendGridData_Yes, Par_Weight, ResetLB_Yes, lv+1 );
+         LB_Init_LoadBalance( Redistribute_Yes, SendGridData_Yes, Par_Weight, ResetLB_Yes, SortRealPatch_No, lv+1 );
 #     endif
 
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
