@@ -67,9 +67,9 @@ static double Star_FreeT;           // free-fall time at Star_R0
 // problem-specific function prototypes
 #ifdef PARTICLE
 void Par_Init_ByFunction_EridanusII( const long NPar_ThisRank, const long NPar_AllRank,
-                                     real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
-                                     real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
-                                     real *AllAttribute[PAR_NATT_TOTAL] );
+                                     real_par *ParMass, real_par *ParPosX, real_par *ParPosY, real_par *ParPosZ,
+                                     real_par *ParVelX, real_par *ParVelY, real_par *ParVelZ, real_par *ParTime,
+                                     real_par *AllAttribute[PAR_NATT_TOTAL] );
 void Init_User_EridanusII();
 #endif
 

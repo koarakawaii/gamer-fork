@@ -261,16 +261,16 @@ static void Par_Init_ByUser()
    const long   NNewPar        = ( MPI_Rank == 0 ) ? BH_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
 
-   real *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAtt[PAR_NATT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NNewPar];
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NNewPar];
 
 // set particle attributes
 // ============================================================================================================
-   real *Time_AllRank   = NewParAtt[PAR_TIME];
-   real *Mass_AllRank   = NewParAtt[PAR_MASS];
-   real *Pos_AllRank[3] = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real *Vel_AllRank[3] = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real_par *Time_AllRank   = NewParAtt[PAR_TIME];
+   real_par *Mass_AllRank   = NewParAtt[PAR_MASS];
+   real_par *Pos_AllRank[3] = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real_par *Vel_AllRank[3] = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
 
 
 // only the master rank will construct the initial condition
@@ -308,7 +308,7 @@ static void Par_Init_ByUser()
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
@@ -337,16 +337,13 @@ static void Par_Init_ByUser()
 // refine the grids
    if ( ParRefineFlag )
    {
+#  ifdef LOAD_BALANCE
       const bool   Redistribute_Yes = true;
       const bool   SendGridData_Yes = true;
       const bool   ResetLB_Yes      = true;
-#  if ( defined PARTICLE  &&  defined LOAD_BALANCE )
       const double Par_Weight       = amr->LB->Par_Weight;
-#  else
-      const double Par_Weight       = 0.0;
-#  endif
-#  ifdef LOAD_BALANCE
       const UseLBFunc_t UseLB       = USELB_YES;
+      const bool   SortRealPatch_No = false;
 #  else
       const UseLBFunc_t UseLB       = USELB_NO;
 #  endif
@@ -365,7 +362,7 @@ static void Par_Init_ByUser()
 
          Buf_GetBufferData( lv+1, amr->FluSg[lv+1], NULL_INT, NULL_INT, DATA_AFTER_REFINE, _TOTAL, _NONE, Flu_ParaBuf, USELB_YES );
 
-         LB_Init_LoadBalance( Redistribute_Yes, SendGridData_Yes, Par_Weight, ResetLB_Yes, lv+1 );
+         LB_Init_LoadBalance( Redistribute_Yes, SendGridData_Yes, Par_Weight, ResetLB_Yes, SortRealPatch_No, lv+1 );
 #     endif
 
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );

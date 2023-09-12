@@ -50,9 +50,9 @@
 //                NRecvPatchTotal, NRecvPatchTotal
 //-------------------------------------------------------------------------------------------------------
 void Par_LB_SendParticleData( const int NParAtt, int *SendBuf_NPatchEachRank, int *SendBuf_NParEachPatch,
-                              long *SendBuf_LBIdxEachPatch, real *SendBuf_ParDataEachPatch, const int NSendParTotal,
+                              long *SendBuf_LBIdxEachPatch, real_par *SendBuf_ParDataEachPatch, const int NSendParTotal,
                               int *&RecvBuf_NPatchEachRank, int *&RecvBuf_NParEachPatch, long *&RecvBuf_LBIdxEachPatch,
-                              real *&RecvBuf_ParDataEachPatch, int &NRecvPatchTotal, int &NRecvParTotal,
+                              real_par *&RecvBuf_ParDataEachPatch, int &NRecvPatchTotal, int &NRecvParTotal,
                               const bool Exchange_NPatchEachRank, const bool Exchange_LBIdxEachRank,
                               const bool Exchange_ParDataEachRank, Timer_t *Timer, const char *Timer_Comment )
 {
@@ -184,16 +184,11 @@ void Par_LB_SendParticleData( const int NParAtt, int *SendBuf_NPatchEachRank, in
       }
 
 //    reuse the MPI recv buffer declared in LB_GetBufferData for better MPI performance
-      RecvBuf_ParDataEachPatch = LB_GetBufferData_MemAllocate_Recv( NRecvParTotal*NParAtt );
+      RecvBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Recv( NRecvParTotal*NParAtt*sizeof(real_par) );
 
 //    exchange data
-#     ifdef FLOAT8
-      MPI_Alltoallv( SendBuf_ParDataEachPatch, SendCount_ParDataEachPatch, SendDisp_ParDataEachPatch, MPI_DOUBLE,
-                     RecvBuf_ParDataEachPatch, RecvCount_ParDataEachPatch, RecvDisp_ParDataEachPatch, MPI_DOUBLE, MPI_COMM_WORLD );
-#     else
-      MPI_Alltoallv( SendBuf_ParDataEachPatch, SendCount_ParDataEachPatch, SendDisp_ParDataEachPatch, MPI_FLOAT,
-                     RecvBuf_ParDataEachPatch, RecvCount_ParDataEachPatch, RecvDisp_ParDataEachPatch, MPI_FLOAT,  MPI_COMM_WORLD );
-#     endif
+      MPI_Alltoallv( SendBuf_ParDataEachPatch, SendCount_ParDataEachPatch, SendDisp_ParDataEachPatch, MPI_GAMER_REAL_PAR,
+                     RecvBuf_ParDataEachPatch, RecvCount_ParDataEachPatch, RecvDisp_ParDataEachPatch, MPI_GAMER_REAL_PAR, MPI_COMM_WORLD );
 
 //    free memory
       delete [] SendCount_ParDataEachPatch;
@@ -226,8 +221,8 @@ void Par_LB_SendParticleData( const int NParAtt, int *SendBuf_NPatchEachRank, in
 
          FILE *File = fopen( FileName, "a" );
 
-         const double SendMB = (double)NSendParTotal*NParAtt*sizeof(real)*1.0e-6;
-         const double RecvMB = (double)NRecvParTotal*NParAtt*sizeof(real)*1.0e-6;
+         const double SendMB = (double)NSendParTotal*NParAtt*sizeof(real_par)*1.0e-6;
+         const double RecvMB = (double)NRecvParTotal*NParAtt*sizeof(real_par)*1.0e-6;
 
          fprintf( File, "%19s %4d %4s %10s %10s %10.5f %8.3f %8.3f %10.3f %10.3f\n",
                   Timer_Comment, NParAtt, "X", "X", "X", dtime, SendMB, RecvMB, SendMB/dtime, RecvMB/dtime );
