@@ -137,11 +137,11 @@ class ArgumentParser( argparse.ArgumentParser ):
             for option in self.options:
                 for item in option["flags"]:
                     if "choices" in option:
+                        temp = [ str(opt) for opt in option["choices"] ]
                         if "default" in option:
-                            temp = [ "*"+str(opt) if opt == option["default"] else str(opt) for opt in option["choices"] ]
+                            usage += [ "[%s {%s} *%s]"%(item, ", ".join(temp), "Depend" if option["default"] == None else str(option["default"])) ]
                         else:
-                            temp = [ str(opt) for opt in option["choices"] ]
-                        usage += [ "[%s {%s}]"%(item, ", ".join(temp)) ]
+                            usage += [ "[%s {%s}]"%(item, ", ".join(temp)) ]
                         continue
 
                     if "metavar" in option:
@@ -329,7 +329,7 @@ def load_arguments():
                          depend={"model":"HYDRO"},
                          constraint={ "RTVD":{"unsplit_gravity":False, "passive":0, "dual":NONE_STR, "eos":"GAMMA"},
                                       "CTU":{"eos":"GAMMA"} },
-                         help="The hydrodynamic/MHD integrator. MHD only supports MHM_RP and CTU.\n"
+                         help="The hydrodynamic/MHD integrator. MHD only supports MHM, MHM_RP and CTU.\n"
                        )
 
     parser.add_argument( "--slope", type=str, metavar="TYPE", gamer_name="LR_SCHEME",
@@ -339,11 +339,11 @@ def load_arguments():
                        )
 
     parser.add_argument( "--flux", type=str, metavar="TYPE", gamer_name="RSOLVER",
-                         default="ROE", choices=["EXACT", "ROE", "HLLE", "HLLC", "HLLD"],
+                         default=None, choices=["EXACT", "ROE", "HLLE", "HLLC", "HLLD"],
                          depend={"model":"HYDRO"},
                          constraint={ "ROE":{"eos":"GAMMA"},
                                       "EXACT":{"eos":"GAMMA"} },
-                         help="The Riemann solver. Pure hydro: EXACT/ROE/HLLE/HLLC^, MHD: ROE/HLLE/HLLD^ (^ indicates the recommended solvers). Useless for RTVD.\n"
+                         help="The Riemann solver. Pure hydro: EXACT/ROE/HLLE/HLLC^, MHD: ROE/HLLE/HLLD^ (^ indicates the recommended and default solvers). Useless for RTVD.\n"
                        )
 
     parser.add_argument( "--dual", type=str, metavar="TYPE", gamer_name="DUAL_ENERGY",
@@ -356,7 +356,7 @@ def load_arguments():
     parser.add_argument( "--mhd", type=str2bool, metavar="BOOLEAN", gamer_name="MHD",
                          default=False,
                          depend={"model":"HYDRO"},
-                         constraint={ True:{"flu_scheme":["MHM_RP", "CTU"], "flux":["ROE", "HLLE", "HLLD"]},
+                         constraint={ True:{"flu_scheme":["MHM", "MHM_RP", "CTU"], "flux":["ROE", "HLLE", "HLLD"]},
                                      False:{"flux":["EXACT", "ROE", "HLLE", "HLLC"]} },
                          help="Magnetohydrodynamics.\n"
                        )
@@ -439,7 +439,7 @@ def load_arguments():
                          default=None,
                          depend={"gravity":True},
                          constraint={ True:{"model":"HYDRO"} },
-                         help="Use unsplitting method to couple gravity to the target model (recommended). Supported only for <--model=HYDRO>.\n"
+                         help="Use unsplitting method to couple gravity to the target model (recommended). Supported only for <--model=HYDRO>. When <--model=HYDRO>, the default is True.\n"
                        )
 
     parser.add_argument( "--comoving", type=str2bool, metavar="BOOLEAN", gamer_name="COMOVING",
@@ -519,7 +519,7 @@ def load_arguments():
 
     parser.add_argument( "--bitwise_reproducibility", type=str2bool, metavar="BOOLEAN", gamer_name="BITWISE_REPRODUCIBILITY",
                          default=None,
-                         help="Enable bitwise reproducibility.\n"
+                         help="Enable bitwise reproducibility. When <--debug=True>, the default is True.\n"
                        )
 
     parser.add_argument( "--timing", type=str2bool, metavar="BOOLEAN", gamer_name="TIMING",
@@ -662,6 +662,9 @@ def set_conditional_defaults( args ):
 
     if args["double_par"] == None:
       args["double_par"] = args["double"]
+
+    if args["flux"] == None:
+        args["flux"] = "HLLD" if args["mhd"] else "HLLC"
 
     return args
 
