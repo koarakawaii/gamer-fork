@@ -169,7 +169,8 @@ void Par_LB_CollectParticleFromRealPatch( const int lv, const long AttBitIdx,
    int  *SendBuf_NParEachPatch = new int  [Real_NPatchTotal];
    long *SendBuf_Offset        = new long [Real_NPatchTotal];
 
-   int PID, NParThisPatch, NSendParTotal = 0;
+   int PID, NParThisPatch = 0;
+   long NSendParTotal     = 0;
 
 // loop over all target real patches
 #  pragma omp parallel for private( PID, NParThisPatch ) reduction( +:NSendParTotal ) schedule( PAR_OMP_SCHED, PAR_OMP_SCHED_CHUNK )
@@ -187,7 +188,7 @@ void Par_LB_CollectParticleFromRealPatch( const int lv, const long AttBitIdx,
                     NParThisPatch, lv, PID );
 #     endif
 
-      NSendParTotal            += NParThisPatch;
+      NSendParTotal            += (long)NParThisPatch;
       SendBuf_NParEachPatch[t]  = NParThisPatch;
    } // for (int t=0; t<Real_NPatchTotal; t++)
 
@@ -198,7 +199,7 @@ void Par_LB_CollectParticleFromRealPatch( const int lv, const long AttBitIdx,
 
 // 2. prepare the particle data to be sent
 // reuse the MPI send buffer declared in LB_GetBufferData() for better MPI performance
-   real_par  *SendBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Send( NSendParTotal*NAtt*sizeof(real_par) );
+   real_par  *SendBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Send( NSendParTotal*(long)NAtt*sizeof(real_par) );
 
    real_par  *SendPtr     = NULL;
    long      *ParList     = NULL;
@@ -281,7 +282,8 @@ void Par_LB_CollectParticleFromRealPatch( const int lv, const long AttBitIdx,
    long     *SendBuf_LBIdxEachRank    = NULL;   // useless and does not need to be allocated
    long     *RecvBuf_LBIdxEachRank    = NULL;   // useless and will not be allocated by Par_LB_SendParticleData
 
-   int NRecvPatchTotal, NRecvParTotal;  // returned from Par_LB_SendParticleData
+   int NRecvPatchTotal;                         // returned from Par_LB_SendParticleData
+   long  NRecvParTotal;                         // returned from Par_LB_SendParticleData
 
 // note that we don't exchange NPatchEachRank (which is already known) and LBIdxEachRank (which is useless here)
    Par_LB_SendParticleData(

@@ -443,8 +443,8 @@ void LB_FindFather( const int SonLv, const bool SearchAllSon, const int NInput, 
 void LB_FindSonNotHome( const int FaLv, const bool SearchAllFa, const int NInput, int* TargetFaPID );
 void LB_GetBufferData( const int lv, const int FluSg, const int MagSg, const int PotSg, const GetBufMode_t GetBufMode,
                        const long TVarCC, const long TVarFC, const int ParaBuf );
-void*LB_GetBufferData_MemAllocate_Send( const int SendSize );
-void*LB_GetBufferData_MemAllocate_Recv( const int RecvSize );
+void*LB_GetBufferData_MemAllocate_Send( const long SendSize );
+void*LB_GetBufferData_MemAllocate_Recv( const long RecvSize );
 void LB_GrandsonCheck( const int lv );
 void LB_Init_LoadBalance( const bool Redistribute, const bool SendGridData, const double ParWeight, const bool Reset,
                           const bool SortRealPatch, const int TLv );
@@ -694,9 +694,9 @@ void Par_LB_ExchangeParticleBetweenPatch( const int lv,
                                           const int Recv_NPatchTotal, const int *Recv_PIDList, int *Recv_NPatchEachRank,
                                           Timer_t *Timer, const char *Timer_Comment );
 void Par_LB_SendParticleData( const int NParAtt, int *SendBuf_NPatchEachRank, int *SendBuf_NParEachPatch,
-                              long *SendBuf_LBIdxEachPatch, real_par *SendBuf_ParDataEachPatch, const int NSendParTotal,
+                              long *SendBuf_LBIdxEachPatch, real_par *SendBuf_ParDataEachPatch, const long NSendParTotal,
                               int *&RecvBuf_NPatchEachRank, int *&RecvBuf_NParEachPatch, long *&RecvBuf_LBIdxEachPatch,
-                              real_par *&RecvBuf_ParDataEachPatch, int &NRecvPatchTotal, int &NRecvParTotal,
+                              real_par *&RecvBuf_ParDataEachPatch, int &NRecvPatchTotal, long &NRecvParTotal,
                               const bool Exchange_NPatchEachRank, const bool Exchange_LBIdxEachRank,
                               const bool Exchange_ParDataEachRank, Timer_t *Timer, const char *Timer_Comment );
 void Par_LB_RecordExchangeParticlePatchID( const int MainLv );

@@ -116,7 +116,8 @@ void Par_LB_ExchangeParticleBetweenPatch( const int lv,
 // 1. get the number of particles to be sent
    int *SendBuf_NParEachPatch = new int [Send_NPatchTotal];
 
-   int PID, NParThisPatch, NSendParTotal = 0;
+   int PID, NParThisPatch = 0;
+   long     NSendParTotal = 0;
 
 // loop over all target send patches
    for (int t=0; t<Send_NPatchTotal; t++)
@@ -130,8 +131,8 @@ void Par_LB_ExchangeParticleBetweenPatch( const int lv,
                     NParThisPatch, lv, PID );
 #     endif
 
-      NSendParTotal            += NParThisPatch;
-      SendBuf_NParEachPatch[t]  = NParThisPatch;
+      NSendParTotal            += (long)NParThisPatch;
+      SendBuf_NParEachPatch[t]  =       NParThisPatch;
    } // for (int t=0; t<Send_NPatchTotal; t++)
 
 
@@ -139,7 +140,7 @@ void Par_LB_ExchangeParticleBetweenPatch( const int lv,
    const bool RemoveAllPar_Yes = true;
 
 // reuse the MPI send buffer declared in LB_GetBufferData for better MPI performance
-   real_par *SendBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Send( NSendParTotal*PAR_NATT_TOTAL*sizeof(real_par) );
+   real_par *SendBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Send( NSendParTotal*(long)PAR_NATT_TOTAL*sizeof(real_par) );
 
    real_par *SendPtr = SendBuf_ParDataEachPatch;
    long *ParList     = NULL;
@@ -193,7 +194,8 @@ void Par_LB_ExchangeParticleBetweenPatch( const int lv,
    long     *SendBuf_LBIdxEachRank    = NULL;    // useless and does not need to be allocated
    long     *RecvBuf_LBIdxEachRank    = NULL;    // useless and will not be allocated by Par_LB_SendParticleData
 
-   int NRecvPatchTotal, NRecvParTotal;       // returned from Par_LB_SendParticleData
+   int NRecvPatchTotal;                          // returned from Par_LB_SendParticleDat
+   long NRecvParTotal;                           // returned from Par_LB_SendParticleData
 
 // note that we don't exchange NPatchEachRank (which is already known) and LBIdxEachRank (which is useless here)
    Par_LB_SendParticleData(

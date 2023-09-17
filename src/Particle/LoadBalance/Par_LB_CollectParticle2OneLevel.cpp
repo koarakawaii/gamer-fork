@@ -250,19 +250,20 @@ void Par_LB_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, cons
 
 // 1-2. allocate the send buffers
 // both NSendPatchTotal and NSendParTotal do NOT include patches without particles
-   int NSendPatchTotal=0, NSendParTotal=0;
+   int NSendPatchTotal = 0;
+   long NSendParTotal  = 0;
 
    for (int r=0; r<MPI_NRank; r++)
    {
-      NSendPatchTotal += NPatchForEachRank[r];
-      NSendParTotal   += NParForEachRank  [r];
+      NSendPatchTotal +=       NPatchForEachRank[r];
+      NSendParTotal   += (long)NParForEachRank  [r];
    }
 
    SendBuf_NParEachPatch  = new int  [NSendPatchTotal];
    SendBuf_LBIdxEachPatch = new long [NSendPatchTotal];
 
 // reuse the MPI send buffer declared in LB_GetBufferData() for better MPI performance
-   if ( !JustCountNPar )   SendBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Send( NSendParTotal*NAtt*sizeof(real_par) );
+   if ( !JustCountNPar )   SendBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Send( NSendParTotal*(long)NAtt*sizeof(real_par) );
 
 
 // 1-3. set the array offsets of the send buffer of each rank
@@ -280,8 +281,8 @@ void Par_LB_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, cons
 
 
 // 1-4. set the array offsets of the send buffer of each patch (mainly for the OpenMP parallelization)
-   int *OffsetEachPatch_Patch   = new int [NPatchAll];
-   int *OffsetEachPatch_ParData = new int [NPatchAll];   // actually useless in the JustCountNPar mode
+   int  *OffsetEachPatch_Patch   = new int  [NPatchAll];
+   long *OffsetEachPatch_ParData = new long [NPatchAll];   // actually useless in the JustCountNPar mode
 
    for (int lv=FaLv+1, q=0; lv<=MAX_LEVEL; lv++, q++)
    for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
@@ -297,7 +298,7 @@ void Par_LB_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, cons
       OffsetEachPatch_ParData[AccIdx] = OffsetEachRank_ParData[TRank];
 
       OffsetEachRank_Patch  [TRank] += 1;
-      OffsetEachRank_ParData[TRank] += NParThisPatch*NAtt;
+      OffsetEachRank_ParData[TRank] += (long)NParThisPatch*(long)NAtt;
    }
 
    delete [] OffsetEachRank_Patch;
@@ -323,8 +324,8 @@ void Par_LB_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, cons
             Aux_Error( ERROR_INFO, "OffsetEachPatch_Patch[%d] (%d) >= max (%d) !!\n",
                        AccIdx, OffsetEachPatch_Patch[AccIdx], NSendPatchTotal );
 
-         if ( OffsetEachPatch_ParData[AccIdx] + NAtt > NSendParTotal*NAtt )
-            Aux_Error( ERROR_INFO, "OffsetEachPatch_ParData[%d] + NAtt (%d) > max (%d) !!\n",
+         if ( OffsetEachPatch_ParData[AccIdx] + NAtt > NSendParTotal*(long)NAtt )
+            Aux_Error( ERROR_INFO, "OffsetEachPatch_ParData[%d] + NAtt (%ld) > max (%ld) !!\n",
                        AccIdx, OffsetEachPatch_ParData[AccIdx] + NAtt, NSendParTotal*NAtt );
 #        endif
 
@@ -385,7 +386,8 @@ void Par_LB_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, cons
    const bool Exchange_NPatchEachRank_Yes = true;
    const bool Exchange_LBIdxEachRank_Yes  = true;
    const bool Exchange_ParDataEachRank    = !JustCountNPar;
-   int  NRecvPatchTotal, NRecvParTotal;
+   int  NRecvPatchTotal;
+   long NRecvParTotal;
 
    char Timer_Comment[50];
    sprintf( Timer_Comment, "%3d %15s", FaLv, "Par_Collect" );
