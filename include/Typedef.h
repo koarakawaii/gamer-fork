@@ -27,6 +27,11 @@ typedef double gramfe_float;
 #else
 typedef float  gramfe_float;
 #endif
+#ifdef FLOAT8_PAR
+typedef double real_par;
+#else
+typedef float  real_par;
+#endif
 
 // short names for unsigned type
 typedef unsigned short     ushort;

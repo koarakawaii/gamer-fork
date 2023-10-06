@@ -327,7 +327,12 @@ void Aux_Check_Parameter()
 #  endif
 
    if ( OPT__OUTPUT_TOTAL == OUTPUT_FORMAT_CBINARY )
+   {
       Aux_Message( stderr, "WARNING : OPT__OUTPUT_TOTAL = 2 (C-binary) is deprecated !!\n" );
+#     if ( ( defined PARTICLE ) && ( (defined FLOAT8 && !defined FLOAT8_PAR) || (!defined FLOAT8 && defined FLOAT8_PAR) ) )
+      Aux_Error( ERROR_INFO, "Must adopt FLOAT8_PAR=FLOAT8 for OPT__OUTPUT_TOTAL=2 (C-binary) !!\n" );
+#     endif
+   }
 
    if ( !OPT__OUTPUT_TOTAL  &&  !OPT__OUTPUT_PART  &&  !OPT__OUTPUT_USER  &&  !OPT__OUTPUT_BASEPS )
 #  ifdef PARTICLE
@@ -1104,7 +1109,7 @@ void Aux_Check_Parameter()
 
    if ( !ELBDM_TAYLOR3_AUTO  &&  ELBDM_TAYLOR3_COEFF < 1.0/8.0 )
       Aux_Error( ERROR_INFO, "ELBDM_TAYLOR3_COEFF (%13.7e) < 0.125 is unconditionally unstable !!\n",
-                   ELBDM_TAYLOR3_COEFF );
+                 ELBDM_TAYLOR3_COEFF );
 
 #  ifdef LAPLACIAN_4TH
    const double dt_fluid_max = 3.0*M_PI/16.0;

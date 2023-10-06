@@ -266,17 +266,17 @@ static void Par_Init_ByUser()
    const long   NNewPar        = ( MPI_Rank == 0 ) ? BH_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
 
-   real *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAtt[PAR_NATT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NNewPar];
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NNewPar];
 
 // set particle attributes
 // ============================================================================================================
-   real *Time_AllRank      = NewParAtt[PAR_TIME];
-   real *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -314,14 +314,14 @@ static void Par_Init_ByUser()
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
          for (int d=0; d<3; d++)    Vel_AllRank[d][p] = Velocity_table[d][p];
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real)p;
+         TracerIdx_AllRank[p] = (real_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -497,7 +497,7 @@ static void Record_Particle_Data_Binary( char *FileName )
          {
 //          skip inactive particles
             if ( amr->Par->Mass[p] < 0.0 )   continue;
-            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real), 1, File );  // write all attribute for selected particle for each time step
+            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real_par), 1, File );  // write all attribute for selected particle for each time step
          }
 
          fclose( File );

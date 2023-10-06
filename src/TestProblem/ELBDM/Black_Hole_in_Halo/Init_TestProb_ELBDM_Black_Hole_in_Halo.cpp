@@ -385,18 +385,18 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
    const long   NNewPar        = ( MPI_Rank == 0 ) ? BH_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
 
-   real *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAtt[PAR_NATT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NNewPar];
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NNewPar];
 
 // set particle attributes
 // ============================================================================================================
-   real *Time_AllRank      = NewParAtt[PAR_TIME];
-   real *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real *Type_AllRank      = NewParAtt[PAR_TYPE];
-   real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real_par *Type_AllRank      = NewParAtt[PAR_TYPE];
+   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -434,7 +434,7 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
@@ -444,7 +444,7 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
          Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real)p;
+         TracerIdx_AllRank[p] = (real_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -538,9 +538,9 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
 void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const long NPar_AllRank,
-                                             real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
-                                             real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
-                                             real *ParType, real *AllAttribute[PAR_NATT_TOTAL] )
+                                             real_par *ParMass, real_par *ParPosX, real_par *ParPosY, real_par *ParPosZ,
+                                             real_par *ParVelX, real_par *ParVelY, real_par *ParVelZ, real_par *ParTime,
+                                             real_par *ParType, real_par *AllAttribute[PAR_NATT_TOTAL] )
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -562,18 +562,18 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
    }
 
 
-   real *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAtt[PAR_NATT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NPar_AllRank];
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NPar_AllRank];
 
 // set particle attributes
 // ============================================================================================================
-   real *Time_AllRank      = NewParAtt[PAR_TIME];
-   real *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real *Type_AllRank      = NewParAtt[PAR_TYPE];
-   real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real_par *Type_AllRank      = NewParAtt[PAR_TYPE];
+   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -611,7 +611,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
@@ -621,7 +621,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
          Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real)p;
+         TracerIdx_AllRank[p] = (real_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -658,34 +658,21 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
 
 
 // send particle attributes from the master rank to all ranks
-   real *Mass      =   ParMass;
-   real *Type      =   ParType;
-   real *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
-   real *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
-   real *TracerIdx = AllAttribute[NewParAttTracerIdx];
+   real_par *Mass      =   ParMass;
+   real_par *Type      =   ParType;
+   real_par *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
+   real_par *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
+   real_par *TracerIdx = AllAttribute[NewParAttTracerIdx];
 
-#  ifdef FLOAT8
-   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_DOUBLE, Mass, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_DOUBLE, Type, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_DOUBLE, TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-
-   for (int d=0; d<3; d++)
-   {
-      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Pos[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Vel[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   }
-
-#  else
-   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_FLOAT,  Mass, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_FLOAT,  Type, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_FLOAT,  TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_GAMER_REAL_PAR, Mass, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_GAMER_REAL_PAR, Type, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_GAMER_REAL_PAR, TracerIdx, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)
    {
-      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Pos[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Vel[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Pos[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Vel[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
    }
-#  endif
 
 // free memory
    for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
@@ -809,7 +796,7 @@ static void Record_Particle_Data_Binary( char *FileName )
          {
 //          skip inactive particles
             if ( amr->Par->Mass[p] < 0.0 )   continue;
-            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real), 1, File );  // write all attribute for selected particle for each time step
+            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real_par), 1, File );  // write all attribute for selected particle for each time step
          }
 
          fclose( File );
