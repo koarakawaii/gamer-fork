@@ -191,8 +191,8 @@ void CPU_ELBDMSolver_FFT( const real dt, const double PrepTime, const int SaveSg
    int  *List_k_R    [MPI_NRank];   // local z coordinate of each patch slice sent to each rank for the real part
    int  *List_PID_I  [MPI_NRank];   // PID of each patch slice sent to each rank for the imag part
    int  *List_k_I    [MPI_NRank];   // local z coordinate of each patch slice sent to each rank for the imag part
-   int   List_NSend  [MPI_NRank];   // size of data sent to each rank
-   int   List_NRecv  [MPI_NRank];   // size of data received from each rank
+   long  List_NSend  [MPI_NRank];   // size of data sent to each rank
+   long  List_NRecv  [MPI_NRank];   // size of data received from each rank
 
 
 // rearrange data from patch to slab

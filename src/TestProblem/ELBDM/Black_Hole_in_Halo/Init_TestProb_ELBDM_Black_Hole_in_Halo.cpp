@@ -674,6 +674,15 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
       MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Vel[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
    }
 
+//   for (long p=0; p<NPar_ThisRank; p++)
+//   {
+//      Aux_Message( stdout, "=====================================================================================================\n" );
+//      Aux_Message( stdout, "Mass for particle #%ld is  %13.7e\n",  (long)TracerIdx[p], Mass[p] );
+//      Aux_Message( stdout, "Pisition for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", (long)TracerIdx[p], Pos[0][p], Pos[1][p], Pos[2][p] );
+//      Aux_Message( stdout, "Velocity for particle #%ld is ( %13.7e,%13.7e,%13.7e )\n", (long)TracerIdx[p], Vel[0][p], Vel[1][p], Vel[2][p] );
+//      Aux_Message( stdout, "=====================================================================================================\n" );
+//   }
+
 // free memory
    for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
 

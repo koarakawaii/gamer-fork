@@ -250,8 +250,8 @@ void Par_LB_CollectParticle2OneLevel( const int FaLv, const long AttBitIdx, cons
 
 // 1-2. allocate the send buffers
 // both NSendPatchTotal and NSendParTotal do NOT include patches without particles
-   int NSendPatchTotal = 0;
-   long  NSendParTotal = 0;
+   int  NSendPatchTotal = 0;
+   long NSendParTotal   = 0L;
 
    for (int r=0; r<MPI_NRank; r++)
    {

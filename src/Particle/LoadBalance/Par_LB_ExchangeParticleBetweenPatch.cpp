@@ -116,8 +116,8 @@ void Par_LB_ExchangeParticleBetweenPatch( const int lv,
 // 1. get the number of particles to be sent
    int *SendBuf_NParEachPatch = new int [Send_NPatchTotal];
 
-   int PID, NParThisPatch = 0;
-   long     NSendParTotal = 0;
+   int  PID, NParThisPatch;
+   long NSendParTotal = 0L;
 
 // loop over all target send patches
    for (int t=0; t<Send_NPatchTotal; t++)
