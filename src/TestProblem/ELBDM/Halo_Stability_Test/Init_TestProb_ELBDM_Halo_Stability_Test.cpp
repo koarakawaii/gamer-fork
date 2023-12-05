@@ -462,25 +462,36 @@ void Record_CenterOfMass(void )
          Aux_Error( ERROR_INFO, "incorrect min_pote_rank (%d) !!\n", min_pote_rank );
 
       static bool FirstTime = true;
+      FILE       *file_center;
 
       if ( FirstTime )
       {
          if ( Aux_CheckFileExist(filename_center) )
+         {
             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
+            if ( OPT__INIT == INIT_BY_FUNCTION )
+            {
+               file_center = fopen( filename_center, "a" );
+               fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+                        "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                        "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
+                        "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+               fclose( file_center );
+            }
+         }
          else
          {
-            FILE *file_center = fopen( filename_center, "w" );
+            file_center = fopen( filename_center, "w" );
             fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
                      "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
                      "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
                      "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
             fclose( file_center );
          }
-
          FirstTime = false;
       }
 
-      FILE *file_center = fopen( filename_center, "a" );
+      file_center = fopen( filename_center, "a" );
       fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
                Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2], recv[max_dens_rank][3],
                               recv[max_dens_rank][4], recv[max_dens_rank][5], recv[min_pote_rank][6], recv[min_pote_rank][7],

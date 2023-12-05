@@ -253,7 +253,7 @@ CPU_FILE    += Buf_AllocateBufferPatch.cpp  Buf_AllocateBufferPatch_Base.cpp  Bu
                Buf_ResetBufferFlux.cpp
 
 CPU_FILE    += MPI_ExchangeBoundaryFlag.cpp  MPI_ExchangeBufferPosition.cpp  MPI_ExchangeData.cpp \
-               Init_MPI.cpp  MPI_Exit.cpp MPI_Alltoallv_GAMER.cpp
+               Init_MPI.cpp  MPI_Exit.cpp  MPI_Alltoallv_GAMER.cpp
 
 CPU_FILE    += Output_BoundaryFlagList.cpp  Output_ExchangeDataPatchList.cpp  Output_ExchangeFluxPatchList.cpp \
                Output_ExchangePatchMap.cpp
@@ -288,7 +288,7 @@ vpath %.cpp    LoadBalance
 # ------------------------------------------------------------------------------------
 ifeq "$(filter -DSUPPORT_LIBYT, $(SIMU_OPTION))" "-DSUPPORT_LIBYT"
 CPU_FILE    += YT_Init.cpp  YT_End.cpp  YT_SetParameter.cpp  YT_AddLocalGrid.cpp  YT_Inline.cpp  YT_DerivedFunction.cpp \
-               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp
+               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp  YT_Load_ExecuteTable.cpp Execute_YT.cpp
 
 vpath %.cpp    YT
 endif # SUPPORT_LIBYT

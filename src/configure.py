@@ -24,7 +24,8 @@ PYTHON_VER = [sys.version_info.major, sys.version_info.minor]
 GAMER_CONFIG_DIR  = "../configs"
 GAMER_MAKE_BASE   = "Makefile_base"
 #GAMER_MAKE_OUT    = "Makefile"
-GAMER_MAKE_OUT    = "Makefile_hydro_with_particle_mixed_precision"
+#GAMER_MAKE_OUT    = "Makefile_hydro_with_particle_mixed_precision"
+GAMER_MAKE_OUT    = "Makefile_psidm_with_particle_mixed_precision_libyt_spock"
 GAMER_DESCRIPTION = "Prepare a customized Makefile for GAMER.\nDefault values are marked by '*'.\nUse -lh to show a detailed help message.\n"
 GAMER_EPILOG      = "2023 Computational Astrophysics Lab, NTU. All rights reserved.\n"
 
@@ -656,6 +657,9 @@ def set_conditional_defaults( args ):
 
     if args["laplacian_four"] == None:
       args["laplacian_four"] = True if args["wave_scheme"] == "WAVE_FD" else False
+
+    if args["double_par"] == None:
+      args["double_par"] = args["double"]
 
     if args["flux"] == None:
         args["flux"] = "HLLD" if args["mhd"] else "HLLC"

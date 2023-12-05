@@ -686,14 +686,9 @@ void Init_ByFile_Default( real fluid_out[], const real fluid_in[], const int nva
       Aux_Error( ERROR_INFO, "nvar_in (%d) != NCOMP_TOTAL-1 (%d) when enabling DUAL_ENERGY !!\n", nvar_in, NCOMP_TOTAL-1 );
 
 #  elif ( MODEL == ELBDM )
-<<<<<<< HEAD
 // if ( nvar_in != NCOMP_TOTAL-1 )
    if ( nvar_in != 2 )
       Aux_Error( ERROR_INFO, "nvar_in (%d) != 2 for ELBDM !!\n", nvar_in );
-=======
-   if ( nvar_in != NCOMP_TOTAL-1 )
-      Aux_Error( ERROR_INFO, "nvar_in (%d) != NCOMP_TOTAL-1 (%d) for ELBDM !!\n", nvar_in, NCOMP_TOTAL-1 );
->>>>>>> 9c80989bc7b06f0d97ceaa054a6ca744c8025dd5
 
 #  else
    if ( nvar_in != NCOMP_TOTAL )

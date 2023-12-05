@@ -596,27 +596,36 @@ static void Record_Particle_Data_Text( char *FileName )
 //      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
 
    FILE *File;
+   static bool first_enter_flag_particle = true;
    
 // header
    if ( MPI_Rank == 0 )
    {
-      if ( first_run_flag )
+      if ( first_enter_flag_particle )
       {
-          if ( !Aux_CheckFileExist(FileName) )
-             File = fopen( FileName, "w" );
-          else
-              File = fopen( FileName, "a" );
+         if ( !Aux_CheckFileExist(FileName) )
+         {
+            File = fopen( FileName, "w" );
+            fprintf( File, "# Time                    Step                    Active_Particles   ");
+            for (int v=0; v<PAR_NATT_TOTAL; v++)
+            for (int v=0; v<PAR_NATT_TOTAL; v++)
+                fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+            fprintf( File, "\n" );
+         }
+         else if ( first_run_flag )
+         {
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", FileName );
+            File = fopen( FileName, "a" );
+            fprintf( File, "# Time                    Step                    Active_Particles   ");
 
-          fprintf( File, "# Time                    Step                    Active_Particles   ");
-
-          for (int v=0; v<PAR_NATT_TOTAL; v++)
-              fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
-          fprintf( File, "\n" );
-          first_run_flag = false;
+            for (int v=0; v<PAR_NATT_TOTAL; v++)
+               fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+            fprintf( File, "\n" );
+            first_run_flag = false;
+         }
       }
-      else
-          File = fopen( FileName, "a" );
       fclose( File );
+      first_enter_flag_particle = false;
    }
 
 // data
@@ -1127,26 +1136,34 @@ static void Record_CenterOfMass( void )
       if ( min_pote_rank < 0  ||  min_pote_rank >= MPI_NRank )
          Aux_Error( ERROR_INFO, "incorrect min_pote_rank (%d) !!\n", min_pote_rank );
 
-      if ( first_run_flag )
+      static bool first_enter_flag_center = true;
+      FILE       *file_center;
+      if ( first_enter_flag_center )
       {
-         FILE *file_center;
-         if ( Aux_CheckFileExist(filename_center) )
+         if ( !Aux_CheckFileExist(filename_center) )
+         {
+            file_center = fopen( filename_center, "w" );
+            fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
+         }
+         else if ( first_run_flag )
          {
             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
             file_center = fopen( filename_center, "a" );
-         }
-         else
-            file_center = fopen( filename_center, "w" );
-         fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
-                  "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
-                  "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
-         fclose( file_center );
+            fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
 #ifndef PARTICLE
-         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time setp, so in that case no need to turn it to false here
+            first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
 #endif
+         }
+         first_enter_flag_center = false;
       }
 
-      FILE *file_center = fopen( filename_center, "a" );
+      file_center = fopen( filename_center, "a" );
       fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
                Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2], recv[max_dens_rank][3],
                               recv[max_dens_rank][4], recv[max_dens_rank][5], recv[min_pote_rank][6], recv[min_pote_rank][7],

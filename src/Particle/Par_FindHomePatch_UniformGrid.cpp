@@ -318,7 +318,7 @@ void SendParticle2HomeRank( const int lv, const bool OldParOnly,
       }
 
 //    3-5. redistribute data
-      MPI_Alltoallv_GAMER( SendBuf, Send_Count, Send_Disp, MPI_GAMER_REAL, RecvBuf, Recv_Count, Recv_Disp, MPI_GAMER_REAL, MPI_COMM_WORLD );
+      MPI_Alltoallv_GAMER( SendBuf, Send_Count, Send_Disp, MPI_GAMER_REAL_PAR, RecvBuf, Recv_Count, Recv_Disp, MPI_GAMER_REAL_PAR, MPI_COMM_WORLD );
    } // for (int v=0; v<PAR_NATT_TOTAL; v++)
 
 

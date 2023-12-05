@@ -187,8 +187,8 @@ void Par_LB_SendParticleData( const int NParAtt, int *SendBuf_NPatchEachRank, in
       RecvBuf_ParDataEachPatch = (real_par *)LB_GetBufferData_MemAllocate_Recv( NRecvParTotal*(long)NParAtt*sizeof(real_par) );
 
 //    exchange data
-      MPI_Alltoallv_GAMER( SendBuf_ParDataEachPatch, SendCount_ParDataEachPatch, SendDisp_ParDataEachPatch, MPI_GAMER_REAL,
-                           RecvBuf_ParDataEachPatch, RecvCount_ParDataEachPatch, RecvDisp_ParDataEachPatch, MPI_GAMER_REAL, MPI_COMM_WORLD );
+      MPI_Alltoallv_GAMER( SendBuf_ParDataEachPatch, SendCount_ParDataEachPatch, SendDisp_ParDataEachPatch, MPI_GAMER_REAL_PAR,
+                           RecvBuf_ParDataEachPatch, RecvCount_ParDataEachPatch, RecvDisp_ParDataEachPatch, MPI_GAMER_REAL_PAR, MPI_COMM_WORLD );
 
 //    free memory
       delete [] SendCount_ParDataEachPatch;

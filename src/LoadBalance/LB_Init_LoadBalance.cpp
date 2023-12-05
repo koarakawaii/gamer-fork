@@ -143,28 +143,48 @@ void LB_Init_LoadBalance( const bool Redistribute, const bool SendGridData, cons
    for (int lv=lv_min; lv<=lv_max; lv++)
    {
       if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "      Re-distributing patches at Lv %2d ... ", lv );
+//      if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "      Re-distributing patches at Lv %2d ...\n", lv );
 
 //    3.1 re-distribute real patches (and particles)
       if ( Redistribute )
+      {
       LB_RedistributeRealPatch( lv, ParAtt_Old, (TLv<0)?RemoveParFromRepo_No:RemoveParFromRepo_Yes, SendGridData );
+//      Aux_Message( stdout, "\t\t\tLB_RedistributeRealPatch at Lv %2d done\n", lv );
+      }
+//      MPI_Barrier(MPI_COMM_WORLD);
 
 //    3.2 sort real patches
       if ( SortRealPatch )
+      {
       LB_SortRealPatch( lv );
+//      Aux_Message( stdout, "\t\t\tLB_SortRealPatch at Lv %2d done\n", lv );
+      }
+//      MPI_Barrier(MPI_COMM_WORLD);
 
 //    3.3 allocate sibling-buffer patches at lv
       LB_AllocateBufferPatch_Sibling( lv );
+//      Aux_Message( stdout, "\t\t\tLB_AllocateBufferPatch_Sibling at Lv %2d done\n", lv );
+//      MPI_Barrier(MPI_COMM_WORLD);
 
 //    3.4 allocate father-buffer patches at lv
 //        --> only necessary when applying LB_Init_LoadBalance() to a single level
       if ( TLv >= 0  &&  lv < TOP_LEVEL )
+      {
       LB_AllocateBufferPatch_Father( lv+1, true, NULL_INT, NULL, false, NULL, NULL );
+//      Aux_Message( stdout, "\t\t\tLB_AllocateBufferPatch_Father at Lv %2d done\n", lv );
+      }
+//      MPI_Barrier(MPI_COMM_WORLD);
 
 //    3.5 allocate father-buffer patches at lv-1
       if ( lv > 0 )
+      {
       LB_AllocateBufferPatch_Father( lv,   true, NULL_INT, NULL, false, NULL, NULL );
+///      Aux_Message( stdout, "\t\t\tLB_AllocateBufferPatch_Father at Lv %2d done\n", lv );
+      }
+//      MPI_Barrier(MPI_COMM_WORLD);
 
       if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
+//      if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "      All done\n" );
    } // for (int lv=lv_min; lv<=lv_max; lv++)
 
 #  ifdef PARTICLE
@@ -467,6 +487,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
       Aux_Error( ERROR_INFO, "NSend_Total_ParData (%ld) != expected (%ld) !!\n",
                  NSend_Total_ParData, (long)amr->Par->NPar_Lv[lv]*(long)PAR_NATT_TOTAL );
 #  endif
+//   Aux_Message( stdout, "\t\t\tStage 1 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 2. prepare the MPI send buffers
@@ -554,7 +575,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
 
 //    2.6 particle
 #     ifdef PARTICLE
-      SendBuf_NPar[ Send_NDisp_Patch[TRank] + NDone_Patch[TRank] ] = amr->patch[0][lv][PID]->NPar;
+      SendBuf_NPar[ Send_NDisp_Patch[TRank] + (long)NDone_Patch[TRank] ] = amr->patch[0][lv][PID]->NPar;
 
       SendPtr_Par = SendBuf_ParData + Send_NDisp_ParData[TRank] + NDone_ParData[TRank];
 
@@ -591,6 +612,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
    if ( amr->Par->NPar_Lv[lv] != 0 )
       Aux_Error( ERROR_INFO, "NPar_Lv[%d] = %ld != 0 !!\n", lv, amr->Par->NPar_Lv[lv] );
 #  endif
+//   Aux_Message( stdout, "\t\t\tStage 2 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 3. delete old patches and allocate the MPI recv buffers
@@ -616,6 +638,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
    real_par *RecvBuf_ParData = new real_par [ NRecv_Total_ParData ];
    int      *RecvBuf_NPar    = new int      [ NRecv_Total_Patch ];
 #  endif
+//   Aux_Message( stdout, "\t\t\tStage 3 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 4. transfer data by MPI_Alltoallv
@@ -664,9 +687,10 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
                   RecvBuf_NPar, Recv_NCount_Patch, Recv_NDisp_Patch, MPI_INT, MPI_COMM_WORLD );
 
 // 4.7 particle data
-   MPI_Alltoallv_GAMER( SendBuf_ParData, Send_NCount_ParData, Send_NDisp_ParData, MPI_GAMER_REAL,
-                        RecvBuf_ParData, Recv_NCount_ParData, Recv_NDisp_ParData, MPI_GAMER_REAL, MPI_COMM_WORLD );
+   MPI_Alltoallv_GAMER( SendBuf_ParData, Send_NCount_ParData, Send_NDisp_ParData, MPI_GAMER_REAL_PAR,
+                        RecvBuf_ParData, Recv_NCount_ParData, Recv_NDisp_ParData, MPI_GAMER_REAL_PAR, MPI_COMM_WORLD );
 #  endif // #ifdef PARTICLE
+//   Aux_Message( stdout, "\t\t\tStage 4 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 5. deallocate the MPI send buffers (BEFORE creating new patches to reduce the memory consumption)
@@ -702,6 +726,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
    delete [] SendBuf_ParData;
    delete [] SendBuf_NPar;
 #  endif
+//   Aux_Message( stdout, "\t\t\tStage 5 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 6. allocate new patches with the data just received (use "patch group" as the basic unit)
@@ -716,7 +741,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
 // check: for RemoveParFromRepo == false, the size of particle repository should be exactly equal to the received particles
 // --> see LB_RedistributeParticle_Init()
 #  ifdef DEBUG_PARTICLE
-   const long NParExpect = amr->Par->NPar_AcPlusInac + NRecv_Total_ParData/PAR_NATT_TOTAL;
+   const long NParExpect = amr->Par->NPar_AcPlusInac + NRecv_Total_ParData/(long)PAR_NATT_TOTAL;
    if ( !RemoveParFromRepo  &&  NParExpect > amr->Par->ParListSize )
       Aux_Error( ERROR_INFO, "NParExpect (%ld) > ParListSize (%ld) !!\n", NParExpect, amr->Par->ParListSize );
 #  endif
@@ -829,6 +854,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
    if ( amr->NPatchComma[lv][1] != amr->num[lv] )
       Aux_Error( ERROR_INFO, "amr->NPatchComma[%d][1] (%d) != amr->num[%d] (%d) !!\n",
                  lv, amr->NPatchComma[lv][1], lv, amr->num[lv] );
+//   Aux_Message( stdout, "\t\t\tStage 6 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 7. record LB_IdxList_Real
@@ -842,6 +868,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
    for (int PID=0; PID<NRecv_Total_Patch; PID++)   amr->LB->IdxList_Real[lv][PID] = amr->patch[0][lv][PID]->LB_Idx;
 
    Mis_Heapsort( NRecv_Total_Patch, amr->LB->IdxList_Real[lv], amr->LB->IdxList_Real_IdxTable[lv] );
+//   Aux_Message( stdout, "\t\t\tStage 7 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 
 // 8. deallocate the MPI recv buffers
@@ -868,6 +895,7 @@ void LB_RedistributeRealPatch( const int lv, real_par **ParAtt_Old, const bool R
    delete [] RecvBuf_NPar;
    delete [] ParList;
 #  endif
+//   Aux_Message( stdout, "\t\t\tStage 8 completed for Rank[%d].\n", MPI_Rank); MPI_Barrier(MPI_COMM_WORLD);
 
 } // FUNCTION : LB_RedistributeRealPatch
 
