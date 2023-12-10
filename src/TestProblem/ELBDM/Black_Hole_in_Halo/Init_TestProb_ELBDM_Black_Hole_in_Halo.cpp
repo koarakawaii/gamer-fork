@@ -1004,14 +1004,18 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
          double DensPeakCheck;
          if ( MPI_Rank == Extrema.Rank )
          {
-            DensPeakRealPart  = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[REAL][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
-            DensPeakImagPart  = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[IMAG][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
-            DensPeakCheck     = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[DENS][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+            DensPeakRealPart    = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[REAL][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+            DensPeakImagPart    = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[IMAG][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+            DensPeakCheck       = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[DENS][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+            SolitonSubCenter[0] = Extrema.Coord[0];
+            SolitonSubCenter[1] = Extrema.Coord[1];
+            SolitonSubCenter[2] = Extrema.Coord[2];
          // check
             Aux_Message(stdout, "\n DensPeak = %.8e, DensPeakCheck = %.8e, DensPeakRealPart = %.8e and DensPeakImagPart = %.8e found at (%.8e,%.8e,%.8e) code length\n", Extrema.Value, DensPeakCheck, DensPeakRealPart, DensPeakImagPart, Extrema.Coord[0], Extrema.Coord[1], Extrema.Coord[2]);
          }
          MPI_Bcast( &DensPeakRealPart, 1, MPI_DOUBLE, Extrema.Rank, MPI_COMM_WORLD );
          MPI_Bcast( &DensPeakImagPart, 1, MPI_DOUBLE, Extrema.Rank, MPI_COMM_WORLD );
+         MPI_Bcast(  SolitonSubCenter, 3, MPI_DOUBLE, Extrema.Rank, MPI_COMM_WORLD );
 
          double   global_phase = GetPhase( SQRT( DensPeakRealPart*DensPeakRealPart + DensPeakImagPart*DensPeakImagPart ), DensPeakRealPart, DensPeakImagPart );
          for (int lv=0; lv<NLEVEL; lv++)
