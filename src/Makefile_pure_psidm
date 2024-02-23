@@ -15,7 +15,8 @@
 
 # executable
 #######################################################################################################
-EXECUTABLE := gamer_intel-oneapi
+#EXECUTABLE := gamer_intel-oneapi
+EXECUTABLE := gamer_intel-oneapi_RTX3080Ti
 
 
 
@@ -188,8 +189,8 @@ SIMU_OPTION += -DPATCH_SIZE=8
 SIMU_OPTION += -DGPU
 
 # GPU architecture: FERMI/KEPLER/MAXWELL/PASCAL/VOLTA/TURING/AMPERE
-SIMU_OPTION += -DGPU_ARCH=TURING
-#SIMU_OPTION += -DGPU_ARCH=AMPERE
+#SIMU_OPTION += -DGPU_ARCH=TURING
+SIMU_OPTION += -DGPU_ARCH=AMPERE
 
 # debug mode
 #SIMU_OPTION += -DGAMER_DEBUG
@@ -273,6 +274,7 @@ CXX         = $(MPI_PATH)/bin/mpicxx                    # MPI compiler
 #CXXFLAG     = -g -fast
  CXXFLAG    += -w1                                       # warning flags
  CXXFLAG    += -fp-model precise                         # disable optimizations that are not value-safe
+ CXXFLAG    += -diag-disable=10441                       # suppress warning message
  OPENMPFLAG  = -fopenmp                                  # openmp flag
  LIB         = -limf                                     # libraries and linker flags
 
@@ -677,7 +679,7 @@ CPU_FILE    += Buf_AllocateBufferPatch.cpp  Buf_AllocateBufferPatch_Base.cpp  Bu
                Buf_ResetBufferFlux.cpp
 
 CPU_FILE    += MPI_ExchangeBoundaryFlag.cpp  MPI_ExchangeBufferPosition.cpp  MPI_ExchangeData.cpp \
-               Init_MPI.cpp  MPI_Exit.cpp
+               Init_MPI.cpp  MPI_Exit.cpp  MPI_Alltoallv_GAMER.cpp
 
 CPU_FILE    += Output_BoundaryFlagList.cpp  Output_ExchangeDataPatchList.cpp  Output_ExchangeFluxPatchList.cpp \
                Output_ExchangePatchMap.cpp
@@ -712,7 +714,7 @@ vpath %.cpp    LoadBalance
 # ------------------------------------------------------------------------------------
 ifeq "$(filter -DSUPPORT_LIBYT, $(SIMU_OPTION))" "-DSUPPORT_LIBYT"
 CPU_FILE    += YT_Init.cpp  YT_End.cpp  YT_SetParameter.cpp  YT_AddLocalGrid.cpp  YT_Inline.cpp  YT_DerivedFunction.cpp \
-               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp YT_Load_ExecuteTable.cpp Execute_YT.cpp
+               YT_GetParticleAttribute.cpp  YT_Miscellaneous.cpp  YT_Load_ExecuteTable.cpp  Execute_YT.cpp
 
 vpath %.cpp    YT
 endif # SUPPORT_LIBYT
@@ -1017,7 +1019,6 @@ else ifeq "$(filter -DGPU_ARCH=AMPERE, $(SIMU_OPTION))" "-DGPU_ARCH=AMPERE"
    endif
 endif
 
-
 # Poisson/gravity solvers flags
 NVCCFLAG_POT += -Xptxas -dlcm=ca
 
@@ -1093,11 +1094,11 @@ endif
 # CPU linker
 	@echo "Linking CPU codes"
 ifeq "$(COMPILE_VERBOSE)" "1"
-	$(CXX) -o $@ $^ $(OBJ_GPU_LINK) $(LIB) $(OPENMPFLAG)
+	$(CXX) -o $@ $^ $(OBJ_GPU_LINK) $(LIB) $(OPENMPFLAG) -diag-disable=10441
 	@printf "\nCompiling GAMER --> Successful!\n\n"; \
 	cp $(EXECUTABLE) ../bin/
 else
-	@$(CXX) -o $@ $^ $(OBJ_GPU_LINK) $(LIB) $(OPENMPFLAG); \
+	@$(CXX) -o $@ $^ $(OBJ_GPU_LINK) $(LIB) $(OPENMPFLAG) -diag-disable=10441; \
 	(if [ -e $@ ]; then \
 		printf "\nCompiling GAMER --> Successful!\n\n"; \
 		cp $(EXECUTABLE) ../bin/; \
