@@ -164,6 +164,7 @@ void SetParameter()
    ReadPara->Add( "EraseSolVelFlag",          &EraseSolVelFlag,           false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "AddNewSolFlag",            &AddNewSolFlag,             false,         Useless_bool,     Useless_bool      );
    ReadPara->Read( FileName );
+   delete ReadPara;
 
    if ( ( AddNewSolFlag == 1 ) && ( EraseSolVelFlag ==1 ) )
 //      Aux_Error( ERROR_INFO, "AddNewSolFlag == 1 is not compatible with EraseSolVelFlag == 1 !!\n" );
@@ -171,6 +172,7 @@ void SetParameter()
    if ( ( AddNewSolFlag == 1 ) && ( OPT__EXT_POT == EXT_POT_FUNC ) )
       Aux_Error( ERROR_INFO, "AddNewSolFlag == 1 is not compatible with OPT__EXT_POT == %d !!\n", EXT_POT_FUNC );
 
+   ReadPara  = new ReadPara_t;
    if ( OPT__EXT_POT == EXT_POT_FUNC )
    {
       ReadPara->Add( "EqualRadius",              &EqualRadius,            Eps_double,       Eps_double,       NoMax_double      );
@@ -203,8 +205,10 @@ void SetParameter()
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
-
    ReadPara->Read( FileName );
+   delete ReadPara;
+
+   ReadPara  = new ReadPara_t;
    if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
 
@@ -213,19 +217,24 @@ void SetParameter()
    if ( OPT__RESTART_RESET == 1 )
    {
       ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
-
       ReadPara->Read( FileName );
+      delete ReadPara;
 
       if ( BH_AddParForRestart == 1 )
       {
+         ReadPara  = new ReadPara_t;
          ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
          ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
+         ReadPara->Read( FileName );
       }
    }
-#endif
-   ReadPara->Read( FileName );
-
+   else
+      ReadPara->Read( FileName );
    delete ReadPara;
+#else
+   ReadPara->Read( FileName );
+   delete ReadPara;
+#endif
 
 // (1-2) set the default values
    if ( System_CM_TolErrR < 0.0 )           System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
@@ -789,7 +798,7 @@ static void Record_Particle_Data_Binary( char *FileName )
 // open the file by root rank
    if ( MPI_Rank == 0 )
    {
-//       File = fopen( FileName, "w" );                  // overwrite the file no matter how
+      File = fopen( FileName, "w" );                  // overwrite the file no matter how, to avoid appending after the old particle data
       if ( first_run_flag )
       {
 //          File = fopen( FileName, "w" );                  // overwrite the file no matter how
@@ -797,7 +806,7 @@ static void Record_Particle_Data_Binary( char *FileName )
 //          fwrite(&par_natt_total, sizeof(int), 1, File);  // write number of attribute only at simulation start and first_run_flag == true
           first_run_flag = false;
       }
-//      fclose( File );
+      fclose( File );
    }
    MPI_Barrier( MPI_COMM_WORLD );
 
@@ -1237,7 +1246,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
    for (int lv=0; lv<NLEVEL; lv++)
    {
-//    initialize the particle density array (rho_ext) and collect particles to the target level, only used fro ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
+//    initialize the particle density array (rho_ext) and collect particles to the target level, only used for ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
 #     ifdef PARTICLE
       if ( DensMode == _TOTAL_DENS )
       {

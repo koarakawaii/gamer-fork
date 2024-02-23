@@ -148,6 +148,9 @@ void SetParameter()
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
    ReadPara->Read( FileName );
+   delete ReadPara;
+
+   ReadPara  = new ReadPara_t;
    if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
    if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
@@ -155,19 +158,24 @@ void SetParameter()
    if ( OPT__RESTART_RESET == 1 )
    {
       ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
-
       ReadPara->Read( FileName );
+      delete ReadPara;
 
       if ( BH_AddParForRestart == 1 )
       {
+         ReadPara  = new ReadPara_t;
          ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
          ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
+         ReadPara->Read( FileName );
       }
    }
-#endif
-   ReadPara->Read( FileName );
-
+   else
+      ReadPara->Read( FileName );
    delete ReadPara;
+#else
+   ReadPara->Read( FileName );
+   delete ReadPara;
+#endif
 
 // (1-2) set the default values
    if ( Soliton_CM_TolErrR < 0.0 )           Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
