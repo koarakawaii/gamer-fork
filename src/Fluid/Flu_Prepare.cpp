@@ -56,14 +56,6 @@ void Flu_Prepare( const int lv, const double PrepTime,
    const bool   DE_Consistency      = ( OPT__OPTIMIZE_AGGRESSIVE ) ? DE_Consistency_No : DE_Consistency_Yes;
    const real   MinDens             = ( OPT__OPTIMIZE_AGGRESSIVE ) ? MinDens_No : MIN_DENS;
 
-
-// prepare the fluid array
-#  if ( MODEL == ELBDM )
-   Prepare_PatchData( lv, PrepTime, h_Flu_Array_F_In[0][0], NULL,
-                      FLU_GHOST_SIZE, NPG, PID0_List, _REAL|_IMAG|_PASSIVE, _NONE,
-                      OPT__FLU_INT_SCHEME, INT_NONE, UNIT_PATCHGROUP, NSIDE_26, OPT__INT_PHASE,
-                      OPT__BC_FLU, BC_POT_NONE, MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
-=======
 // prepare the fluid array
 #  if ( MODEL == ELBDM )
 #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
@@ -82,7 +74,6 @@ void Flu_Prepare( const int lv, const double PrepTime,
                         OPT__BC_FLU, BC_POT_NONE, MinDens, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
    } // if (amr->use_wave_flag[lv] ) ... else
 #  endif //  #if ( ELBDM_SCHEME == ELBDM_HYBRID )
->>>>>>> e626dd7e83eb3753251f9101855388edda4a9fec
 #  else
 #  ifdef MHD
    real *Mag_Array = h_Mag_Array_F_In[0][0];

@@ -2483,7 +2483,6 @@ void FillIn_InputPara( InputPara_t &InputPara, const int NFieldStored, char Fiel
    InputPara.IntOppSign0thOrder      = INT_OPP_SIGN_0TH_ORDER;
 
 // data dump
-#  endif // #if ( MODEL == HYDRO )
    InputPara.Opt__Output_Total           = OPT__OUTPUT_TOTAL;
    InputPara.Opt__Output_Part            = OPT__OUTPUT_PART;
    InputPara.Opt__Output_User            = OPT__OUTPUT_USER;

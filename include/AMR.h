@@ -168,7 +168,6 @@ struct AMR_t
 #        error : UNKNOWN ELBDM_SCHEME !!
 #        endif // # if ELBDM_SCHEME
 #        endif // #if ( MODEL == ELBDM )
->>>>>>> e626dd7e83eb3753251f9101855388edda4a9fec
       }
 
       for (int Sg=0; Sg<2; Sg++)
