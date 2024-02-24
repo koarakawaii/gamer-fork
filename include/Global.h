@@ -8,6 +8,7 @@
 #ifdef SUPPORT_LIBYT
 #include <libyt.h>
 #endif
+#include "GatherTree.h"
 
 
 // **********************************************************************************************************
@@ -18,7 +19,8 @@
 
 // 1. common global variables
 // ============================================================================================================
-extern AMR_t     *amr;                                // AMR tree structure
+extern AMR_t     *amr;                                // local AMR tree structure
+extern LB_GlobalTree *GlobalTree;                     // global AMR tree structure
 extern double     Time[NLEVEL];                       // "present"  physical time at each level
 extern double     Time_Prev[NLEVEL];                  // "previous" physical time at each level
 extern double     dTime_AllLv[NLEVEL];                // current evolution physical time interval at each level
@@ -49,6 +51,9 @@ extern int        Flu_ParaBuf;                        // number of parallel buff
 extern int        PassiveNorm_NVar, PassiveNorm_VarIdx[NCOMP_PASSIVE];
 extern int        PassiveIntFrac_NVar, PassiveIntFrac_VarIdx[NCOMP_PASSIVE];
 
+extern int        StrLen_Flt;
+extern char       BlankPlusFormat_Flt[MAX_STRING];
+
 extern double     BOX_SIZE, DT__MAX, DT__FLUID, DT__FLUID_INIT, END_T, OUTPUT_DT, OUTPUT_WALLTIME, DT__SYNC_PARENT_LV, DT__SYNC_CHILDREN_LV;
 extern long int   END_STEP;
 extern int        NX0_TOT[3], OUTPUT_STEP, OUTPUT_WALLTIME_UNIT, REGRID_COUNT, REFINE_NLEVEL, FLU_GPU_NPGROUP, SRC_GPU_NPGROUP, OMP_NTHREAD;
@@ -73,6 +78,7 @@ extern bool       OPT__OPTIMIZE_AGGRESSIVE, OPT__INIT_GRID_WITH_OMP, OPT__NO_FLA
 extern bool       OPT__RECORD_NOTE, OPT__RECORD_UNPHY, INT_OPP_SIGN_0TH_ORDER;
 extern bool       OPT__INT_FRAC_PASSIVE_LR, OPT__CK_INPUT_FLUID, OPT__SORT_PATCH_BY_LBIDX;
 extern bool       OPT__INIT_DOUBLE;
+extern char       OPT__OUTPUT_TEXT_FORMAT_FLT[MAX_STRING];
 
 extern UM_IC_Format_t     OPT__UM_IC_FORMAT;
 extern TestProbID_t       TESTPROB_ID;
@@ -126,9 +132,19 @@ extern double           ELBDM_TAYLOR3_COEFF, ELBDM_MASS, ELBDM_PLANCK_CONST, ELB
 #ifdef QUARTIC_SELF_INTERACTION
 extern double           ELBDM_LAMBDA;
 #endif
+#if ( ELBDM_SCHEME == ELBDM_HYBRID )
+extern bool             OPT__FLAG_INTERFERENCE;
+extern double           FlagTable_Interference[NLEVEL-1][4];
+extern double           DT__HYBRID_CFL, DT__HYBRID_CFL_INIT, DT__HYBRID_VELOCITY;
+extern bool             ELBDM_MATCH_PHASE;
+extern int              ELBDM_FIRST_WAVE_LEVEL;
+#endif // # if ( ELBDM_SCHEME == ELBDM_HYBRID )
+
+extern bool             OPT__FLAG_SPECTRAL;
+extern double           FlagTable_Spectral[NLEVEL-1][2];
+
 extern ELBDMRemoveMotionCM_t ELBDM_REMOVE_MOTION_CM;
 extern bool             ELBDM_BASE_SPECTRAL;
-
 #else
 #  error : ERROR : unsupported MODEL !!
 #endif // MODEL
@@ -186,6 +202,7 @@ extern double     LB_INPUT__WLI_MAX;                  // LB->WLI_Max loaded from
 extern double     LB_INPUT__PAR_WEIGHT;               // LB->Par_Weight loaded from "Input__Parameter"
 #endif
 extern bool       OPT__RECORD_LOAD_BALANCE;
+extern bool       OPT__LB_EXCHANGE_FATHER;
 #endif
 extern bool       OPT__MINIMIZE_MPI_BARRIER;
 #ifdef SUPPORT_FFTW
@@ -317,6 +334,12 @@ extern bool FB_Any;
 extern int  FB_ParaBuf;
 #endif
 
+// (2-13) spectral interpolation
+#ifdef SUPPORT_SPECTRAL_INT
+extern char SPEC_INT_TABLE_PATH[MAX_STRING];
+class InterpolationHandler;
+extern InterpolationHandler Int_InterpolationHandler;
+#endif // #ifdef SUPPORT_SPECTRAL_INT
 
 
 // 3. CPU (host) arrays for transferring data between CPU and GPU
@@ -388,6 +411,18 @@ extern double     (*h_Corner_Array_S[2])[3];
 extern real       (*h_SrcDlepProf_Data)[SRC_DLEP_PROF_NBINMAX];
 extern real        *h_SrcDlepProf_Radius;
 #endif
+
+#if ( MODEL == ELBDM )
+extern bool       (*h_IsCompletelyRefined[2]);
+#endif // #if ( MODEL == ELBDM )
+
+#if ( ELBDM_SCHEME == ELBDM_HYBRID )
+extern bool       (*h_HasWaveCounterpart[2])[ CUBE(HYB_NXT) ];
+#endif // #if ( ELBDM_SCHEME == ELBDM_HYBRID )
+
+#if ( GRAMFE_SCHEME == GRAMFE_MATMUL )
+extern gramfe_matmul_float (*h_GramFE_TimeEvo)[2 * FLU_NXT];
+#endif // #if ( GRAMFE_SCHEME == GRAMFE_MATMUL )
 
 
 

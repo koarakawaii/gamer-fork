@@ -84,10 +84,6 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif // #ifdef GPU
 
 
-//// initialize yt inline analysis
-//#  ifdef SUPPORT_LIBYT
-//   YT_Init( *argc, *argv );
-//#  endif
 
 
 // initialize Grackle
@@ -222,7 +218,7 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif // #ifdef PARTICLE
 
 
-// initialize the AMR structure and fluid field
+// initialize the local AMR structure and grid fields
    switch ( OPT__INIT )
    {
       case INIT_BY_FUNCTION :    Init_ByFunction();   break;
@@ -239,6 +235,13 @@ void Init_GAMER( int *argc, char ***argv )
 #  ifdef SUPPORT_LIBYT
    YT_Init( *argc, *argv );
    if ( OPT__EXECUTE_YT_MODE == EXECUTE_YT_USE_TABLE )   YT_Load_ExecuteTable();
+#  endif
+
+
+// initialize the global AMR structure if required
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   delete GlobalTree;   // in case it has been allocated already
+   GlobalTree = new LB_GlobalTree;
 #  endif
 
 
