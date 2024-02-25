@@ -19,7 +19,6 @@ long  LB_Corner2Index( const int lv, const int Corner[], const Check_t Check );
 
 
 
-
 //-------------------------------------------------------------------------------------------------------
 // Structure   :  patch_t
 // Description :  Data structure of a single patch
@@ -158,7 +157,8 @@ long  LB_Corner2Index( const int lv, const int Corner[], const Check_t Check );
 //                                  --> for LOAD_BALANCE only
 //                NPar_Escp       : Number of particles escaping from this patch
 //                ParList_Escp    : List recording the IDs of all particles escaping from this patch
-//
+//                switch_to_wave_flag   : Refinement flag for wave scheme in hybrid ELBDM solver (true/false)
+//                                        Set in Flag_Real() and determines whether ELBDM patch using fluid scheme is converted to wave patch after refinement
 // Method      :  patch_t         : Constructor
 //               ~patch_t         : Destructor
 //                Activate        : Activate patch
@@ -232,6 +232,7 @@ struct patch_t
    ulong  PaddedCr1D;
    long   LB_Idx;
 
+
 #  ifdef PARTICLE
    int    NPar;
    int    NParType[PAR_NTYPE];
@@ -250,6 +251,9 @@ struct patch_t
 
 #  endif
 
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   bool switch_to_wave_flag;
+#  endif // #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
 
    //===================================================================================
    // Constructor :  patch_t
@@ -331,6 +335,11 @@ struct patch_t
       son       = -1;
       flag      = false;
       Active    = true;
+
+#     if ( ELBDM_SCHEME == ELBDM_HYBRID )
+//    do not switch to fluid scheme by default
+      switch_to_wave_flag = false;
+#     endif // #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
 
       for (int s=0; s<26; s++ )  sibling[s] = -1;     // -1 <--> NO sibling
 
@@ -1099,7 +1108,6 @@ struct patch_t
 
 
 }; // struct patch_t
-
 
 
 #endif // #ifndef __PATCH_H__
