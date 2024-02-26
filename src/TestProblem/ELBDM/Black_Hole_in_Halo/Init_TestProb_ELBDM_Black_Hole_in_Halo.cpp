@@ -80,8 +80,8 @@ void Validate()
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
 #  endif
 
-   if ( OPT__INIT == INIT_BY_FUNC )
-      Aux_Error( ERROR_INFO, "OPT__INIT == INIT_BY_FUNC is not supported !!\n" );
+   if ( OPT__INIT == INIT_BY_FUNCTION )
+      Aux_Error( ERROR_INFO, "OPT__INIT == INIT_BY_FUNCTION is not supported !!\n" );
 
 #  ifdef GRAVITY
    if ( OPT__BC_POT != BC_POT_ISOLATED )
