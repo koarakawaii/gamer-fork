@@ -87,10 +87,10 @@ void Validate()
       Aux_Error( ERROR_INFO, "do not support OPT__EXT_POT = %d !!\n", EXT_POT_TABLE );
 #  endif
 
-   for ( int direction = 0; direction < 6; direction++ ) 
-   {
-       if ( OPT__BC_FLU[direction] != BC_FLU_USER )
-          Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+   for ( int direction = 0; direction < 6; direction++ )                                                      
+   {                                                                                                          
+       if ( !( ( OPT__BC_FLU[direction] == BC_FLU_USER ) || ( OPT__BC_FLU[direction] == BC_FLU_PERIODIC ) )  )
+          Aux_Error( ERROR_INFO, "must adopt periodic or user defined BC for fluid --> reset OPT__BC_FLU[%d] to 1 or 4 !!\n", direction );              
    }
 
 # ifdef PARTICLE
