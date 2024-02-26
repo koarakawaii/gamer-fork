@@ -80,6 +80,9 @@ void Validate()
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
 #  endif
 
+   if ( OPT__INIT == INIT_BY_FUNC )
+      Aux_Error( ERROR_INFO, "OPT__INIT == INIT_BY_FUNC is not supported !!\n" );
+
 #  ifdef GRAVITY
    if ( OPT__BC_POT != BC_POT_ISOLATED )
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
@@ -1102,10 +1105,10 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 //
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
-void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
-                const int lv, double AuxArray[] )
-{
-
+//void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
+//                const int lv, double AuxArray[] )
+//{
+//
 //// HYDRO example
 //   double Dens, MomX, MomY, MomZ, Pres, Eint, Etot;
 //
@@ -1124,8 +1127,8 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 //   fluid[MOMY] = MomY;
 //   fluid[MOMZ] = MomZ;
 //   fluid[ENGY] = Etot;
-
-} // FUNCTION : SetGridIC
+//
+//} // FUNCTION : SetGridIC
 
 
 
@@ -1605,7 +1608,6 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
 // set the problem-specific runtime parameters
    SetParameter();
 
-   Init_Function_User_Ptr      = SetGridIC;
    BC_User_Ptr                 = BC_HALO;
    Aux_Record_User_Ptr         = Do_COM_and_CF;
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
