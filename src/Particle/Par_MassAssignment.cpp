@@ -3,7 +3,7 @@
 #ifdef PARTICLE
 
 static bool WithinRho( const int idxRho[], const int RhoSize );
-static bool FarAwayParticle( real ParPosX, real ParPosY, real ParPosZ, const bool Periodic[], const real PeriodicSize_Phy[],
+static bool FarAwayParticle( real_par ParPosX, real_par ParPosY, real_par ParPosZ, const bool Periodic[], const real PeriodicSize_Phy[],
                              const real EdgeL[], const real EdgeR[] );
 
 
