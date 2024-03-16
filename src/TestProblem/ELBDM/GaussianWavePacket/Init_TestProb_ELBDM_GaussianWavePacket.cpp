@@ -119,18 +119,18 @@ void SetParameter()
 
 
 // (3) reset other general-purpose parameters
-//     --> a helper macro PRINT_WARNING is defined in TestProb.h
+//     --> a helper macro PRINT_RESET_PARA is defined in Macro.h
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = 0.50*amr->BoxSize[Gau_XYZ]/fabs( Gau_v0 );
 
    if ( END_STEP < 0 ) {
       END_STEP = End_Step_Default;
-      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
+      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
    }
 
    if ( END_T < 0.0 ) {
       END_T = End_T_Default;
-      PRINT_WARNING( "END_T", END_T, FORMAT_REAL );
+      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
 
 
@@ -206,9 +206,20 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
       Im += Gau_Const2*sin( Gau_Theta1 + Gau_Theta2 );
    }}
 
+
+#  if (ELBDM_SCHEME == ELBDM_HYBRID)
+   if ( amr->use_wave_flag[lv] ) {
+#  endif
    fluid[REAL] = Re;
    fluid[IMAG] = Im;
    fluid[DENS] = SQR(fluid[REAL]) + SQR(fluid[IMAG]);
+#  if  (ELBDM_SCHEME == ELBDM_HYBRID)
+   } else { // if (amr->use_wave_flag[lv])
+   fluid[DENS] = SQR(Re) + SQR(Im);
+   fluid[PHAS] = SATAN2(Im, Re);
+   fluid[STUB] = 0.0;
+   } // if (amr->use_wave_flag[lv]) ... else
+#  endif // #if (ELBDM_SCHEME == ELBDM_HYBRID)
 
 } // FUNCTION : SetGridIC
 

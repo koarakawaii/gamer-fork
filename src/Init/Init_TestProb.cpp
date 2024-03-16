@@ -41,6 +41,8 @@ void Init_TestProb_ELBDM_Halo_Stability_Test();
 void Init_TestProb_ELBDM_Black_Hole_in_Halo();
 void Init_TestProb_ELBDM_Black_Hole_in_Soliton();
 void Init_TestProb_ELBDM_PlaneWave();
+void Init_TestProb_ELBDM_Perturbation();
+void Init_TestProb_ELBDM_HaloMerger();
 
 
 
@@ -102,6 +104,8 @@ void Init_TestProb()
       case TESTPROB_ELBDM_BLACK_HOLE_IN_HALO :           Init_TestProb_ELBDM_Black_Hole_in_Halo();          break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON :        Init_TestProb_ELBDM_Black_Hole_in_Soliton();       break;
       case TESTPROB_ELBDM_PLANE_WAVE :                   Init_TestProb_ELBDM_PlaneWave();                   break;
+      case TESTPROB_ELBDM_PERTURBATION :                 Init_TestProb_ELBDM_Perturbation();                break;
+      case TESTPROB_ELBDM_HALO_MERGER :                  Init_TestProb_ELBDM_HaloMerger();                  break;
 
       default: Aux_Error( ERROR_INFO, "unsupported TESTPROB_ID (%d) !!\n", TESTPROB_ID );
    } // switch( TESTPROB_ID )

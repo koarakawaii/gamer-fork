@@ -80,6 +80,9 @@ void Validate()
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
 #  endif
 
+   if ( OPT__INIT == INIT_BY_FUNCTION )
+      Aux_Error( ERROR_INFO, "OPT__INIT == INIT_BY_FUNCTION is not supported !!\n" );
+
 #  ifdef GRAVITY
    if ( OPT__BC_POT != BC_POT_ISOLATED )
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
@@ -87,10 +90,10 @@ void Validate()
       Aux_Error( ERROR_INFO, "do not support OPT__EXT_POT = %d !!\n", EXT_POT_TABLE );
 #  endif
 
-   for ( int direction = 0; direction < 6; direction++ ) 
-   {
-       if ( OPT__BC_FLU[direction] != BC_FLU_USER )
-          Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+   for ( int direction = 0; direction < 6; direction++ )                                                      
+   {                                                                                                          
+       if ( !( ( OPT__BC_FLU[direction] == BC_FLU_USER ) || ( OPT__BC_FLU[direction] == BC_FLU_PERIODIC ) )  )
+          Aux_Error( ERROR_INFO, "must adopt periodic or user defined BC for fluid --> reset OPT__BC_FLU[%d] to 1 or 4 !!\n", direction );              
    }
 
 # ifdef PARTICLE
@@ -269,14 +272,19 @@ void SetParameter()
    }
 
 // (3) reset other general-purpose parameters
-//     --> a helper macro PRINT_WARNING is defined in TestProb.h
+//     --> a helper macro PRINT_RESET_PARA is defined in Macro.h
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = __FLT_MAX__;
 
-//   if ( END_STEP < 0 ) {
-//      END_STEP = End_Step_Default;
-//      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
-//   }
+   if ( END_STEP < 0 ) {                                                                                                                              END_STEP = End_Step_Default;
+      END_STEP = End_Step_Default;
+      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
+   }
+
+   if ( END_T < 0.0 ) {
+      END_T = End_T_Default;
+      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
+   }
 
 // (4) make a note
    if ( MPI_Rank == 0 )
@@ -1098,10 +1106,10 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 //
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
-void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
-                const int lv, double AuxArray[] )
-{
-
+//void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
+//                const int lv, double AuxArray[] )
+//{
+//
 //// HYDRO example
 //   double Dens, MomX, MomY, MomZ, Pres, Eint, Etot;
 //
@@ -1120,8 +1128,8 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 //   fluid[MOMY] = MomY;
 //   fluid[MOMZ] = MomZ;
 //   fluid[ENGY] = Etot;
-
-} // FUNCTION : SetGridIC
+//
+//} // FUNCTION : SetGridIC
 
 
 
@@ -1601,7 +1609,6 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
 // set the problem-specific runtime parameters
    SetParameter();
 
-   Init_Function_User_Ptr      = SetGridIC;
    BC_User_Ptr                 = BC_HALO;
    Aux_Record_User_Ptr         = Do_COM_and_CF;
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
