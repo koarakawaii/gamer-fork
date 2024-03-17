@@ -196,12 +196,14 @@ void SetParameter()
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = __FLT_MAX__;
 
-   if ( END_STEP < 0 ) {
+   if ( END_STEP < 0 )
+   {
       END_STEP = End_Step_Default;
       PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
    }
 
-   if ( END_T < 0.0 ) {
+   if ( END_T < 0.0 )
+   {
       END_T = End_T_Default;
       PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
