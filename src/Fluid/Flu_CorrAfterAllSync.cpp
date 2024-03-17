@@ -12,6 +12,9 @@
 //                        --> Since particles just crossing coarse-fine boundaries may not be synchronized
 //                            with the grid data
 //                        --> Must work with STORE_PAR_ACC
+//                        --> Also important for bitwise reproducibility when restarting simulations, for which
+//                            we have implicitly assumed that all particles have been synchronized (as snapshots
+//                            do not store the time of individual particles)
 //                   1-2. Restrict data
 //                        --> This is mainly for bitwise reproducibility when restarting simulations from
 //                            C binary outputs
@@ -68,12 +71,27 @@ void Flu_CorrAfterAllSync()
 
 // 2. restrict data
    if ( OPT__FIXUP_RESTRICT )
+   {
    for (int lv=MAX_LEVEL-1; lv>=0; lv--)
    {
       if ( NPatchTotal[lv+1] == 0 )    continue;
 
       if ( OPT__VERBOSE  &&  MPI_Rank == 0 )
          Aux_Message( stdout, "      restrict data at Lv %2d                ... ", lv );
+
+#     if ( defined(LOAD_BALANCE) && MODEL == ELBDM && ELBDM_SCHEME == ELBDM_HYBRID )
+//    exchange phase field on level lv if level lv + 1 uses wave scheme
+//    if available, use the phase information from the previous time step (1 - amr->FluSg[FaLv]) for this purpose
+      if ( !amr->use_wave_flag[lv] && amr->use_wave_flag[lv+1] && ELBDM_MATCH_PHASE ) {
+         int FaLv    = lv;
+         int FaFluSg = amr->FluSg[FaLv];
+         if ( amr->FluSgTime[FaLv][1-FaFluSg] >= 0.0 ) {
+            FaFluSg = 1 - FaFluSg;
+         }
+         Buf_GetBufferData( FaLv, FaFluSg, NULL_INT, NULL_INT, DATA_GENERAL,
+                           _PHAS, _NONE, 0, USELB_YES );
+      }
+#     endif // # if ( defined(LOAD_BALANCE) && MODEL == ELBDM && ELBDM_SCHEME == ELBDM_HYBRID )
 
 //    we do not restrict potential since it will be recalculated anyway
       Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT, _TOTAL, _MAG );
@@ -85,6 +103,7 @@ void Flu_CorrAfterAllSync()
       Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_AFTER_FIXUP, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
 
       if ( OPT__VERBOSE  &&  MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
+   }
    }
 
 

@@ -19,9 +19,7 @@ args=parser.parse_args()
 # take note
 print( '\nCommand-line arguments:' )
 print( '-------------------------------------------------------------------' )
-for t in range( len(sys.argv) ):
-   print str(sys.argv[t]),
-print( '' )
+print( ' '.join(map(str, sys.argv)) )
 print( '-------------------------------------------------------------------\n' )
 
 
@@ -36,13 +34,14 @@ center_mode   = 'c'
 dpi           = 150
 
 yt.enable_parallelism()
-ts = yt.load( [ prefix+'/Data_%06d'%idx for idx in range(idx_start, idx_end+1, didx) ] )
+ts = yt.DatasetSeries( [ prefix+'/Data_%06d'%idx for idx in range(idx_start, idx_end+1, didx) ] )
 
 for ds in ts.piter():
 
    sz_dens = yt.SlicePlot( ds, 'z', field, center=center_mode )
 
    sz_dens.set_zlim( field, -1.0e0, +1.0e0 )
+   sz.set_log( field, False )
    sz_dens.set_cmap( field, colormap_dens )
    sz_dens.annotate_timestamp( time_unit='Gyr', corner='upper_right' )
    sz_dens.annotate_grids()

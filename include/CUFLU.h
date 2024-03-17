@@ -26,9 +26,9 @@
 
 
 // include CUDA FFT library if GPU kinetic ELBDM Gram-Fourier extension solver is enabled
-#if ( defined(__CUDACC__) && MODEL == ELBDM && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+#if ( defined(__CUDACC__) && GRAMFE_SCHEME == GRAMFE_FFT )
 #  include <cufftdx.hpp>
-#endif // #if ( defined(__CUDACC__) && MODEL == ELBDM && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+#endif // #if ( defined(__CUDACC__) && GRAMFE_SCHEME == GRAMFE_FFT )
 
 // faster integer multiplication in Fermi
 #if ( defined __CUDACC__  &&  __CUDA_ARCH__ >= 200 )
@@ -51,7 +51,9 @@
 #  elif ( GPU_ARCH == TURING )
    #define GPU_COMPUTE_CAPABILITY 750
 #  elif ( GPU_ARCH == AMPERE )
-   #define GPU_COMPUTE_CAPABILITY 800
+// #define GPU_COMPUTE_CAPABILITY 800
+   #define GPU_COMPUTE_CAPABILITY 860
+// #define GPU_COMPUTE_CAPABILITY 870
 #  else
 #  error : ERROR : Please add GPU_COMPUTE_CAPABILITY for GPU_ARCH!
 #  endif // GPU_ARCH
@@ -78,7 +80,7 @@
 //                            --> for example, in MHM_RP FC_Flux[] is also linked to Half_Flux[] used by
 //                                Hydro_RiemannPredict_Flux() and Hydro_RiemannPredict()
 //                            --> for the latter two routines, Half_Flux[] is accessed with N_HF_FLUX
-//                                that is smaller than N_FC_FLUX
+//                                that is equal to N_FC_FLUX and larger than N_FL_FLUX
 // N_HF_VAR             : for accessing PriVar_Half[], which is linked to PriVar[] with the size FLU_NXT^3
 //                        --> also for accessing FC_B_Half[] in MHD
 
@@ -101,8 +103,16 @@
 #  if   ( FLU_SCHEME == MHM )
 
 #     define N_FC_VAR            ( PS2 + 2 )
+#    ifdef MHD
+#     define N_HF_VAR            ( N_FC_VAR )
+#     define N_FL_FLUX           ( PS2 + 2 )
+//    MHM doesn't have the half-step flux actually; this is only for calculating the half-step electric field
+#     define N_HF_FLUX           ( N_FL_FLUX+2 )
+#    else
 #     define N_FL_FLUX           ( PS2 + 1 )
-#     define N_FC_FLUX           ( N_FL_FLUX )
+//    MHM doesn't have the half-step flux actually; this is only for defining N_FC_FLUX
+#     define N_HF_FLUX           ( N_FL_FLUX )
+#    endif
 
 #  elif ( FLU_SCHEME == MHM_RP )
 
@@ -115,7 +125,6 @@
 #     define N_FL_FLUX           ( PS2 + 1 )
 #     define N_HF_FLUX           ( FLU_NXT - 1 )
 #    endif
-#     define N_FC_FLUX           ( N_HF_FLUX )
 #     define N_HF_VAR            ( FLU_NXT - 2 )
 
 #  elif ( FLU_SCHEME == CTU )
@@ -129,18 +138,19 @@
 #     define N_FL_FLUX           ( N_FC_VAR )
 #    endif
 #     define N_HF_FLUX           ( N_FC_VAR )
-#     define N_FC_FLUX           ( N_HF_FLUX )
 
 #  endif // FLU_SCHEME
 
 #  define N_SLOPE_PPM            ( N_FC_VAR + 2 )
 
+#   define N_FC_FLUX             ( N_HF_FLUX )
 #  ifdef MHD
-#   define N_HF_ELE              ( N_FC_FLUX - 1 )
+#   define N_HF_ELE              ( N_HF_FLUX - 1 )
 #   define N_FL_ELE              ( N_FL_FLUX - 1 )
 #   define N_EC_ELE              ( N_FC_FLUX - 1 )
 #  else
 #   define N_EC_ELE              0
+#   define N_HF_ELE              0
 #  endif
 
 #endif // #if ( FLU_SCHEME == MHM  ||  FLU_SCHEME == MHM_RP  ||  FLU_SCHEME == CTU )
@@ -268,6 +278,13 @@
 //#  define HLLE_WAVESPEED   HLL_WAVESPEED_PVRS
 #endif
 #  define HLLD_WAVESPEED   HLL_WAVESPEED_DAVIS
+
+
+// check unphysical results in the MHM half-step prediction
+#if ( FLU_SCHEME == MHM )
+#  define MHM_CHECK_PREDICT
+#endif
+
 
 
 // 2. ELBDM macro
@@ -477,8 +494,9 @@
 #  endif
 
 
+
 // set number of threads and blocks used in GRAMFE GPU scheme
-# if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+# if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_SCHEME == GRAMFE_FFT )
 
 
 // cuFFTdx supports the following GPU architectures at the time of writing (23.05.23)
@@ -509,7 +527,7 @@
 
 using CUFFTDX_ARCH = decltype(cufftdx::SM<GPU_COMPUTE_CAPABILITY>());
 
-using fft_base     = decltype(cufftdx::Block() + cufftdx::Size<GRAMFE_FLU_NXT>() + cufftdx::Type<cufftdx::fft_type::c2c>() + cufftdx::Precision<gramfe_float>() + CUFFTDX_ARCH() );
+using fft_base     = decltype(cufftdx::Block() + cufftdx::Size<GRAMFE_FLU_NXT>() + cufftdx::Type<cufftdx::fft_type::c2c>() + cufftdx::Precision<gramfe_fft_float>() + CUFFTDX_ARCH() );
 using forward_fft  = decltype(fft_base() + cufftdx::Direction<cufftdx::fft_direction::forward>());
 using inverse_fft  = decltype(fft_base() + cufftdx::Direction<cufftdx::fft_direction::inverse>());
 
@@ -522,7 +540,7 @@ using IFFT         = decltype( inverse_fft() + cufftdx::ElementsPerThread<elemen
 
 using complex_type = typename FFT::value_type;
 
-# endif // # if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_ENABLE_GPU )
+# endif // # if ( defined(__CUDACC__) && WAVE_SCHEME == WAVE_GRAMFE && GRAMFE_SCHEME == GRAMFE_FFT )
 
 # else
 # error : ERROR : Unsupported model in CUFLU.h

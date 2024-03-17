@@ -73,8 +73,8 @@ void Validate()
 
    for ( int direction = 0; direction < 6; direction++ ) 
    {
-       if ( OPT__BC_FLU[direction] != BC_FLU_USER )
-          Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+       if ( !( ( OPT__BC_FLU[direction] == BC_FLU_USER ) || ( OPT__BC_FLU[direction] == BC_FLU_PERIODIC ) )  )
+          Aux_Error( ERROR_INFO, "must adopt periodic or user defined BC for fluid --> reset OPT__BC_FLU[%d] to 1 or 4 !!\n", direction );
    }
 
 # ifdef PARTICLE
@@ -192,14 +192,21 @@ void SetParameter()
    }
    
 // (3) reset other general-purpose parameters
-//     --> a helper macro PRINT_WARNING is defined in TestProb.h
+//     --> a helper macro PRINT_RESET_PARA is defined in Macro.h
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = __FLT_MAX__;
 
-//   if ( END_STEP < 0 ) {
-//      END_STEP = End_Step_Default;
-//      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
-//   }
+   if ( END_STEP < 0 )
+   {
+      END_STEP = End_Step_Default;
+      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
+   }
+
+   if ( END_T < 0.0 )
+   {
+      END_T = End_T_Default;
+      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
+   }
 
 // (4) make a note
    if ( MPI_Rank == 0 )
@@ -368,16 +375,13 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 // refine the grids
    if ( ParRefineFlag )
    {
+#  ifdef LOAD_BALANCE
       const bool   Redistribute_Yes = true;
       const bool   SendGridData_Yes = true;
       const bool   ResetLB_Yes      = true;
-#  if ( defined PARTICLE  &&  defined LOAD_BALANCE )
       const double Par_Weight       = amr->LB->Par_Weight;
-#  else
-      const double Par_Weight       = 0.0;
-#  endif
-#  ifdef LOAD_BALANCE
       const UseLBFunc_t UseLB       = USELB_YES;
+      const bool   SortRealPatch_No = false;
 #  else
       const UseLBFunc_t UseLB       = USELB_NO;
 #  endif
@@ -396,7 +400,7 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 
          Buf_GetBufferData( lv+1, amr->FluSg[lv+1], NULL_INT, NULL_INT, DATA_AFTER_REFINE, _TOTAL, _NONE, Flu_ParaBuf, USELB_YES );
 
-         LB_Init_LoadBalance( Redistribute_Yes, SendGridData_Yes, Par_Weight, ResetLB_Yes, lv+1 );
+         LB_Init_LoadBalance( Redistribute_Yes, SendGridData_Yes, Par_Weight, ResetLB_Yes, SortRealPatch_No, lv+1 );
 #     endif
 
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );

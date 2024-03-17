@@ -131,7 +131,7 @@ void SetParameter()
 
    if ( PWave_XYZ == 3 ) {
       PWave_NWavelength *= 3;
-      PRINT_WARNING( "PWave_NWavelength", PWave_NWavelength, FORMAT_INT );
+      PRINT_RESET_PARA( PWave_NWavelength, FORMAT_INT, "");
    }
 
 
@@ -146,18 +146,18 @@ void SetParameter()
 
 
 // (3) reset other general-purpose parameters
-//     --> a helper macro PRINT_WARNING is defined in TestProb.h
+//     --> a helper macro PRINT_RESET_PARA is defined in Macro.h
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = 6.0*PWave_Period; // 6 periods
 
    if ( END_STEP < 0 ) {
       END_STEP = End_Step_Default;
-      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
+      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
    }
 
    if ( END_T < 0.0 ) {
       END_T = End_T_Default;
-      PRINT_WARNING( "END_T", END_T, FORMAT_REAL );
+      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
 
 
@@ -215,7 +215,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
                 const int lv, double AuxArray[] )
 {
 
-   double r, PhaseR, PhaseL;
+   double r, PhaseR, PhaseL, Real, Imag, Phase;
    switch ( PWave_XYZ )
    {
       case 0 : r = x;                              break;
@@ -231,23 +231,38 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 
 // set the real and imaginary parts
    if ( PWave_LSR > 0 ) {      // Right-moving wave
-      fluid[REAL] = PWave_Amp*cos( PhaseR );
-      fluid[IMAG] = PWave_Amp*sin( PhaseR );
+      Real  = PWave_Amp*cos( PhaseR );
+      Imag  = PWave_Amp*sin( PhaseR );
+      Phase = PhaseR;
    }
    else if ( PWave_LSR < 0 ) { // Left-moving wave
-      fluid[REAL] = PWave_Amp*cos( PhaseL );
-      fluid[IMAG] = PWave_Amp*sin( PhaseL );
+      Real  = PWave_Amp*cos( PhaseL );
+      Imag  = PWave_Amp*sin( PhaseL );
+      Phase = PhaseL;
    }
    else { //( PWave_LSR == 0 ) // Standing wave
-      fluid[REAL] = 0.5*( PWave_Amp*cos( PhaseR ) + PWave_Amp*cos( PhaseL ) );
-      fluid[IMAG] = 0.5*( PWave_Amp*sin( PhaseR ) + PWave_Amp*sin( PhaseL ) );
+      Real  = 0.5*( PWave_Amp*cos( PhaseR ) + PWave_Amp*cos( PhaseL ) );
+      Imag  = 0.5*( PWave_Amp*sin( PhaseR ) + PWave_Amp*sin( PhaseL ) );
+      Phase = SATAN2 ( Imag, Real );
    }
 
 // set the density
-   fluid[DENS] = SQR( fluid[REAL] ) + SQR( fluid[IMAG] );
+   fluid[DENS] = SQR( Real ) + SQR( Imag );
 
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+#  endif
+   fluid[REAL] = Real;
+   fluid[IMAG] = Imag;
 // set the unwrapped phase
-   fluid[PWave_Idx_Phase] = ATAN2( fluid[IMAG], fluid[REAL] );
+   fluid[PWave_Idx_Phase] = SATAN2( Imag, Real );
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else { // if ( amr->use_wave_flag[lv] )
+   fluid[PHAS] = Phase;
+   fluid[STUB] = 0.0;
+   } // if ( amr->use_wave_flag[lv] ) ... else
+#  endif
+
 
 } // FUNCTION : SetGridIC
 

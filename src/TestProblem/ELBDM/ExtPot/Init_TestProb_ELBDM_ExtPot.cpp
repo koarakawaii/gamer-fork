@@ -114,18 +114,18 @@ void SetParameter()
 
 
 // (3) reset other general-purpose parameters
-//     --> a helper macro PRINT_WARNING is defined in TestProb.h
+//     --> a helper macro PRINT_RESET_PARA is defined in Macro.h
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = 1.0e-2;
 
    if ( END_STEP < 0 ) {
       END_STEP = End_Step_Default;
-      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
+      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
    }
 
    if ( END_T < 0.0 ) {
       END_T = End_T_Default;
-      PRINT_WARNING( "END_T", END_T, FORMAT_REAL );
+      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
 
 
@@ -173,11 +173,22 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    const double r     = sqrt( SQR(x-ELBDM_ExtPot_Cen[0]) + SQR(y-ELBDM_ExtPot_Cen[1]) + SQR(z-ELBDM_ExtPot_Cen[2]) );
    const double Coeff = 2.0*SQR(ELBDM_ETA)*NEWTON_G*ELBDM_ExtPot_M;
    const double R     = sqrt( Coeff*r );
+   const double Re    = ELBDM_ExtPot_Amp*j1( 2.0*R )/R;
+   const double Im    = 0.0;                            // imaginary part is always zero --> no initial velocity
 
-   fluid[REAL] = ELBDM_ExtPot_Amp*j1( 2.0*R )/R;
-   fluid[IMAG] = 0.0;                                       // imaginary part is always zero --> no initial velocity
-   fluid[DENS] = SQR( fluid[REAL] ) + SQR( fluid[IMAG] );
+   fluid[DENS] = SQR( Re ) + SQR( Im );
 
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+#  endif // # if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   fluid[REAL] = Re;
+   fluid[IMAG] = 0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else { // if ( amr->use_wave_flag[lv] )
+   fluid[PHAS] = 0.0;
+   fluid[STUB] = 0.0;
+   } // if ( amr->use_wave_flag[lv] ) ... else
+#  endif // #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
 } // FUNCTION : SetGridIC
 
 
