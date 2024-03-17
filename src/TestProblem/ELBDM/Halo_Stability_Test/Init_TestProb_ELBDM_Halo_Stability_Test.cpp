@@ -140,9 +140,11 @@ void SetParameter()
    ReadPara->Add( "ComputeCorrelation",       &ComputeCorrelation,      false,          Useless_bool,      Useless_bool      );
    ReadPara->Add( "Fluid_Periodic_BC_Flag",   &Fluid_Periodic_BC_Flag,  false,          Useless_bool,      Useless_bool      );
    ReadPara->Read( FileName );
+   delete ReadPara;
 
    if ( ComputeCorrelation )
    {
+      ReadPara  = new ReadPara_t;
       ReadPara->Add( "dr_min_corr",              &dr_min_corr,            Eps_double,       Eps_double,       NoMax_double      );
       ReadPara->Add( "LogBinRatio_corr",         &LogBinRatio_corr,          1.0,           Eps_double,      NoMax_double       );
       ReadPara->Add( "RadiusMax_corr",           &RadiusMax_corr,         Eps_double,       Eps_double,      NoMax_double       );
@@ -158,9 +160,9 @@ void SetParameter()
       if ( OPT__INIT == INIT_BY_RESTART )
          ReadPara->Add( "ReComputeCorrelation",     &ReComputeCorrelation,     false,         Useless_bool,      Useless_bool      );
       ReadPara->Read( FileName );
+      delete ReadPara;
    }
 
-   delete ReadPara;
 
 // (1-2) set the default values
    if ( System_CM_TolErrR < 0.0 )   System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
@@ -180,8 +182,6 @@ void SetParameter()
 
        if ( MinLv < 0 ) MinLv = 0;
        if ( MaxLv <= MinLv ) MaxLv = MAX_LEVEL;
-       if ( OutputCorrelationMode>1 ) OutputCorrelationMode = 0;
-       if ( (OutputCorrelationMode==0) && (StepInterval<1) ) StepInterval = 1;
        if ( FilePath_corr == "\0" )  sprintf( FilePath_corr, "./" );
        else
        { 
