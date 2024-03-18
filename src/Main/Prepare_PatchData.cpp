@@ -268,7 +268,7 @@ void Prepare_PatchData( const int lv, const double PrepTime, real *OutputCC, rea
       if (  (!(TVarCC & _REAL)  ||  !(TVarCC & _IMAG)) )
       Aux_Error( ERROR_INFO, "real and/or imag parts are not found for phase interpolation in ELBDM !!\n" );
 #     if ( ELBDM_SCHEME == ELBDM_HYBRID)
-      } // if ( amr->use_wave_flag[lv] ) {
+      } // if ( amr->use_wave_flag[lv] )
 #     endif // # if ( ELBDM_SCHEME == ELBDM_HYBRID)
 
 //    we have assumed in InterpolateGhostZone() that when adopting IntPhase this function will NOT prepare

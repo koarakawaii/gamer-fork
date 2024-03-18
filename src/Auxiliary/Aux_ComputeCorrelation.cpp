@@ -288,6 +288,8 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
       }
 
 //    allocate passive scalar arrays
+      if ( NProf != NCOMP_PASSIVE )
+          Aux_Error( ERROR_INFO, "NProf(%d) != NCOMP_PASSIVE(%d) !! Currently only support NProf = NCOMP_PASSIVE for computing correlation !!\n", NProf, NCOMP_PASSIVE );
       real *Passive      = new real [NCOMP_PASSIVE];
 //      real *Passive_IntT = new real [NCOMP_PASSIVE];
 
