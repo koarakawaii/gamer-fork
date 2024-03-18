@@ -435,13 +435,17 @@ static void Init_User_ELBDM_Halo_Stability_Test(void)
        const long TVar[] = {BIDX(Idx_Dens0)};
        Aux_ComputeProfile_with_Sigma( Prof, Center, RadiusMax_prof, dr_min_prof, LogBin_prof, LogBinRatio_prof, RemoveEmpty_prof, TVar, 1, MinLv, MaxLv, PATCH_LEAF, InitialTime );
 
-       char Filename[MAX_STRING];
-       sprintf( Filename, "%s/initial_profile_with_Sigma.txt", FilePath_corr );
-       FILE *output_initial_prof = fopen(Filename, "w");
-       for (int b=0; b<Prof[0]->NBin; b++)
-           fprintf( output_initial_prof, "%20.14e  %21.14e  %21.14e  %21.14e  %10ld\n",
-                    Prof[0]->Radius[b], Prof[0]->Data[b], Prof[0]->Data_Sigma[b], Prof[0]->Weight[b], Prof[0]->NCell[b] );
-       fclose(output_initial_prof);
+       if ( MPI_Rank == 0 )
+       {
+          char Filename[MAX_STRING];
+          sprintf( Filename, "%s/initial_profile_with_Sigma.txt", FilePath_corr );
+          FILE *output_initial_prof = fopen(Filename, "w");
+          fprintf( output_initial_prof, "#%19s  %21s  %21s  %21s  %11s\n", "Radius", "Dens", "Dens_Sigma" , "Weighting", "Cell_Number");
+          for (int b=0; b<Prof[0]->NBin; b++)
+             fprintf( output_initial_prof, "%20.14e  %21.14e  %21.14e  %21.14e  %11ld\n",
+                       Prof[0]->Radius[b], Prof[0]->Data[b], Prof[0]->Data_Sigma[b], Prof[0]->Weight[b], Prof[0]->NCell[b] );
+          fclose(output_initial_prof);
+       }
    }
 #  endif
 
@@ -901,14 +905,17 @@ static void Do_COM_and_CF( void )
          Aux_ComputeCorrelation( Correlation, (const Profile_with_Sigma_t**)Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
                                  RemoveEmpty_corr, TVar, 1, MinLv, MaxLv, PATCH_LEAF, Time[0], dr_min_prof);
 
-         char Filename[MAX_STRING];
-         sprintf( Filename, "%s/correlation_function_t=%.4e.txt", FilePath_corr, Time[0] );
-         FILE *output_correlation = fopen(Filename, "w");
-         for (int b=0; b<Correlation[0]->NBin; b++)
-             fprintf( output_correlation, "%20.14e  %21.14e  %21.14e  %10ld\n",
-                      Correlation[0]->Radius[b], Correlation[0]->Data[b], Correlation[0]->Weight[b], Correlation[0]->NCell[b] );
-         fclose(output_correlation);
-
+         if ( MPI_Rank == 0 )
+         {
+            char Filename[MAX_STRING];
+            sprintf( Filename, "%s/correlation_function_t=%.4e.txt", FilePath_corr, Time[0] );
+            FILE *output_correlation = fopen(Filename, "w");
+            fprintf( output_correlation, "#%19s  %21s  %21s  %11s\n", "Radius", "Correlation_Function", "Weighting", "Cell_Number");
+            for (int b=0; b<Correlation[0]->NBin; b++)
+                fprintf( output_correlation, "%20.14e  %21.14e  %21.14e  %11ld\n",
+                         Correlation[0]->Radius[b], Correlation[0]->Data[b], Correlation[0]->Weight[b], Correlation[0]->NCell[b] );
+            fclose(output_correlation);
+         }
          // accumulate the step counter
          step_counter ++;
       }
