@@ -473,10 +473,10 @@ static void Init_User_ELBDM_Halo_Stability_Test(void)
 //
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
-void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
-                const int lv, double AuxArray[] )
-{
-
+//void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
+//                const int lv, double AuxArray[] )
+//{
+//
 //// HYDRO example
 //   double Dens, MomX, MomY, MomZ, Pres, Eint, Etot;
 //
@@ -495,8 +495,8 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 //   fluid[MOMY] = MomY;
 //   fluid[MOMZ] = MomZ;
 //   fluid[ENGY] = Etot;
-
-} // FUNCTION : SetGridIC
+//
+//} // FUNCTION : SetGridIC
 
 
 
@@ -983,7 +983,7 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
       BC_User_Ptr            = BC_HALO;
    }
 
-   Init_Function_User_Ptr = SetGridIC;
+//   Init_Function_User_Ptr = SetGridIC;
    Init_Field_User_Ptr    = AddNewField_ELBDM_Halo_Stability_Test;
    Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test;
    Aux_Record_User_Ptr    = Do_COM_and_CF;
