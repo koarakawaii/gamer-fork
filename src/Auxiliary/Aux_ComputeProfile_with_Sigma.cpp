@@ -6,8 +6,8 @@ extern void SetTempIntPara( const int lv, const int Sg_Current, const double Pre
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Aux_ComputeProfile
-// Description :  Compute the average radial profile of target field(s)
+// Function    :  Aux_ComputeProfile_with_Sigma
+// Description :  Compute the average radial profile of target field(s) along with its standard deviation at each bin
 //
 // Note        :  1. Results will be stored in the input "Prof" object
 //                   --> Prof->Radius    []: Radial coordinate at each bin

@@ -5,19 +5,27 @@ extern void SetTempIntPara( const int lv, const int Sg_Current, const double Pre
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Interpolate
+// Function    :  InterpolateMeanAndStd
 // Description :  Interpolate the initial density for a given radius
 //
-// Note        :  None
+// Note        :  1. Use only linear interpolation
+//                2. When invoking in Aux_ComputeCorrelation function, the prof_init is always assumed to be in linear bin, so the bin_index 
+//                   passed-in is also estimated based on linear bin; to use this function for non-linear bin, user need to compute bin_index
+//                   accordingly
 //
-// Parameter   :  None
+// Parameter   :  mean_inter : interpolated mean value for all the target fields at r
+//                std_inter  : interpolated standard deviation for all the target fields at r
+//                prof_init  : Profile_with_Sigma_t object array for storing the mean and standard deviation quantities used for interpolation
+//                NProf      : Number of Profile_t objects in prof_init
+//                bin_index  : estimated bin index for a given target radius r
+//                r          : target radius
 //
-// Return      :  None
+// Return      :  mean_inter, std_inter
 //-------------------------------------------------------------------------------------------------------
-void InterpolateDensity(real *mean_inter, real *std_inter, const Profile_with_Sigma_t *prof_init[], const int NProf, const int bin_index, const double r)
+void InterpolateMeanAndStd(real *mean_inter, real *std_inter, const Profile_with_Sigma_t *prof_init[], const int NProf, const int bin_index, const double r)
 {
    double delta_r, x;
-   if (r>prof_init[0]->Radius[bin_index])
+   if ( r > prof_init[0]->Radius[bin_index] )
    {
       int bin_index_right = bin_index+1;
       delta_r             = prof_init[0]->Radius[bin_index_right] - prof_init[0]->Radius[bin_index];
@@ -68,11 +76,11 @@ void InterpolateDensity(real *mean_inter, real *std_inter, const Profile_with_Si
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Aux_ComputeCorrelation
-// Description :  Compute the average radial profile of target field(s)
+// Description :  Compute the average radial correlation profile of target field(s)
 //
 // Note        :  1. Results will be stored in the input "Correlation" object
 //                   --> Correlation->Radius[]: Radial coordinate at each bin
-//                       Correlation->Data  []: Profile data at each bin
+//                       Correlation->Data  []: Correlation Profile data at each bin
 //                       Correlation->Weight[]: Total weighting at each bin
 //                       Correlation->NCell []: Number of cells at each bin
 //                       Correlation->NBin    : Total number of bins
@@ -84,8 +92,8 @@ void InterpolateDensity(real *mean_inter, real *std_inter, const Profile_with_Si
 //                   --> All ranks will share the same profile data after invoking this function
 //                4. Use cell volume as the weighting of each cell
 //                   --> Will support other weighting functions in the future
-//                5. Support computing multiple fields
-//                   --> The order of fields to be returned follows TVarBitIdx[]
+//                5. Currently only support computing _DENS field
+//                   --> If multiple fields are supported in the future, the order of fields to be returned follows TVarBitIdx[]
 //
 // Parameter   :  Correlation : Profile_t object array to store the correlation function
 //                prof_init   : Profile_with_Sigma_t object array for storing the mean and standard deviation quantities for calculating correlation function
@@ -103,8 +111,7 @@ void InterpolateDensity(real *mean_inter, real *std_inter, const Profile_with_Si
 //                                        Data[empty_bin]=Weight[empty_bin]=NCell[empty_bin]=0
 //                TVarBitIdx  : Bitwise indices of target variables for computing the profiles
 //                              --> Supported indices (defined in Macro.h):
-//                                             [, _ENPY, _EINT, _POTE]
-//                                     ELBDM : _DENS, _REAL, _IMAG [, _POTE]
+//                                     ELBDM : _DENS
 //                              --> For a passive scalar with an integer field index FieldIdx returned by AddField(),
 //                                  one can convert it to a bitwise field index by BIDX(FieldIdx)
 //                NProf       : Number of Profile_t objects in Correlation
@@ -122,18 +129,18 @@ void InterpolateDensity(real *mean_inter, real *std_inter, const Profile_with_Si
 //                const bool        LogBin         = true;
 //                const double      LogBinRatio    = 1.25;
 //                const bool        RemoveEmptyBin = true;
-//                const long        TVar[]         = { _DENS, _PRES };
-//                const int         NProf          = 2;
+//                const long        TVarBitIdx[]   = { _DENS };
+//                const int         NProf          = 1;
 //                const int         MinLv          = 0;
 //                const int         MaxLv          = MAX_LEVEL;
 //                const PatchType_t PatchType      = PATCH_LEAF_PLUS_MAXNONLEAF;
 //                const double      PrepTime       = -1.0;
 //
-//                Profile_t Correlation_Dens, Correlation_Pres;
-//                Profile_t *Correlation[] = { &Correlation_Dens, &Correlation_Pres };
+//                Profile_t Correlation_Dens;
+//                Profile_t *Correlation[] = { &Correlation_Dens };
 //
 //                Aux_ComputeProfile( Correlation, Center, MaxRadius, MinBinSize, LogBin, LogBinRatio, RemoveEmptyBin,
-//                                    TVar, NProf, MinLv, MaxLv, PatchType, PrepTime );
+//                                    TVarBitIdx, NProf, MinLv, MaxLv, PatchType, PrepTime );
 //
 //                if ( MPI_Rank == 0 )
 //                {
@@ -152,7 +159,6 @@ void InterpolateDensity(real *mean_inter, real *std_inter, const Profile_with_Si
 //
 // Return      :  Correlation
 //-------------------------------------------------------------------------------------------------------
-//void Aux_ComputeCorrelation( Profile_t *Correlation[], FieldIdx_t *Passive_idx[],  const Profile_t *prof_init[], const double Center[], 
 void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_t *prof_init[], const double Center[], 
                              const double r_max_input, const double dr_min, const bool LogBin, const double LogBinRatio,
                              const bool RemoveEmpty, const long TVarBitIdx[], const int NProf, const int MinLv, const int MaxLv, 
@@ -181,6 +187,13 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
 
    if ( NProf != NCOMP_PASSIVE )
       Aux_Error( ERROR_INFO, "NProf (%d) != NCOMP_PASSIVE (%d) !!\n", NProf, NCOMP_PASSIVE );
+#  endif
+   if ( NProf != NCOMP_PASSIVE )
+      Aux_Error( ERROR_INFO, "NProf(%d) != NCOMP_PASSIVE(%d) !! Currently only support NProf = NCOMP_PASSIVE for computing correlation !!\n", NProf, NCOMP_PASSIVE );
+   if ( TVarBitIdx[0] != _DENS )
+      Aux_Error( ERROR_INFO, "TVarBitIdx[0](%ld) != _DENS(%ld) !! Currently only support TVarBitIdx[0] = _DENS for computing correlation !!\n", TVarBitIdx[0], _DENS );
+#  if ( MODEL == HYDRO )
+      Aux_Error( ERROR_INFO, "Does not support HDRDO for computing correlation function yet!!\n" );
 #  endif
 
 
@@ -288,8 +301,6 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
       }
 
 //    allocate passive scalar arrays
-      if ( NProf != NCOMP_PASSIVE )
-          Aux_Error( ERROR_INFO, "NProf(%d) != NCOMP_PASSIVE(%d) !! Currently only support NProf = NCOMP_PASSIVE for computing correlation !!\n", NProf, NCOMP_PASSIVE );
       real *Passive      = new real [NCOMP_PASSIVE];
 //      real *Passive_IntT = new real [NCOMP_PASSIVE];
 
@@ -313,12 +324,14 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
          real MagWeighting, MagWeighting_IntT;
 #        endif
 
+/*       does not support _POTE yet
 #        ifdef GRAVITY
          bool PotIntTime = false;
          int  PotSg      = amr->PotSg[lv];
          int  PotSg_IntT;
          real PotWeighting, PotWeighting_IntT;
 #        endif
+*/
 
          if ( PrepTime >= 0.0 )
          {
@@ -332,12 +345,14 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
                             MagIntTime, MagSg, MagSg_IntT, MagWeighting, MagWeighting_IntT );
 #           endif
 
+/*          does not support _POTE yet
 //          potential
 #           ifdef GRAVITY
             if ( InclPot )
                SetTempIntPara( lv, amr->PotSg[lv], PrepTime, amr->PotSgTime[lv][0], amr->PotSgTime[lv][1],
                                PotIntTime, PotSg, PotSg_IntT, PotWeighting, PotWeighting_IntT );
 #           endif
+*/
          }
 
 
@@ -359,15 +374,19 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
 
 
             const real (*FluidPtr)[PS1][PS1][PS1] = amr->patch[ FluSg ][lv][PID]->fluid;
+/*          does not support _POTE yet
 #           ifdef GRAVITY
             const real (*PotPtr  )[PS1][PS1]      = amr->patch[ PotSg ][lv][PID]->pot;
 #           endif
+*/
 
 //          pointer for temporal interpolation
             const real (*FluidPtr_IntT)[PS1][PS1][PS1] = ( FluIntTime ) ? amr->patch[ FluSg_IntT ][lv][PID]->fluid : NULL;
+/*          does not support _POTE yet
 #           ifdef GRAVITY
             const real (*PotPtr_IntT  )[PS1][PS1]      = ( PotIntTime ) ? amr->patch[ PotSg_IntT ][lv][PID]->pot   : NULL;
 #           endif
+*/
 
 
             const double x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh - Center[0];
@@ -407,9 +426,9 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
 
 //                interpolate to get mean value at r
                   real mean_value[NProf], std_value[NProf];
-//                find corresponding bin index in density profile, which always uses linear bin
+//                ****find corresponding bin index in density profile, which always uses linear bin!!*****
                   const int    bin_prof = int (r/dr_min_prof); 
-                  InterpolateDensity( mean_value, std_value, prof_init, NProf, bin_prof, r );
+                  InterpolateMeanAndStd( mean_value, std_value, prof_init, NProf, bin_prof, r );
 
 //                prepare passive scalars (for better sustainability, always do it even when unnecessary)
                   for (int v_out=0; v_out<NCOMP_PASSIVE; v_out++)
@@ -429,7 +448,6 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
                                           ? ( FluWeighting     *FluidPtr     [ TFluIntIdx[p] ][k][j][i]
                                             + FluWeighting_IntT*FluidPtr_IntT[ TFluIntIdx[p] ][k][j][i] )
                                           :                     FluidPtr     [ TFluIntIdx[p] ][k][j][i]  ;
-//                        real delta_passive = amr->patch[FluSg][lv][PID]->fluid[ *(Passive_idx[p]) ][k][j][i];
                         real delta_passive = Passive[p];
                         delta         -= mean_value[p];
                         delta_passive -= mean_value[p];
@@ -444,11 +462,13 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
                         OMP_NCell [p][TID][bin] ++;
                      }
 
+/*                   does not support other fields yet
 //                   other fields
                      else
                      {
                         switch ( TVarBitIdx[p] )
                         {
+//                         does not support _POTE yet
 //                         gravitational potential
 #                          ifdef GRAVITY
                            case _POTE:
@@ -478,9 +498,11 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
                            }
                            break;
 #                          endif
+*/
 
-/*
+
 //                         derived fields
+/*
 #                          if ( MODEL == HYDRO )
                            case _VELR:
                            {
@@ -616,13 +638,13 @@ void Aux_ComputeCorrelation( Profile_t *Correlation[], const Profile_with_Sigma_
                            }
                            break;
 #                          endif // HYDRO
-*/
 
                            default:
                               Aux_Error( ERROR_INFO, "unsupported field (%ld) !!\n", TVarBitIdx[p] );
                               exit( 1 );
                         } // switch ( TVarBitIdx[p] )
                      } // if ( TFluIntIdx[p] != IdxUndef ) ... else ...
+*/
                   } // for (int p=0; p<NProf; p++)
                } // if ( r2 < r_max2 )
             }}} // i,j,k
