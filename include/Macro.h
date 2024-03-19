@@ -202,6 +202,7 @@
 #  define FLU_NIN             ( NCOMP_TOTAL - 1 )
 #  define FLU_NOUT            ( NCOMP_TOTAL - 0 )
    */
+// hard-code these parameters to support NCOM_PASSIVE=1 => only allocate two fields for FLU_NIN: REAL and IMAG , and three fields for FLU_NOUT: DENS, REAL and IMAG
 #  define FLU_NIN             ( 2 )
 #  define FLU_NOUT            ( 3 )
 
