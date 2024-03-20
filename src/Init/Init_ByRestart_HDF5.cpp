@@ -354,8 +354,6 @@ void Init_ByRestart_HDF5( const char *FileName )
 
 
 
-
-
 // 2. load the tree information (load-balance indices, corner, son, ... etc) of all patches (by all ranks)
    H5_FileID = H5Fopen( FileName, H5F_ACC_RDONLY, H5P_DEFAULT );
    if ( H5_FileID < 0 )
