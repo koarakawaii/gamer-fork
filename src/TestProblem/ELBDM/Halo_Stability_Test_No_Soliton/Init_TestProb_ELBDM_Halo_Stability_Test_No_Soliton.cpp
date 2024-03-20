@@ -1182,6 +1182,7 @@ void Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton()
    BC_User_Ptr            = BC_HALO;
    Aux_Record_User_Ptr    = Do_COM_and_CF;
    Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test_No_Soliton;
+   End_User_Ptr           = End_Halo_Stability_Test_No_Soliton;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 # ifdef PARTICLE
    Par_Init_ByFunction_Ptr = Par_Init_ByFunction_No_Soliton;
@@ -1189,8 +1190,6 @@ void Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton()
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
    Src_Init_User_Ptr              = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
-   End_User_Ptr                   = End_Halo_Stability_Test_No_Soliton;
-
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
