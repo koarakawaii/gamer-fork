@@ -72,15 +72,9 @@ void Validate()
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
 
-   for ( int direction = 0; direction < 6; direction++ ) 
-   {
-       if ( !( ( OPT__BC_FLU[direction] == BC_FLU_USER ) || ( OPT__BC_FLU[direction] == BC_FLU_PERIODIC ) )  )
-          Aux_Error( ERROR_INFO, "must adopt periodic or user defined BC for fluid --> reset OPT__BC_FLU[%d] to 1 or 4 !!\n", direction );
-   }
-
 # ifdef PARTICLE
-   if ( ( OPT__INIT == INIT_BY_FUNCTION ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
-      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FUNCTION !!\n" );
+   if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
+      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FILE !!\n" );
 # endif
 
 // only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
