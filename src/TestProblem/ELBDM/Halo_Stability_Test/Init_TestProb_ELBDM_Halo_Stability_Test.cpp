@@ -102,6 +102,23 @@ void SetParameter()
    if ( Soliton_CM_TolErrR < 0.0 )  Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
+// check whether fluid boundary condition in Input__Parameter is set properly
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+   }
 
 
 // (2) set the problem-specific derived parameters
@@ -592,27 +609,9 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 // set the problem-specific runtime parameters
    SetParameter();
 
-// check whether fluid boundary condition in Input__Parameter is set properly
-   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
-   {
-      for ( int direction = 0; direction < 6; direction++ )
-      {   
-         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
-            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
-      }
-   }
-   else  // use user define boundary condition
-   {
-      for ( int direction = 0; direction < 6; direction++ )
-      {   
-         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
-            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
-      }
-      BC_User_Ptr            = BC_HALO;
-   }
-
    Init_Function_User_Ptr = SetGridIC;
    Aux_Record_User_Ptr    = Record_CenterOfMass;
+   BC_User_Ptr            = BC_HALO;
    End_User_Ptr           = End_Halo_Stability_Test;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
