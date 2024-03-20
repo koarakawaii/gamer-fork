@@ -154,7 +154,7 @@ void SetParameter()
       ReadPara->Add( "MinLv",                    &MinLv,                       0,                     0,        MAX_LEVEL       );
       ReadPara->Add( "MaxLv",                    &MaxLv,               MAX_LEVEL,                     0,        MAX_LEVEL       );
       ReadPara->Add( "OutputCorrelationMode",    &OutputCorrelationMode,       0,                     0,             1          );
-      ReadPara->Add( "StepInitial",              &StepInitial,             NoMin_int,         NoMin_int,       NoMax_int        );
+      ReadPara->Add( "StepInitial",              &StepInitial,                 0,                     0,       NoMax_int        );
       ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,        NoMax_int       );
       ReadPara->Add( "FilePath_corr",            FilePath_corr,       Useless_str,           Useless_str,      Useless_str      );
       if ( OPT__INIT == INIT_BY_RESTART )
@@ -197,6 +197,24 @@ void SetParameter()
 // (1-3) check the runtime parameters
    if ( OPT__INIT == INIT_BY_FUNCTION )
       Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
+// check whether fluid boundary condition in Input__Parameter is set properly
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+   }
+
 
 // (2) set the problem-specific derived parameters
 
@@ -413,7 +431,6 @@ static void Init_User_ELBDM_Halo_Stability_Test(void)
    if (ComputeCorrelation)
    {
        step_counter = 0;
-       if ( StepInitial < 0 ) StepInitial = 0;
        const double InitialTime = Time[0];
        if ( OutputCorrelationMode == 0)
        {
@@ -808,7 +825,7 @@ static void Record_CenterOfMass( bool record_flag )
 
 // compute the center of mass until convergence
    double TolErrR2;
-   const int    NIterMax = 20;
+   const int    NIterMax = 40;
 
    double dR2, CM_Old[3], CM_New[3];
    int NIter = 0;
@@ -880,7 +897,7 @@ static void Record_CenterOfMass( bool record_flag )
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Do_COM_and_CF
-// Description :  Do record center of mass and calculate correlation function 
+// Description :  Do record center of mass and calculate correlation function
 //
 // Note        :  1. It will call center of mass routine 
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
@@ -964,29 +981,11 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 // set the problem-specific runtime parameters
    SetParameter();
 
-// check whether fluid boundary condition in Input__Parameter is set properly
-   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
-   {
-      for ( int direction = 0; direction < 6; direction++ )
-      {   
-         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
-            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
-      }
-   }
-   else  // use user define boundary condition
-   {
-      for ( int direction = 0; direction < 6; direction++ )
-      {   
-         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
-            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
-      }
-      BC_User_Ptr            = BC_HALO;
-   }
-
 //   Init_Function_User_Ptr = SetGridIC;
    Init_Field_User_Ptr    = AddNewField_ELBDM_Halo_Stability_Test;
    Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test;
    Aux_Record_User_Ptr    = Do_COM_and_CF;
+   BC_User_Ptr            = BC_HALO;
    End_User_Ptr           = End_Halo_Stability_Test;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
