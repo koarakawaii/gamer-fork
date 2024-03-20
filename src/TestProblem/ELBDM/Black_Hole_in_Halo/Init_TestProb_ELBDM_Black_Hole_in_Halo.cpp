@@ -72,17 +72,9 @@ void Validate()
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
 #  endif
 
-//#  ifndef PARTICLE
-//   Aux_Error( ERROR_INFO, "PARTICLE must be enabled !!\n" );
-//#  endif
-   
-
 #  ifdef COMOVING
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
 #  endif
-
-   if ( OPT__INIT == INIT_BY_FUNCTION )
-      Aux_Error( ERROR_INFO, "OPT__INIT == INIT_BY_FUNCTION is not supported !!\n" );
 
 #  ifdef GRAVITY
    if ( OPT__BC_POT != BC_POT_ISOLATED )
@@ -91,15 +83,9 @@ void Validate()
       Aux_Error( ERROR_INFO, "do not support OPT__EXT_POT = %d !!\n", EXT_POT_TABLE );
 #  endif
 
-   for ( int direction = 0; direction < 6; direction++ )                                                      
-   {                                                                                                          
-       if ( !( ( OPT__BC_FLU[direction] == BC_FLU_USER ) || ( OPT__BC_FLU[direction] == BC_FLU_PERIODIC ) )  )
-          Aux_Error( ERROR_INFO, "must adopt periodic or user defined BC for fluid --> reset OPT__BC_FLU[%d] to 1 or 4 !!\n", direction );              
-   }
-
 # ifdef PARTICLE
    if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
-      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FUNCTION !!\n" );
+      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FILE !!\n" );
 # endif
 
 // only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
@@ -240,8 +226,8 @@ void SetParameter()
    if ( ( AddNewSolFlag == 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__INIT == INIT_BY_FILE if AddNewSolFlag is enabled !!\n" );
 #ifdef PARTICLE
-   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
-      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
+   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
    {
@@ -379,7 +365,7 @@ void SetParameter()
 #ifdef PARTICLE
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Par_Init_ByUser_Black_Hole_in_Halo()
+// Function    :  Par_Init_ByRestart_Black_Hole_in_Halo()
 // Description :  User-specified initialization
 //
 // Note        :  1. Add particles after restart
@@ -389,7 +375,7 @@ void SetParameter()
 //
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime
 //-------------------------------------------------------------------------------------------------------
-static void Par_Init_ByUser_Black_Hole_in_Halo() 
+static void Par_Init_ByRestart_Black_Hole_in_Halo() 
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -531,7 +517,7 @@ static void Par_Init_ByUser_Black_Hole_in_Halo()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
-} // FUNCTION : Par_Init_ByUser_Black_Hole_in_Halo
+} // FUNCTION : Par_Init_ByRestart_Black_Hole_in_Halo
 
 
 
@@ -575,7 +561,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
    const int  NCol_particle_data                    = 7;                     // total number of columns to load for particle data
    const int  Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
-   long       BH_AddParForRestart_Check;         
+   long       BH_AddParByFunction_Check;         
 
    if ( MPI_Rank == 0 )
    {
@@ -584,10 +570,10 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
        if ( !Aux_CheckFileExist(Particle_Data_Filename) )
           Aux_Error( ERROR_INFO, "Error!! Initial particle data file %s does not exists!!\n", Particle_Data_Filename);
 
-       BH_AddParForRestart_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
+       BH_AddParByFunction_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
 
-       if ( BH_AddParForRestart_Check != NPar_AllRank )
-          Aux_Error( ERROR_INFO, "BH_AddParForRestart_Check(%ld) != NPar_AllRank(%ld) !!\n", BH_AddParForRestart_Check, NPar_AllRank );
+       if ( BH_AddParByFunction_Check != NPar_AllRank )
+          Aux_Error( ERROR_INFO, "BH_AddParByFunction_Check(%ld) != NPar_AllRank(%ld) !!\n", BH_AddParByFunction_Check, NPar_AllRank );
    }
 
 
@@ -938,7 +924,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       first_run_flag = false;
 #ifdef PARTICLE
    if ( BH_AddParForRestart == 1 )
-      Par_Init_ByUser_Black_Hole_in_Halo();
+      Par_Init_ByRestart_Black_Hole_in_Halo();
 #endif
 
    if ( ( EraseSolVelFlag == 1 ) || ( AddNewSolFlag == 1 ))
