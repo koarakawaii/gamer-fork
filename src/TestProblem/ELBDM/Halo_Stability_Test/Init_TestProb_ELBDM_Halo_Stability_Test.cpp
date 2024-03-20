@@ -93,6 +93,10 @@ void Validate()
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
 
+// only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
+   if ( OPT__INIT != INIT_BY_RESTART && OPT__INIT != INIT_BY_FILE )
+      Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE !!\n" );
+
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
 } // FUNCTION : Validate
