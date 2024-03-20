@@ -25,7 +25,8 @@ static int      Soliton_DensProf_NBin;                   // number of radial bin
 static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
 static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
 static bool     AddNewSolFlag;                      // flag to determine whether add new soliton (using density profile table) to no soliton FDM halo
-static double  *Soliton_DensProf   = NULL;               // soliton density profile [radius/density]
+static bool     Fluid_Periodic_BC_Flag;             // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
+static double  *Soliton_DensProf   = NULL;          // soliton density profile [radius/density]
 #ifdef PARTICLE
 static int      NewParAttTracerIdx = Idx_Undefined; // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary Other: Do not write)
@@ -166,6 +167,7 @@ void SetParameter()
    ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,        0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "EraseSolVelFlag",          &EraseSolVelFlag,           false,         Useless_bool,     Useless_bool      );
    ReadPara->Add( "AddNewSolFlag",            &AddNewSolFlag,             false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "Fluid_Periodic_BC_Flag",   &Fluid_Periodic_BC_Flag,    false,          Useless_bool,    Useless_bool      );
    ReadPara->Read( FileName );
 
    if ( ( AddNewSolFlag == 1 ) && ( EraseSolVelFlag ==1 ) )
@@ -241,6 +243,22 @@ void SetParameter()
    if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
 #endif
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+   }
 
 
 // (2) set the problem-specific derived parameters
@@ -299,6 +317,7 @@ void SetParameter()
       Aux_Message( stdout, "  soliton CM tolerated error                   = %13.6e\n", Soliton_CM_TolErrR        );
       Aux_Message( stdout, "  erase soliton initial velocity flag          = %d\n",     EraseSolVelFlag           );
       Aux_Message( stdout, "  add soliton new soliton wave function flag   = %d\n",     AddNewSolFlag             );
+      Aux_Message( stdout, "  fluid periodic boundary condition flag       = %d\n",     Fluid_Periodic_BC_Flag    );
       if ( OPT__EXT_POT == EXT_POT_FUNC )
       {
          Aux_Message( stdout, "  scaling factor                               = %13.6e\n", ScaleFactor               );
@@ -1616,10 +1635,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_SolitonPot;
    End_User_Ptr                = End_Black_Hole_in_Halo;
-#    ifdef PARTICLE
+#  ifdef PARTICLE
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Halo;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Halo;
-#    endif // #ifdef PARTICLE
+#  endif // #ifdef PARTICLE
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)

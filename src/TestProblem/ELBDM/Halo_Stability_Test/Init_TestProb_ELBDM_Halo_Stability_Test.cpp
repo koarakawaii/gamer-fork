@@ -196,7 +196,7 @@ void SetParameter()
 
 // (1-3) check the runtime parameters
    if ( OPT__INIT == INIT_BY_FUNCTION )
-      Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
+      Aux_Error( ERROR_INFO, "OPT__INIT = 1 is not supported for this test problem !!\n" );
 // check whether fluid boundary condition in Input__Parameter is set properly
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
    {
@@ -981,10 +981,15 @@ void Init_TestProb_ELBDM_Halo_Stability_Test()
 // set the problem-specific runtime parameters
    SetParameter();
 
+<<<<<<< HEAD
 //   Init_Function_User_Ptr = SetGridIC;
    Init_Field_User_Ptr    = AddNewField_ELBDM_Halo_Stability_Test;
    Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test;
    Aux_Record_User_Ptr    = Do_COM_and_CF;
+=======
+   Init_Function_User_Ptr = SetGridIC;
+   Aux_Record_User_Ptr    = Record_CenterOfMass;
+>>>>>>> psidm
    BC_User_Ptr            = BC_HALO;
    End_User_Ptr           = End_Halo_Stability_Test;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )

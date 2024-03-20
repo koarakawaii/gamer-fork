@@ -15,6 +15,7 @@ static double  *Soliton_DensProf   = NULL;               // soliton density prof
        double   NSDHalfMassRadius;                       // NSD half mass radius; used for compute potential profile; will be called by extern
        double   NSDPotCenter[3];                         // user defined center for external NSD potential center, will be called by extern
 static bool     first_run_flag;                          // flag suggesting first run (for determining whether write header in log file or not )
+static bool     Fluid_Periodic_BC_Flag;                  // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 #ifdef PARTICLE
 static int      NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;                   // flag for determining output data type (0:text 1:binary Other: Do not write)
@@ -135,7 +136,8 @@ void SetParameter()
    ReadPara->Add( "SolitonCenter_x",          &SolitonCenter[0],          0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "SolitonCenter_y",          &SolitonCenter[1],          0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "SolitonCenter_z",          &SolitonCenter[2],          0.0,           NoMin_double,     NoMax_double      );
-   ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
+   ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str     );
+   ReadPara->Add( "Fluid_Periodic_BC_Flag",   &Fluid_Periodic_BC_Flag,  false,           Useless_bool,     Useless_bool      );
    if ( OPT__EXT_POT == EXT_POT_FUNC )
    {
       ReadPara->Add( "NSDHalfMassRadius",        &NSDHalfMassRadius,      Eps_double,       Eps_double,       NoMax_double      );
@@ -177,6 +179,22 @@ void SetParameter()
    if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
 #endif
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+   }
 
 
 // (2) load the reference soliton density profile
@@ -218,8 +236,9 @@ void SetParameter()
       Aux_Message( stdout, "  soliton center_x                             = %13.6e\n", SolitonCenter[0]          );
       Aux_Message( stdout, "  soliton center_y                             = %13.6e\n", SolitonCenter[1]          );
       Aux_Message( stdout, "  soliton center_z                             = %13.6e\n", SolitonCenter[2]          );
-      Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename  );
-      Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
+      Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename );
+      Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin     );
+      Aux_Message( stdout, "  fluid periodic boundary condition flag       = %d\n",     Fluid_Periodic_BC_Flag    );
       if ( OPT__EXT_POT == EXT_POT_FUNC )
       {
          Aux_Message( stdout, "  NSD half mass radius                         = %13.6e\n", NSDHalfMassRadius         );
@@ -1303,10 +1322,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Soliton()
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Soliton;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_NSDPot;
    End_User_Ptr                = End_Black_Hole_in_Soliton;
-#    ifdef PARTICLE
+#  ifdef PARTICLE
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Soliton;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Soliton;
-#    endif // #ifdef PARTICLE
+#  endif // #ifdef PARTICLE
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
