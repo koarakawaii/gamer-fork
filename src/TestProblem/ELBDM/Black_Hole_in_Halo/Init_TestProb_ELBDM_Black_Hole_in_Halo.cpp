@@ -196,9 +196,9 @@ void SetParameter()
    if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
 
-   if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+   if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FILE ) )
       ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
-   if ( OPT__RESTART_RESET == 1 )
+   if ( ( OPT__RESTART_RESET == 1 ) || ( OPT__INIT == INIT_BY_RESTART ) )
    {
       ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
       ReadPara->Read( FileName );
@@ -346,9 +346,9 @@ void SetParameter()
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
          Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
-      if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+      if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FILE ) )
          Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
-      if ( OPT__RESTART_RESET == 1 )
+      if ( ( OPT__RESTART_RESET == 1 ) || ( OPT__INIT == INIT_BY_RESTART ) )
       {
          Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
          if ( BH_AddParForRestart == 1 )

@@ -73,17 +73,17 @@ void Validate()
 #  endif
 
 # ifdef PARTICLE
-   if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
-      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FILE !!\n" );
+   if ( ( OPT__INIT == INIT_BY_FUNCTION ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
+      Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FUNCTION !!\n" );
 # endif
 
-// only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
-   if ( OPT__INIT != INIT_BY_FUNCTION && OPT__INIT != INIT_BY_RESTART )
+// only accept OPT__INIT == INIT_BY_FUNCTION or OPT__INIT == INIT_BY_RESTART
+   if ( ( OPT__INIT != INIT_BY_FUNCTION ) && ( OPT__INIT != INIT_BY_RESTART ) )
       Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == INIT_BY_FUNCTION or OPT__INIT == INIT_BY_RESTART !!\n" );
 
-// only accept OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE for OPT__EXT_POT == EXT_POT_FUNC
-//   if ( ( OPT__EXT_POT == EXT_POT_FUNC ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
-//      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE for OPT__EXT_POT == EXT_POT_FUNC !!\n" );
+// only accept OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FUNCTION for OPT__EXT_POT == EXT_POT_FUNC
+//   if ( ( OPT__EXT_POT == EXT_POT_FUNC ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FUNCTION ) )
+//      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FUNCTION for OPT__EXT_POT == EXT_POT_FUNC !!\n" );
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
@@ -143,35 +143,44 @@ void SetParameter()
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
+   if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FUNCTION ) )
+      ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
    ReadPara->Read( FileName );
+   delete ReadPara;
+
+   ReadPara  = new ReadPara_t;
    if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
-   if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
-      ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
-   if ( OPT__RESTART_RESET == 1 )
+   if ( ( OPT__RESTART_RESET == 1 ) || ( OPT__INIT == INIT_BY_RESTART ) )
    {
       ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
-
       ReadPara->Read( FileName );
+      delete ReadPara;
 
       if ( BH_AddParForRestart == 1 )
       {
+         ReadPara  = new ReadPara_t;
          ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
          ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
+         ReadPara->Read( FileName );
+         delete ReadPara;
       }
    }
-#endif
+   else
+      ReadPara->Read( FileName );
+      delete ReadPara;
+#else
    ReadPara->Read( FileName );
-
    delete ReadPara;
+#endif
 
 // (1-2) set the default values
    if ( Soliton_CM_TolErrR < 0.0 )           Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
 #ifdef PARTICLE
-   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
-      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
+   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
    {
@@ -192,7 +201,7 @@ void SetParameter()
 
 
 // (2) load the reference soliton density profile
-   if ( OPT__INIT != INIT_BY_RESTART )
+   if ( OPT__INIT == INIT_BY_FUNCTION )
    {
 //    load the reference profile
       const bool RowMajor_No  = false;    // load data into the column-major order
@@ -246,9 +255,9 @@ void SetParameter()
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( (WriteDataInBinaryFlag == 0) || (WriteDataInBinaryFlag == 1) )
          Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename     );
-      if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+      if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FUNCTION ) )
          Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
-      if ( OPT__RESTART_RESET == 1 )
+      if ( ( OPT__RESTART_RESET == 1 ) && ( OPT__INIT == INIT_BY_RESTART ) )
       {
          Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
          if ( BH_AddParForRestart == 1 )
@@ -270,7 +279,7 @@ void SetParameter()
 #ifdef PARTICLE
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Par_Init_ByUser_Black_Hole_in_Soliton()
+// Function    :  Par_Init_ByRestart_Black_Hole_in_Soliton()
 // Description :  User-specified initialization
 //
 // Note        :  1. Add particles after restart
@@ -280,7 +289,7 @@ void SetParameter()
 //
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime
 //-------------------------------------------------------------------------------------------------------
-static void Par_Init_ByUser_Black_Hole_in_Soliton() 
+static void Par_Init_ByRestart_Black_Hole_in_Soliton() 
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -422,7 +431,7 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
-} // FUNCTION : Par_Init_ByUser_Black_Hole_in_Soliton
+} // FUNCTION : Par_Init_ByRestart_Black_Hole_in_Soliton
 
 
 
@@ -629,27 +638,36 @@ static void Record_Particle_Data_Text( char *FileName )
 //      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
 
    FILE *File;
+   static bool first_enter_flag_particle = true;
    
 // header
    if ( MPI_Rank == 0 )
    {
-      if ( first_run_flag )
+      if ( first_enter_flag_particle )
       {
-          if ( !Aux_CheckFileExist(FileName) )
-             File = fopen( FileName, "w" );
-          else
-              File = fopen( FileName, "a" );
+         if ( !Aux_CheckFileExist(FileName) )
+         {
+            File = fopen( FileName, "w" );
+            fprintf( File, "# Time                    Step                    Active_Particles   ");
+            for (int v=0; v<PAR_NATT_TOTAL; v++)
+            for (int v=0; v<PAR_NATT_TOTAL; v++)
+                fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+            fprintf( File, "\n" );
+         }
+         else if ( first_run_flag )
+         {
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", FileName );
+            File = fopen( FileName, "a" );
+            fprintf( File, "# Time                    Step                    Active_Particles   ");
 
-          fprintf( File, "# Time                    Step                    Active_Particles   ");
-
-          for (int v=0; v<PAR_NATT_TOTAL; v++)
-              fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
-          fprintf( File, "\n" );
-          first_run_flag = false;
+            for (int v=0; v<PAR_NATT_TOTAL; v++)
+               fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+            fprintf( File, "\n" );
+            first_run_flag = false;
+         }
       }
-      else
-          File = fopen( FileName, "a" );
       fclose( File );
+      first_enter_flag_particle = false;
    }
 
 // data
@@ -829,7 +847,7 @@ static void Init_User_ELBDM_Black_Hole_in_Soliton(void)
       first_run_flag = false;
 #ifdef PARTICLE
    if ( BH_AddParForRestart == 1 )
-      Par_Init_ByUser_Black_Hole_in_Soliton();
+      Par_Init_ByRestart_Black_Hole_in_Soliton();
 #endif
 
 } // FUNCTION : Init_User_ELBDM_Black_Hole_in_Soliton
@@ -1160,26 +1178,34 @@ static void Record_CenterOfMass( void )
       if ( min_pote_rank < 0  ||  min_pote_rank >= MPI_NRank )
          Aux_Error( ERROR_INFO, "incorrect min_pote_rank (%d) !!\n", min_pote_rank );
 
-      if ( first_run_flag )
+      static bool first_enter_flag_center = true;
+      FILE       *file_center;
+      if ( first_enter_flag_center )
       {
-         FILE *file_center;
-         if ( Aux_CheckFileExist(filename_center) )
+         if ( !Aux_CheckFileExist(filename_center) )
+         {
+            file_center = fopen( filename_center, "w" );
+            fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
+         }
+         else if ( first_run_flag )
          {
             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
             file_center = fopen( filename_center, "a" );
-         }
-         else
-            file_center = fopen( filename_center, "w" );
-         fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
-                  "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
-                  "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
-         fclose( file_center );
+            fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
 #ifndef PARTICLE
-         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time setp, so in that case no need to turn it to false here
+            first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
 #endif
+         }
+         first_enter_flag_center = false;
       }
 
-      FILE *file_center = fopen( filename_center, "a" );
+      file_center = fopen( filename_center, "a" );
       fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
                Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2], recv[max_dens_rank][3],
                               recv[max_dens_rank][4], recv[max_dens_rank][5], recv[min_pote_rank][6], recv[min_pote_rank][7],
