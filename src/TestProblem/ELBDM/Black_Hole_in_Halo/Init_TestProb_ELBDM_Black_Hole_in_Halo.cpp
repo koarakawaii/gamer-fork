@@ -11,8 +11,8 @@ static double   Soliton_CM_MaxR;                    // maximum radius for determ
 static double   Soliton_CM_TolErrR;                 // maximum allowed errors for determining Soliton CM
        double   CoreRadius;                         // soliton core radius in Mpc/h (mass core ratio should be included), will be called by extern
 static double   EqualRadius;                        // equal radius in Mpc/h, where NFW density equals soliton density; for rebuilding external potential mimicking soliton
-static double   DensPeakRealPart;                   // real part of soliton peak density
-static double   DensPeakImagPart;                   // imaginary part of soliton peak density
+static double   DensPeakRealPart;                   // real part of soliton peak density, will be found automatically
+static double   DensPeakImagPart;                   // imaginary part of soliton peak density, will be found automatically
 static double   TransitionFactor;                   // determine how sharp the phase will transist from \approx 0 to its original value
 static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*CoreRadius will has nearly constant phase \approx 0
 static double   ScaleFactor;                        // scaling factor, cosmology parameter
@@ -22,7 +22,7 @@ static double   SolitonMassScale;                   // proportional factor for c
        double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential, will be called by extern
 static char     Soliton_DensProf_Filename[MAX_STRING];   // filename of the compressed soliton density profile
 static int      Soliton_DensProf_NBin;                   // number of radial bins of the soliton density profile
-static bool     first_run_flag;                     // flag suggesting first run (for determining whether write header in log file or not )
+static bool     first_run_flag;                     // flag suggesting first run; only used by root rank (for determining whether write header in log file or not )
 static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
 static bool     AddNewSolFlag;                      // flag to determine whether add new soliton (using density profile table) to no soliton FDM halo
 static bool     Fluid_Periodic_BC_Flag;             // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
@@ -157,10 +157,11 @@ void SetParameter()
    ReadPara->Read( FileName );
 
    if ( ( AddNewSolFlag == 1 ) && ( EraseSolVelFlag ==1 ) )
-      Aux_Error( ERROR_INFO, "AddNewSolFlag == 1 is not compatible with EraseSolVelFlag == 1 !!\n" );
+      if ( MPI_Rank == 0 ) Aux_Message( stderr, "WARNING: Both AddNewSolFlag and EraseSolVelFlag are enabled !!\n");
    if ( ( AddNewSolFlag == 1 ) && ( OPT__EXT_POT == EXT_POT_FUNC ) )
       Aux_Error( ERROR_INFO, "AddNewSolFlag == 1 is not compatible with OPT__EXT_POT == %d !!\n", EXT_POT_FUNC );
 
+   ReadPara  = new ReadPara_t;
    if ( OPT__EXT_POT == EXT_POT_FUNC )
    {
       ReadPara->Add( "EqualRadius",              &EqualRadius,            Eps_double,       Eps_double,       NoMax_double      );
@@ -170,51 +171,54 @@ void SetParameter()
 
    if ( EraseSolVelFlag == 1 )
    {
-      ReadPara->Add( "DensPeakRealPart",         &DensPeakRealPart,          0.0,          NoMin_double,      NoMax_double      );
-      ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
+//      ReadPara->Add( "DensPeakRealPart",         &DensPeakRealPart,          0.0,          NoMin_double,      NoMax_double      );
+//      ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
       ReadPara->Add( "TransitionFactor",         &TransitionFactor,       Eps_double,       Eps_double,       NoMax_double      );
       ReadPara->Add( "CriteriaFactor",           &CriteriaFactor,         Eps_double,       Eps_double,       NoMax_double      );
    } 
    if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
-   {
       ReadPara->Add( "CoreRadius",               &CoreRadius,             Eps_double,       Eps_double,       NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0], amr->BoxCenter[0],  NoMin_double,      NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1], amr->BoxCenter[1],  NoMin_double,      NoMax_double      );
-      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2], amr->BoxCenter[2],  NoMin_double,      NoMax_double      );
-   }
-   else if ( AddNewSolFlag == 1 )
+   if ( ( AddNewSolFlag == 1 ) || ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
    {
       ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0], amr->BoxCenter[0],  NoMin_double,      NoMax_double      );
       ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1], amr->BoxCenter[1],  NoMin_double,      NoMax_double      );
       ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2], amr->BoxCenter[2],  NoMin_double,      NoMax_double      );
-      ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
    }
+   if ( AddNewSolFlag == 1 )
+      ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
-
    ReadPara->Read( FileName );
+   delete ReadPara;
+
+   ReadPara  = new ReadPara_t;
    if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
 
-   if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+   if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FILE ) )
       ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
-   if ( OPT__RESTART_RESET == 1 )
+   if ( ( OPT__RESTART_RESET == 1 ) || ( OPT__INIT == INIT_BY_RESTART ) )
    {
       ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
-
       ReadPara->Read( FileName );
+      delete ReadPara;
 
       if ( BH_AddParForRestart == 1 )
       {
+         ReadPara  = new ReadPara_t;
          ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
          ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
+         ReadPara->Read( FileName );
       }
    }
-#endif
-   ReadPara->Read( FileName );
-
+   else
+      ReadPara->Read( FileName );
    delete ReadPara;
+#else
+   ReadPara->Read( FileName );
+   delete ReadPara;
+#endif
 
 // (1-2) set the default values
    if ( System_CM_TolErrR < 0.0 )           System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
@@ -308,7 +312,6 @@ void SetParameter()
       {
          Aux_Message( stdout, "  scaling factor                               = %13.6e\n", ScaleFactor               );
          Aux_Message( stdout, "  h_0                                          = %13.6e\n", h_0                       );
-         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
          Aux_Message( stdout, "  equal radius                                 = %13.6e\n", EqualRadius               );
          Aux_Message( stdout, "  soliton mass proportional factor             = %13.6e\n", SolitonMassScale          );
          Aux_Message( stdout, "  soliton potential proportional factor        = %13.6e\n", SolitonPotScale           );
@@ -317,11 +320,13 @@ void SetParameter()
       {
          Aux_Message( stdout, "  criteria factor defining constant phase zone = %13.6e\n", CriteriaFactor            );
          Aux_Message( stdout, "  transition factor for transition zone width  = %13.6e\n", TransitionFactor          );
-         Aux_Message( stdout, "  soliton peak density real part               = %13.6e\n", DensPeakRealPart          );
-         Aux_Message( stdout, "  soliton peak density imaginary part          = %13.6e\n", DensPeakImagPart          );
-         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
+//         Aux_Message( stdout, "  soliton peak density real part               = %13.6e\n", DensPeakRealPart          );
+//         Aux_Message( stdout, "  soliton peak density imaginary part          = %13.6e\n", DensPeakImagPart          );
+//         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
       }
       if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
+         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
+      if ( ( AddNewSolFlag == 1 ) || ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
       {
          Aux_Message( stdout, "  soliton substitution center_x                = %13.6e\n", SolitonSubCenter[0]       );
          Aux_Message( stdout, "  soliton substitution center_y                = %13.6e\n", SolitonSubCenter[1]       );
@@ -329,9 +334,9 @@ void SetParameter()
       }
       if ( AddNewSolFlag == 1 )
       {
-         Aux_Message( stdout, "  soliton substitution center_x                = %13.6e\n", SolitonSubCenter[0]       );
-         Aux_Message( stdout, "  soliton substitution center_y                = %13.6e\n", SolitonSubCenter[1]       );
-         Aux_Message( stdout, "  soliton substitution center_z                = %13.6e\n", SolitonSubCenter[2]       );
+//         Aux_Message( stdout, "  soliton substitution center_x                = %13.6e\n", SolitonSubCenter[0]       );
+//         Aux_Message( stdout, "  soliton substitution center_y                = %13.6e\n", SolitonSubCenter[1]       );
+//         Aux_Message( stdout, "  soliton substitution center_z                = %13.6e\n", SolitonSubCenter[2]       );
          Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename  );
          Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
       }
@@ -341,9 +346,9 @@ void SetParameter()
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
          Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename      );
-      if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+      if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FILE ) )
          Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
-      if ( OPT__RESTART_RESET == 1 )
+      if ( ( OPT__RESTART_RESET == 1 ) || ( OPT__INIT == INIT_BY_RESTART ) )
       {
          Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
          if ( BH_AddParForRestart == 1 )
@@ -728,24 +733,34 @@ static void Record_Particle_Data_Text( char *FileName )
 // header
    if ( MPI_Rank == 0 )
    {
-      if ( first_run_flag )
+      static bool first_enter_flag_particle = true;
+      if ( first_enter_flag_particle )
       {
           if ( !Aux_CheckFileExist(FileName) )
+          {
              File = fopen( FileName, "w" );
-          else
-              File = fopen( FileName, "a" );
+             fprintf( File, "# Time                    Step                    Active_Particles   ");
 
-          fprintf( File, "# Time                    Step                    Active_Particles   ");
+             for (int v=0; v<PAR_NATT_TOTAL; v++)
+                 fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+             fprintf( File, "\n" );
+             fclose( File );
+          }
+          else if ( first_run_flag )
+          {
+             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", FileName );
+             File = fopen( FileName, "a" );
+             fprintf( File, "# Time                    Step                    Active_Particles   ");
 
-          for (int v=0; v<PAR_NATT_TOTAL; v++)
-              fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
-          fprintf( File, "\n" );
-          first_run_flag = false;
+             for (int v=0; v<PAR_NATT_TOTAL; v++)
+                 fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+             fprintf( File, "\n" );
+             first_run_flag = false;
+             fclose( File );
+          }
+          first_enter_flag_particle = false;
       }
-      else
-          File = fopen( FileName, "a" );
-      fclose( File );
-   }
+   }  // ( MPI_Rank == 0 )
 
 // data
    for (int TargetMPIRank=0; TargetMPIRank<MPI_NRank; TargetMPIRank++)
@@ -794,7 +809,7 @@ static void Record_Particle_Data_Binary( char *FileName )
 // open the file by root rank
    if ( MPI_Rank == 0 )
    {
-       File = fopen( FileName, "w" );                  // overwrite the file no matter how
+      File = fopen( FileName, "w" );                  // overwrite the file no matter how, to avoid appending after the old particle data
       if ( first_run_flag )
       {
 //          File = fopen( FileName, "w" );                  // overwrite the file no matter how
@@ -918,23 +933,109 @@ static double GetPhase(real dens_sqrt, real real_part, real imag_part)
 //-------------------------------------------------------------------------------------------------------
 static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 {
-   if ( ( OPT__INIT == INIT_BY_FILE ) || ( OPT__RESTART_RESET == 1 ) )
-      first_run_flag = true;
-   else
-      first_run_flag = false;
+   if ( MPI_Rank == 0 )
+   {
+      if ( ( OPT__INIT == INIT_BY_FILE ) || ( OPT__RESTART_RESET == 1 ) )
+         first_run_flag = true;
+      else
+         first_run_flag = false;
+   }
 #ifdef PARTICLE
    if ( BH_AddParForRestart == 1 )
       Par_Init_ByRestart_Black_Hole_in_Halo();
 #endif
 
-   if ( ( EraseSolVelFlag == 1 ) || ( AddNewSolFlag == 1 ))
+   if ( ( AddNewSolFlag == 1 ) || ( EraseSolVelFlag == 1 ) )
    {
+      // add new soliton first, since we might want to remove the soliton initial velocity after adding it
+      if ( AddNewSolFlag == 1 ) 
+      {
+         const double *Table_Radius  = Soliton_DensProf + 0*Soliton_DensProf_NBin;  // radius
+         const double *Table_Density = Soliton_DensProf + 1*Soliton_DensProf_NBin;  // density
+
+         double x, y, z, x0, y0, z0, modulator;
+         double r_tar, dens_tar;
+         real   dr[3];
+
+         if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Add new soliton profile to initial condition... ");
+         for (int lv=0; lv<NLEVEL; lv++)
+         {
+            const double dh = amr->dh[lv];
+#  pragma omp parallel for private( dr, x, y, z, x0, y0, z0, r_tar, dens_tar ) schedule( runtime )
+            for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+            {
+               x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh;
+               y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
+               z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
+               for (int k=0; k<PS1; k++)
+               {
+                  z = z0 + k*dh;
+                  for (int j=0; j<PS1; j++)
+                  {
+                     y = y0 + j*dh;
+                     for (int i=0; i<PS1; i++)
+                     {
+                        real dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+                        x = x0 + i*dh;
+                        dr[0] = x-SolitonSubCenter[0];
+                        dr[1] = y-SolitonSubCenter[1];
+                        dr[2] = z-SolitonSubCenter[2];
+                        r_tar    = sqrt( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
+                        dens_tar = Mis_InterpolateFromTable( Soliton_DensProf_NBin, Table_Radius, Table_Density, r_tar );
+                        // linear interpolation
+                        if ( dens_tar == NULL_REAL )
+                        {
+                           if      ( r_tar <  Table_Radius[0] )
+                              dens_tar = Table_Density[0];
+      
+                           else if ( r_tar >= Table_Radius[Soliton_DensProf_NBin-1] )
+                              dens_tar = Table_Density[Soliton_DensProf_NBin-1];
+      
+                           else
+                              Aux_Error( ERROR_INFO, "interpolation failed at radius %13.7e (min/max radius = %13.7e/%13.7e) !!\n",
+                                         r_tar, Table_Radius[0], Table_Radius[Soliton_DensProf_NBin-1] );
+                        }
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] += SQRT(dens_tar);
+//                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] += 0.0;
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i] = POW(amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i],2.) + POW(amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i],2.);
+           	     } // end of for loop i
+                  } // end of for loop j
+               } // end of for loop k
+            } // end of for loop PID
+         } // end of for loop lv
+      } // end of ( AddNewSolFlag ==1 )
+
       if ( EraseSolVelFlag == 1 )  
       {
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Applying phase scheme to erase soliton velocity ... ");
          double x, y, z, x0, y0, z0, modulator;
          real   dr[3];
          real   r;
+
+         Extrema_t Extrema;
+         Extrema.Field     = _DENS;
+         Extrema.Radius    = HUGE_NUMBER;          // entire domain
+         Extrema.Center[0] = SolitonSubCenter[0];
+         Extrema.Center[1] = SolitonSubCenter[1];
+         Extrema.Center[2] = SolitonSubCenter[2];
+         Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
+         
+         SolitonSubCenter[0] = Extrema.Coord[0];
+         SolitonSubCenter[1] = Extrema.Coord[1];
+         SolitonSubCenter[2] = Extrema.Coord[2];
+         // automatically get real and imaginary part for peak density position
+         if ( MPI_Rank == Extrema.Rank )
+         {
+            double DensPeakCheck;
+            DensPeakRealPart    = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[REAL][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+            DensPeakImagPart    = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[IMAG][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+            DensPeakCheck       = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[DENS][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+         // check
+            Aux_Message(stdout, "\n DensPeak = %.8e, DensPeakCheck = %.8e, DensPeakRealPart = %.8e and DensPeakImagPart = %.8e found at (%.8e,%.8e,%.8e) code length\n", Extrema.Value, DensPeakCheck, DensPeakRealPart, DensPeakImagPart, Extrema.Coord[0], Extrema.Coord[1], Extrema.Coord[2]);
+         }
+         MPI_Bcast( &DensPeakRealPart, 1, MPI_DOUBLE, Extrema.Rank, MPI_COMM_WORLD );
+         MPI_Bcast( &DensPeakImagPart, 1, MPI_DOUBLE, Extrema.Rank, MPI_COMM_WORLD );
+
          double   global_phase = GetPhase( SQRT( DensPeakRealPart*DensPeakRealPart + DensPeakImagPart*DensPeakImagPart ), DensPeakRealPart, DensPeakImagPart );
          for (int lv=0; lv<NLEVEL; lv++)
          {
@@ -1002,63 +1103,6 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
          } // end of for loop lv
       } // end of ( EraseSolVelFlag ==1 )
 
-      else if ( AddNewSolFlag == 1 )
-      {
-         const double *Table_Radius  = Soliton_DensProf + 0*Soliton_DensProf_NBin;  // radius
-         const double *Table_Density = Soliton_DensProf + 1*Soliton_DensProf_NBin;  // density
-
-         double x, y, z, x0, y0, z0, modulator;
-         double r_tar, dens_tar;
-         real   dr[3];
-
-         if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Add new soliton profile to initial condition... ");
-         for (int lv=0; lv<NLEVEL; lv++)
-         {
-            const double dh = amr->dh[lv];
-#  pragma omp parallel for private( dr, x, y, z, x0, y0, z0, r_tar, dens_tar ) schedule( runtime )
-            for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-            {
-               x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh;
-               y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
-               z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
-               for (int k=0; k<PS1; k++)
-               {
-                  z = z0 + k*dh;
-                  for (int j=0; j<PS1; j++)
-                  {
-                     y = y0 + j*dh;
-                     for (int i=0; i<PS1; i++)
-                     {
-                        real dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-                        x = x0 + i*dh;
-                        dr[0] = x-SolitonSubCenter[0];
-                        dr[1] = y-SolitonSubCenter[1];
-                        dr[2] = z-SolitonSubCenter[2];
-                        r_tar    = sqrt( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
-                        dens_tar = Mis_InterpolateFromTable( Soliton_DensProf_NBin, Table_Radius, Table_Density, r_tar );
-                        // linear interpolation
-                        if ( dens_tar == NULL_REAL )
-                        {
-                           if      ( r_tar <  Table_Radius[0] )
-                              dens_tar = Table_Density[0];
-      
-                           else if ( r_tar >= Table_Radius[Soliton_DensProf_NBin-1] )
-                              dens_tar = Table_Density[Soliton_DensProf_NBin-1];
-      
-                           else
-                              Aux_Error( ERROR_INFO, "interpolation failed at radius %13.7e (min/max radius = %13.7e/%13.7e) !!\n",
-                                         r_tar, Table_Radius[0], Table_Radius[Soliton_DensProf_NBin-1] );
-                        }
-                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] += SQRT(dens_tar);
-//                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] += 0.0;
-                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i] = POW(amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i],2.) + POW(amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i],2.);
-           	     } // end of for loop i
-                  } // end of for loop j
-               } // end of for loop k
-            } // end of for loop PID
-         } // end of for loop lv
-      } // end of ( AddNewSolFlag ==1 )
-
 //    restrict all variables to be consistent with the finite volume scheme
       if ( OPT__INIT_RESTRICT )
       {
@@ -1081,12 +1125,12 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       } // if ( OPT__INIT_RESTRICT )
       if ( MPI_Rank == 0 )
       {
+         if ( AddNewSolFlag == 1 )
+            Aux_Message( stdout, "   Add new soliton completed ... ");
          if ( EraseSolVelFlag == 1 )
             Aux_Message( stdout, "   Phase scheme completed ... ");
-         else if ( AddNewSolFlag == 1 )
-            Aux_Message( stdout, "   Add new soliton completed ... ");
       }
-   } // end of if ( ( EraseSolVelFlag == 1 ) || ( AddNewSolFlag ==1 )  )
+   } // end of if ( ( AddNewSolFlag ==1 ) || ( EraseSolVelFlag == 1 ) )
 } // FUNCTION : Init_User_ELBDM_Black_Hole_in_Halo
 
 
@@ -1212,7 +1256,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
    for (int lv=0; lv<NLEVEL; lv++)
    {
-//    initialize the particle density array (rho_ext) and collect particles to the target level, only used fro ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
+//    initialize the particle density array (rho_ext) and collect particles to the target level, only used for ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
 #     ifdef PARTICLE
       if ( DensMode == _TOTAL_DENS )
       {
@@ -1446,27 +1490,37 @@ static void Record_CenterOfMass( void )
       if ( min_pote_rank < 0  ||  min_pote_rank >= MPI_NRank )
          Aux_Error( ERROR_INFO, "incorrect min_pote_rank (%d) !!\n", min_pote_rank );
 
-      if ( first_run_flag )
+
+      static bool first_enter_flag_center = true;
+      FILE       *file_center;
+      if ( first_enter_flag_center )
       {
-         FILE *file_center;
-         if ( Aux_CheckFileExist(filename_center) )
+         if ( !Aux_CheckFileExist(filename_center) )
+         {
+            file_center = fopen( filename_center, "w" );
+            fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
+         }
+         else if ( first_run_flag )
          {
             Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
             file_center = fopen( filename_center, "a" );
-         }
-         else
-            file_center = fopen( filename_center, "w" );
-         fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
-                  "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
-                  "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
-                  "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
-         fclose( file_center );
+            fprintf( file_center, "# %s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
 #ifndef PARTICLE
-         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time setp, so in that case no need to turn it to false here
+         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
 #endif
+         }
+         first_enter_flag_center = false;
       }
 
-      FILE *file_center = fopen( filename_center, "a" );
+      file_center = fopen( filename_center, "a" );
       fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
                Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2], recv[max_dens_rank][3],
                               recv[max_dens_rank][4], recv[max_dens_rank][5], recv[min_pote_rank][6], recv[min_pote_rank][7],
@@ -1566,7 +1620,7 @@ static void Do_COM_and_CF( void )
        Record_Particle_Data_Binary(Particle_Log_Filename_Full);
    }
    else
-       first_run_flag = false;
+       if ( MPI_Rank == 0 )   first_run_flag = false;
 #endif
 }
 
