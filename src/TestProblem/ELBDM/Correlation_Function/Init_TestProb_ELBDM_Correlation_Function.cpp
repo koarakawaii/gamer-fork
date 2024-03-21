@@ -21,10 +21,6 @@ static void Record_CenterOfMass( bool record_flag );
 // problem-specific global variables
 // =======================================================================================
 static FieldIdx_t Idx_Dens0 = Idx_Undefined;  // field index for storing the **initial** density
-static double   System_CM_MaxR;               // maximum radius for determining System CM
-static double   System_CM_TolErrR;            // maximum allowed errors for determining System CM
-static double   Soliton_CM_MaxR;              // maximum radius for determining Soliton CM
-static double   Soliton_CM_TolErrR;           // maximum allowed errors for determining Soliton CM
 static double   Center[3];                    // use CoM coordinate of the whole halo as center
 static double   dr_min_prof;                  // bin size of correlation function statistics (minimum size if logarithic bin) (profile)
 static double   LogBinRatio_prof;             // ratio of bin size growing rate for logarithmic bin (profile)
@@ -34,6 +30,8 @@ static double   LogBinRatio_corr;             // ratio of bin size growing rate 
 static double   RadiusMax_corr;               // maximum radius for correlation function statistics (correlation)
 //static double   PrepTime;                     // time for doing statistics
 static bool     ComputeCorrelation;           // flag for compute correlation
+static bool     Fluid_Periodic_BC_Flag;       // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
+static bool     Profile_Center_Manual_Flag;   // flag for manually setting the center position for profile (and for correlation computation) (0: set by peak density position; 1: manually by users)
 static bool     ReComputeCorrelation;         // flag for recompute correlation for restart; use the simulation time of RESTART as initial time for computing time correlation; only available for RESTART
 static bool     LogBin_prof;                  // logarithmic bin or not (profile)
 static bool     RemoveEmpty_prof;             // remove 0 sample bins; false: Data[empty_bin]=Weight[empty_bin]=NCell[empty_bin]=0 (profile)
@@ -45,7 +43,6 @@ static int      OutputCorrelationMode;        // output correlation function mod
 static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0) 
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
-static bool     Fluid_Periodic_BC_Flag;       // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
 
 static int step_counter;                             // counter for caching consumed step indices
@@ -88,6 +85,10 @@ void Validate()
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
 
+// only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
+   if ( OPT__INIT != INIT_BY_RESTART && OPT__INIT != INIT_BY_FILE )
+      Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE !!\n" );
+
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
 } // FUNCTION : Validate
@@ -128,23 +129,34 @@ void SetParameter()
 // ********************************************************************************************************************************
 // ReadPara->Add( "KEY_IN_THE_FILE",          &VARIABLE,               DEFAULT,          MIN,              MAX               );
 // ********************************************************************************************************************************
-   ReadPara  = new ReadPara_t;
-   ReadPara->Add( "dr_min_corr",              &dr_min_corr,            Eps_double,       Eps_double,       NoMax_double      );
-   ReadPara->Add( "LogBinRatio_corr",         &LogBinRatio_corr,          1.0,           Eps_double,      NoMax_double       );
-   ReadPara->Add( "RadiusMax_corr",           &RadiusMax_corr,         Eps_double,       Eps_double,      NoMax_double       );
-   ReadPara->Add( "LogBin_corr",              &LogBin_corr,             false,          Useless_bool,     Useless_bool       );
-   ReadPara->Add( "RemoveEmpty_corr",         &RemoveEmpty_corr,        false,          Useless_bool,     Useless_bool       );
-   ReadPara->Add( "dr_min_prof",              &dr_min_prof,            Eps_double,       Eps_double,       NoMax_double      );
-   ReadPara->Add( "MinLv",                    &MinLv,                       0,                     0,        MAX_LEVEL       );
-   ReadPara->Add( "MaxLv",                    &MaxLv,               MAX_LEVEL,                     0,        MAX_LEVEL       );
-   ReadPara->Add( "OutputCorrelationMode",    &OutputCorrelationMode,       0,                     0,             1          );
-   ReadPara->Add( "StepInitial",              &StepInitial,                 0,                     0,       NoMax_int        );
-   ReadPara->Add( "StepInterval",             &StepInterval,                1,                     1,        NoMax_int       );
-   ReadPara->Add( "FilePath_corr",            FilePath_corr,       Useless_str,           Useless_str,      Useless_str      );
+   ReadPara->Add( "Profile_Center_Manual_Flag",  &Profile_Center_Manual_Flag,   false,          Useless_bool,      Useless_bool  );
+   ReadPara->Add( "Fluid_Periodic_BC_Flag",      &Fluid_Periodic_BC_Flag,       false,          Useless_bool,      Useless_bool  );
+   ReadPara->Add( "dr_min_corr",                 &dr_min_corr,                Eps_double,        Eps_double,       NoMax_double  );
+   ReadPara->Add( "LogBinRatio_corr",            &LogBinRatio_corr,              1.0,            Eps_double,       NoMax_double  );
+   ReadPara->Add( "RadiusMax_corr",              &RadiusMax_corr,             Eps_double,        Eps_double,       NoMax_double  );
+   ReadPara->Add( "LogBin_corr",                 &LogBin_corr,                  false,          Useless_bool,      Useless_bool  );
+   ReadPara->Add( "RemoveEmpty_corr",            &RemoveEmpty_corr,             false,          Useless_bool,      Useless_bool  );
+   ReadPara->Add( "dr_min_prof",                 &dr_min_prof,                Eps_double,        Eps_double,       NoMax_double  );
+   ReadPara->Add( "MinLv",                       &MinLv,                          0,                  0,           MAX_LEVEL     );
+   ReadPara->Add( "MaxLv",                       &MaxLv,                      MAX_LEVEL,              0,           MAX_LEVEL     );
+   ReadPara->Add( "OutputCorrelationMode",       &OutputCorrelationMode,          0,                  0,                1        );
+   ReadPara->Add( "StepInitial",                 &StepInitial,                    0,                  0,           NoMax_int     );
+   ReadPara->Add( "StepInterval",                &StepInterval,                   1,                  1,           NoMax_int     );
+   ReadPara->Add( "FilePath_corr",               FilePath_corr,              Useless_str,        Useless_str,      Useless_str   );
    if ( OPT__INIT == INIT_BY_RESTART )
-      ReadPara->Add( "ReComputeCorrelation",     &ReComputeCorrelation,     false,         Useless_bool,      Useless_bool      );
+      ReadPara->Add( "ReComputeCorrelation",        &ReComputeCorrelation,         false,           Useless_bool,     Useless_bool   );
    ReadPara->Read( FileName );
    delete ReadPara;
+
+   if ( Profile_Center_Manual_Flag )
+   {
+      ReadPara  = new ReadPara_t;
+      ReadPara->Add( "ProfileCenter_x",             &Center[0],                  amr->BoxCenter[0],  NoMin_double,    NoMax_double   );
+      ReadPara->Add( "ProfileCenter_y",             &Center[1],                  amr->BoxCenter[1],  NoMin_double,    NoMax_double   );
+      ReadPara->Add( "ProfileCenter_z",             &Center[2],                  amr->BoxCenter[2],  NoMin_double,    NoMax_double   );
+      ReadPara->Read( FileName );
+      delete ReadPara;
+   }
 
 
 // (1-2) set the default values
@@ -170,11 +182,34 @@ void SetParameter()
       else
          fclose(file_checker);
    }
-   
 
 // (1-3) check the runtime parameters
-   if ( OPT__INIT == INIT_BY_FUNCTION )
-      Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
+// check whether fluid boundary condition in Input__Parameter is set properly
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {   
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+   }
+   if ( Profile_Center_Manual_Flag )
+   {
+      for (int d = 0; d < 3; d++ )
+      {
+         if ( ( Center[d] < amr->BoxEdgeL[d] ) || ( Center[d] > amr->BoxEdgeR[d] ) )
+            Aux_Error( ERROR_INFO, "Center[%d] (%.8e) is not inside the simulation box ([%.8e,%8e]) !!\n", d, Center[d], amr->BoxEdgeL[d], amr->BoxEdgeR[d] );
+      }
+   }
+
 
 // (2) set the problem-specific derived parameters
 
@@ -200,23 +235,25 @@ void SetParameter()
 // (4) make a note
    if ( MPI_Rank == 0 )
    {
-      Aux_Message( stdout, "=================================================================================\n" );
-      Aux_Message( stdout, "  test problem ID                             = %d\n",     TESTPROB_ID               );
-      Aux_Message( stdout, "  histogram bin size  (correlation)           = %13.6e\n", dr_min_corr            );
-      Aux_Message( stdout, "  log bin ratio       (correlation)           = %13.6e\n", LogBinRatio_corr       );
-      Aux_Message( stdout, "  radius maximum      (correlation)           = %13.6e\n", RadiusMax_corr         );
-      Aux_Message( stdout, "  use logarithmic bin (correlation)           = %d\n"    , LogBin_corr            );
-      Aux_Message( stdout, "  remove empty bin    (correlation)           = %d\n"    , RemoveEmpty_corr       );
-      Aux_Message( stdout, "  histogram bin size  (profile)               = %13.6e\n", dr_min_prof            );
-      Aux_Message( stdout, "  log bin ratio       (profile, no effect)    = %13.6e\n", LogBinRatio_prof       );
-      Aux_Message( stdout, "  radius maximum      (profile, assigned)     = %13.6e\n", RadiusMax_prof         );
-      Aux_Message( stdout, "  use logarithmic bin (profile, assigned)     = %d\n"    , LogBin_prof            );
-      Aux_Message( stdout, "  remove empty bin    (profile, assigned)     = %d\n"    , RemoveEmpty_prof       );
-//      Aux_Message( stdout, "  prepare time                                = %13.6e\n", PrepTime               );
-      Aux_Message( stdout, "  minimum level                               = %d\n"    , MinLv                  );
-      Aux_Message( stdout, "  maximum level                               = %d\n"    , MaxLv                  );
-      Aux_Message( stdout, "  output correlation function mode            = %d\n"    , OutputCorrelationMode  );
-      Aux_Message( stdout, "  file path for correlation text file         = %s\n"    , FilePath_corr          );
+      Aux_Message( stdout, "=================================================================================\n"  );
+      Aux_Message( stdout, "  test problem ID                             = %d\n",     TESTPROB_ID                );
+      Aux_Message( stdout, "  profile center manual flag                  = %d\n"    , Profile_Center_Manual_Flag );
+      Aux_Message( stdout, "  fluid periodic boundary condition flag      = %d\n"    , Fluid_Periodic_BC_Flag     );
+      Aux_Message( stdout, "  histogram bin size  (correlation)           = %13.6e\n", dr_min_corr                );
+      Aux_Message( stdout, "  log bin ratio       (correlation)           = %13.6e\n", LogBinRatio_corr           );
+      Aux_Message( stdout, "  radius maximum      (correlation)           = %13.6e\n", RadiusMax_corr             );
+      Aux_Message( stdout, "  use logarithmic bin (correlation)           = %d\n"    , LogBin_corr                );
+      Aux_Message( stdout, "  remove empty bin    (correlation)           = %d\n"    , RemoveEmpty_corr           );
+      Aux_Message( stdout, "  histogram bin size  (profile)               = %13.6e\n", dr_min_prof                );
+      Aux_Message( stdout, "  log bin ratio       (profile, no effect)    = %13.6e\n", LogBinRatio_prof           );
+      Aux_Message( stdout, "  radius maximum      (profile, assigned)     = %13.6e\n", RadiusMax_prof             );
+      Aux_Message( stdout, "  use logarithmic bin (profile, assigned)     = %d\n"    , LogBin_prof                );
+      Aux_Message( stdout, "  remove empty bin    (profile, assigned)     = %d\n"    , RemoveEmpty_prof           );
+//      Aux_Message( stdout, "  prepare time                                = %13.6e\n", PrepTime                   );
+      Aux_Message( stdout, "  minimum level                               = %d\n"    , MinLv                      );
+      Aux_Message( stdout, "  maximum level                               = %d\n"    , MaxLv                      );
+      Aux_Message( stdout, "  output correlation function mode            = %d\n"    , OutputCorrelationMode      );
+      Aux_Message( stdout, "  file path for correlation text file         = %s\n"    , FilePath_corr              );
       if ( OPT__INIT == INIT_BY_RESTART )
          Aux_Message( stdout, "  re-compute correlation using restart time as initial time = %d\n", ReComputeCorrelation );
       Aux_Message( stdout, "=================================================================================\n" );
@@ -392,7 +429,28 @@ static void Init_User_ELBDM_Correlation_Function(void)
    // compute the enter position for passive field
    if ( MPI_Rank == 0 )  Aux_Message( stdout, "Calculate halo center for passive field:\n");
 
-   Center = ...;
+   // set center as peak density position if Profile_Center_Manual_Flag is off
+   if ( !Profile_Center_Manual_Flag )
+   {
+      Extrema_t Extrema;
+      Extrema.Field     = _DENS;
+      Extrema.Radius    = HUGE_NUMBER;          // entire domain
+      Extrema.Center[0] = amr->BoxCenter[0];
+      Extrema.Center[1] = amr->BoxCenter[1];
+      Extrema.Center[2] = amr->BoxCenter[2];
+      Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
+                                                                     
+      Center[0] = Extrema.Coord[0];
+      Center[1] = Extrema.Coord[1];
+      Center[2] = Extrema.Coord[2];
+      if ( MPI_Rank == Extrema.Rank )
+      {
+         double DensPeakCheck = (double)amr->patch[ amr->FluSg[Extrema.Level] ][Extrema.Level][Extrema.PID]->fluid[DENS][Extrema.Cell[2]][Extrema.Cell[1]][Extrema.Cell[0]];
+         // check
+         Aux_Message(stdout, "DensPeak = %.8e, DensPeakCheck = %.8e found at (%.8e,%.8e,%.8e) code length\n", Extrema.Value, DensPeakCheck, Extrema.Coord[0], Extrema.Coord[1], Extrema.Coord[2]);
+      }
+   }
+
    if ( MPI_Rank == 0 )  Aux_Message( stdout, "Center of passive field is ( %14.11e,%14.11e,%14.11e )\n", Center[0], Center[1], Center[2] );
    // commpute density profile for passive field;
    if ( MPI_Rank == 0 )  Aux_Message( stdout, "Calculate density profile for passive field:\n");
@@ -574,7 +632,7 @@ void Init_TestProb_ELBDM_Correlation_Function()
 //   Init_Function_User_Ptr = SetGridIC;
    Init_Field_User_Ptr    = AddNewField_ELBDM_Correlation_Function;
    Init_User_Ptr          = Init_User_ELBDM_Correlation_Function;
-   Aux_Record_User_Ptr    = Do_COM_and_CF;
+   Aux_Record_User_Ptr    = Do_CF;
    BC_User_Ptr            = BC_HALO;
    End_User_Ptr           = End_Correlation_Function;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )

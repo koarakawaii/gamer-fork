@@ -44,6 +44,7 @@ void Init_TestProb_ELBDM_HaloMerger();
 void Init_TestProb_ELBDM_Halo_Stability_Test();
 void Init_TestProb_ELBDM_Black_Hole_in_Halo();
 void Init_TestProb_ELBDM_Black_Hole_in_Soliton();
+void Init_TestProb_ELBDM_Correlation_Function();
 void Init_TestProb_ELBDM_Soliton_Toy_Model();
 void Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton();
 void Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted();
@@ -110,6 +111,7 @@ void Init_TestProb()
       case TESTPROB_ELBDM_HALO_STABILITY_TEST :             Init_TestProb_ELBDM_Halo_Stability_Test();             break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_HALO :              Init_TestProb_ELBDM_Black_Hole_in_Halo();              break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON :           Init_TestProb_ELBDM_Black_Hole_in_Soliton();           break;
+      case TESTPROB_ELBDM_CORRELATION_FUNCTION :            Init_TestProb_ELBDM_Correlation_Function();            break;
       case TESTPROB_ELBDM_SOLITON_TOY_MODEL :               Init_TestProb_ELBDM_Soliton_Toy_Model();               break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON :  Init_TestProb_ELBDM_Halo_Stability_Test_No_Soliton();  break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED :  Init_TestProb_ELBDM_Halo_Stability_Test_Soliton_Substituted();  break;
