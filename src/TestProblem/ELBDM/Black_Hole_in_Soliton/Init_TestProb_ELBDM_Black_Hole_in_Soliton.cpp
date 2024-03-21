@@ -15,6 +15,7 @@ static double  *Soliton_DensProf   = NULL;               // soliton density prof
        double   NSDHalfMassRadius;                       // NSD half mass radius; used for compute potential profile; will be called by extern
        double   NSDPotCenter[3];                         // user defined center for external NSD potential center, will be called by extern
 static bool     first_run_flag;                          // flag suggesting first run (for determining whether write header in log file or not )
+static bool     Fluid_Periodic_BC_Flag;                  // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 #ifdef PARTICLE
 static int      NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;                   // flag for determining output data type (0:text 1:binary Other: Do not write)
@@ -71,24 +72,18 @@ void Validate()
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
 
-   for ( int direction = 0; direction < 6; direction++ ) 
-   {
-       if ( !( ( OPT__BC_FLU[direction] == BC_FLU_USER ) || ( OPT__BC_FLU[direction] == BC_FLU_PERIODIC ) )  )
-          Aux_Error( ERROR_INFO, "must adopt periodic or user defined BC for fluid --> reset OPT__BC_FLU[%d] to 1 or 4 !!\n", direction );
-   }
-
 # ifdef PARTICLE
    if ( ( OPT__INIT == INIT_BY_FUNCTION ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
       Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FUNCTION !!\n" );
 # endif
 
-// only accept OPT__INIT == INIT_BY_RESTART or OPT__INIT == INIT_BY_FILE
-   if ( OPT__INIT != INIT_BY_FUNCTION && OPT__INIT != INIT_BY_RESTART )
+// only accept OPT__INIT == INIT_BY_FUNCTION or OPT__INIT == INIT_BY_RESTART
+   if ( ( OPT__INIT != INIT_BY_FUNCTION ) && ( OPT__INIT != INIT_BY_RESTART ) )
       Aux_Error( ERROR_INFO, "enforced to accept only OPT__INIT == INIT_BY_FUNCTION or OPT__INIT == INIT_BY_RESTART !!\n" );
 
-// only accept OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE for OPT__EXT_POT == EXT_POT_FUNC
-//   if ( ( OPT__EXT_POT == EXT_POT_FUNC ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
-//      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE for OPT__EXT_POT == EXT_POT_FUNC !!\n" );
+// only accept OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FUNCTION for OPT__EXT_POT == EXT_POT_FUNC
+//   if ( ( OPT__EXT_POT == EXT_POT_FUNC ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FUNCTION ) )
+//      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FUNCTION for OPT__EXT_POT == EXT_POT_FUNC !!\n" );
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
@@ -135,7 +130,8 @@ void SetParameter()
    ReadPara->Add( "SolitonCenter_x",          &SolitonCenter[0],          0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "SolitonCenter_y",          &SolitonCenter[1],          0.0,           NoMin_double,     NoMax_double      );
    ReadPara->Add( "SolitonCenter_z",          &SolitonCenter[2],          0.0,           NoMin_double,     NoMax_double      );
-   ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
+   ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str     );
+   ReadPara->Add( "Fluid_Periodic_BC_Flag",   &Fluid_Periodic_BC_Flag,  false,           Useless_bool,     Useless_bool      );
    if ( OPT__EXT_POT == EXT_POT_FUNC )
    {
       ReadPara->Add( "NSDHalfMassRadius",        &NSDHalfMassRadius,      Eps_double,       Eps_double,       NoMax_double      );
@@ -147,15 +143,15 @@ void SetParameter()
 #ifdef PARTICLE
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
+   if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FUNCTION ) )
+      ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
    ReadPara->Read( FileName );
    delete ReadPara;
 
    ReadPara  = new ReadPara_t;
    if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
       ReadPara->Add( "Particle_Log_Filename",    Particle_Log_Filename,   Useless_str,     Useless_str,       Useless_str       );
-   if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
-      ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
-   if ( OPT__RESTART_RESET == 1 )
+   if ( ( OPT__RESTART_RESET == 1 ) || ( OPT__INIT == INIT_BY_RESTART ) )
    {
       ReadPara->Add( "BH_AddParForRestart",      &BH_AddParForRestart,      false,         Useless_bool,      Useless_bool      );
       ReadPara->Read( FileName );
@@ -167,11 +163,12 @@ void SetParameter()
          ReadPara->Add( "BH_AddParForRestart_NPar", &BH_AddParForRestart_NPar,  -1L,          NoMin_long,        NoMax_long        );
          ReadPara->Add( "Particle_Data_Filename",   Particle_Data_Filename,  Useless_str,     Useless_str,       Useless_str       );
          ReadPara->Read( FileName );
+         delete ReadPara;
       }
    }
    else
       ReadPara->Read( FileName );
-   delete ReadPara;
+      delete ReadPara;
 #else
    ReadPara->Read( FileName );
    delete ReadPara;
@@ -182,13 +179,29 @@ void SetParameter()
 
 // (1-3) check the runtime parameters
 #ifdef PARTICLE
-   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )  
-      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if BH_AddParForRestart is enabled !!\n" );
+   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
+   if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {
+         if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
+            Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
+      }
+   }
+   else  // use user define boundary condition
+   {
+      for ( int direction = 0; direction < 6; direction++ )
+      {
+         if ( OPT__BC_FLU[direction] != BC_FLU_USER )
+            Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
+      }
+   }
 
 
 // (2) load the reference soliton density profile
-   if ( OPT__INIT != INIT_BY_RESTART )
+   if ( OPT__INIT == INIT_BY_FUNCTION )
    {
 //    load the reference profile
       const bool RowMajor_No  = false;    // load data into the column-major order
@@ -204,14 +217,16 @@ void SetParameter()
    const long   End_Step_Default = __INT_MAX__;
    const double End_T_Default    = __FLT_MAX__;
 
-   if ( END_STEP < 0 ) {
-       END_STEP = End_Step_Default;
-       PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
+   if ( END_STEP < 0 )
+   {
+      END_STEP = End_Step_Default;
+      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
    }
 
-   if ( END_T < 0.0 ) {
-       END_T = End_T_Default;
-       PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
+   if ( END_T < 0.0 )
+   {
+      END_T = End_T_Default;
+      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
    }
 
 // (4) make a note
@@ -224,8 +239,9 @@ void SetParameter()
       Aux_Message( stdout, "  soliton center_x                             = %13.6e\n", SolitonCenter[0]          );
       Aux_Message( stdout, "  soliton center_y                             = %13.6e\n", SolitonCenter[1]          );
       Aux_Message( stdout, "  soliton center_z                             = %13.6e\n", SolitonCenter[2]          );
-      Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename  );
-      Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
+      Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename );
+      Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin     );
+      Aux_Message( stdout, "  fluid periodic boundary condition flag       = %d\n",     Fluid_Periodic_BC_Flag    );
       if ( OPT__EXT_POT == EXT_POT_FUNC )
       {
          Aux_Message( stdout, "  NSD half mass radius                         = %13.6e\n", NSDHalfMassRadius         );
@@ -239,9 +255,9 @@ void SetParameter()
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( (WriteDataInBinaryFlag == 0) || (WriteDataInBinaryFlag == 1) )
          Aux_Message( stdout, "  particle log filename                        = %s\n",     Particle_Log_Filename     );
-      if ( amr->Par->Init == PAR_INIT_BY_FUNCTION )
+      if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FUNCTION ) )
          Aux_Message( stdout, "  particle data filename                       = %s\n",     Particle_Data_Filename    );
-      if ( OPT__RESTART_RESET == 1 )
+      if ( ( OPT__RESTART_RESET == 1 ) && ( OPT__INIT == INIT_BY_RESTART ) )
       {
          Aux_Message( stdout, "  add particles after restart                  = %d\n",     BH_AddParForRestart        );
          if ( BH_AddParForRestart == 1 )
@@ -263,7 +279,7 @@ void SetParameter()
 #ifdef PARTICLE
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Par_Init_ByUser_Black_Hole_in_Soliton()
+// Function    :  Par_Init_ByRestart_Black_Hole_in_Soliton()
 // Description :  User-specified initialization
 //
 // Note        :  1. Add particles after restart
@@ -273,7 +289,7 @@ void SetParameter()
 //
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime
 //-------------------------------------------------------------------------------------------------------
-static void Par_Init_ByUser_Black_Hole_in_Soliton() 
+static void Par_Init_ByRestart_Black_Hole_in_Soliton() 
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -415,7 +431,7 @@ static void Par_Init_ByUser_Black_Hole_in_Soliton()
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
-} // FUNCTION : Par_Init_ByUser_Black_Hole_in_Soliton
+} // FUNCTION : Par_Init_ByRestart_Black_Hole_in_Soliton
 
 
 
@@ -818,7 +834,7 @@ static void Init_User_ELBDM_Black_Hole_in_Soliton(void)
       first_run_flag = false;
 #ifdef PARTICLE
    if ( BH_AddParForRestart == 1 )
-      Par_Init_ByUser_Black_Hole_in_Soliton();
+      Par_Init_ByRestart_Black_Hole_in_Soliton();
 #endif
 
 } // FUNCTION : Init_User_ELBDM_Black_Hole_in_Soliton
@@ -1313,10 +1329,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Soliton()
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Soliton;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_NSDPot;
    End_User_Ptr                = End_Black_Hole_in_Soliton;
-#    ifdef PARTICLE
+#  ifdef PARTICLE
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Soliton;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Soliton;
-#    endif // #ifdef PARTICLE
+#  endif // #ifdef PARTICLE
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
