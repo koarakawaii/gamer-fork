@@ -27,7 +27,7 @@ static bool     EraseSolVelFlag;                    // flag to determine whether
 static bool     AddNewSolFlag;                      // flag to determine whether add new soliton (using density profile table) to no soliton FDM halo
 static bool     Fluid_Periodic_BC_Flag;             // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 static double  *Soliton_DensProf   = NULL;          // soliton density profile [radius/density]
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
 static int      NewParAttTracerIdx = Idx_Undefined; // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary Other: Do not write)
 
@@ -83,7 +83,7 @@ void Validate()
       Aux_Error( ERROR_INFO, "do not support OPT__EXT_POT = %d !!\n", EXT_POT_TABLE );
 #  endif
 
-# ifdef PARTICLE
+# ifdef MASSIVE_PARTICLES
    if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
       Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FILE !!\n" );
 # endif
@@ -186,7 +186,7 @@ void SetParameter()
    }
    if ( AddNewSolFlag == 1 )
       ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
    ReadPara->Read( FileName );
@@ -229,7 +229,7 @@ void SetParameter()
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if EraseSolVelFlag is enabled !!\n" );
    if ( ( AddNewSolFlag == 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__INIT == INIT_BY_FILE if AddNewSolFlag is enabled !!\n" );
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
@@ -341,7 +341,7 @@ void SetParameter()
          Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
       }
       
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
@@ -367,7 +367,7 @@ void SetParameter()
 
 
 
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Par_Init_ByRestart_Black_Hole_in_Halo()
@@ -871,7 +871,7 @@ static void AddNewParticleAttribute_Black_Hole_in_Halo(void)
       NewParAttTracerIdx = AddParticleAttribute( "ParticleTracerIdx" );
 }
 
-#endif // end of ifdef PARTICLE
+#endif // end of ifdef MASSIVE_PARTICLES
 
 
 
@@ -940,7 +940,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       else
          first_run_flag = false;
    }
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    if ( BH_AddParForRestart == 1 )
       Par_Init_ByRestart_Black_Hole_in_Halo();
 #endif
@@ -1233,7 +1233,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const real   MinTemp_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
-#  ifdef PARTICLE
+#  ifdef MASSIVE_PARTICLES
    const bool   TimingSendPar_No  = false;
    const bool   PredictParPos_No  = false;
    const bool   JustCountNPar_No  = false;
@@ -1244,7 +1244,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const bool   SibBufPatch       = NULL_BOOL;
    const bool   FaSibBufPatch     = NULL_BOOL;
 #  endif // #ifdef LOAD_BALANCE
-#  endif // #ifdef PARTICLE
+#  endif // #ifdef MASSIVE_PARTICLES
 
    int   *PID0List = NULL;
    double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
@@ -1256,8 +1256,8 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
    for (int lv=0; lv<NLEVEL; lv++)
    {
-//    initialize the particle density array (rho_ext) and collect particles to the target level, only used for ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
-#     ifdef PARTICLE
+//    initialize the particle density array (rho_ext) and collect particles to the target level, only used for ( DensMode == _TOTAL_DENS ) and MASSIVE_PARTICLES is enabled
+#     ifdef MASSIVE_PARTICLES
       if ( DensMode == _TOTAL_DENS )
       {
          Prepare_PatchData_InitParticleDensityArray( lv );
@@ -1279,8 +1279,8 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
       delete [] PID0List;
 
-//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext), only used fro ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
-#     ifdef PARTICLE
+//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext), only used fro ( DensMode == _TOTAL_DENS ) and MASSIVE_PARTICLES is enabled
+#     ifdef MASSIVE_PARTICLES
       if ( DensMode == _TOTAL_DENS )
       {
          Par_CollectParticle2OneLevel_FreeMemory( lv, SibBufPatch, FaSibBufPatch );
@@ -1513,8 +1513,8 @@ static void Record_CenterOfMass( void )
                      "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
                      "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
             fclose( file_center );
-#ifndef PARTICLE
-         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
+#ifndef MASSIVE_PARTICLES
+         first_run_flag = false;   // if #define MASSIVE_PARTICLES, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
 #endif
          }
          first_enter_flag_center = false;
@@ -1607,7 +1607,7 @@ static void Record_CenterOfMass( void )
 static void Do_COM_and_CF( void )
 {
    Record_CenterOfMass();
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    char Particle_Log_Filename_Full[MAX_STRING];
    if ( WriteDataInBinaryFlag == 0 )
    {
@@ -1636,7 +1636,7 @@ static void Do_COM_and_CF( void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Black_Hole_in_Halo()
 {
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    delete [] Particle_Data_Table;
 #endif
 } // FUNCTION : End_Black_Hole_in_Halo
@@ -1675,10 +1675,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_SolitonPot;
    End_User_Ptr                = End_Black_Hole_in_Halo;
-#  ifdef PARTICLE
+#  ifdef MASSIVE_PARTICLES
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Halo;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Halo;
-#  endif // #ifdef PARTICLE
+#  endif // #ifdef MASSIVE_PARTICLES
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)

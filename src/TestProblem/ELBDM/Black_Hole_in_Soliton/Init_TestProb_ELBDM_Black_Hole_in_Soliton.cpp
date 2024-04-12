@@ -16,7 +16,7 @@ static double  *Soliton_DensProf   = NULL;               // soliton density prof
        double   NSDPotCenter[3];                         // user defined center for external NSD potential center, will be called by extern
 static bool     first_run_flag;                          // flag suggesting first run (for determining whether write header in log file or not )
 static bool     Fluid_Periodic_BC_Flag;                  // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
 static int      NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;                   // flag for determining output data type (0:text 1:binary Other: Do not write)
 
@@ -72,7 +72,7 @@ void Validate()
       Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
 #  endif
 
-# ifdef PARTICLE
+# ifdef MASSIVE_PARTICLES
    if ( ( OPT__INIT == INIT_BY_FUNCTION ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
       Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FUNCTION !!\n" );
 # endif
@@ -140,7 +140,7 @@ void SetParameter()
       ReadPara->Add( "NSDPotCenter_z",           &NSDPotCenter[2],           0.0,           NoMin_double,     NoMax_double      );
    }
 
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
    if ( ( amr->Par->Init == PAR_INIT_BY_FUNCTION ) && ( OPT__INIT == INIT_BY_FUNCTION ) )
@@ -178,7 +178,7 @@ void SetParameter()
    if ( Soliton_CM_TolErrR < 0.0 )           Soliton_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
 
 // (1-3) check the runtime parameters
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
@@ -250,7 +250,7 @@ void SetParameter()
          Aux_Message( stdout, "  NSD potential center_z                       = %13.6e\n", NSDPotCenter[2]           );
       }
 
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( (WriteDataInBinaryFlag == 0) || (WriteDataInBinaryFlag == 1) )
@@ -276,7 +276,7 @@ void SetParameter()
 
 
 
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Par_Init_ByRestart_Black_Hole_in_Soliton()
@@ -779,7 +779,7 @@ static void AddNewParticleAttribute_Black_Hole_in_Soliton(void)
       NewParAttTracerIdx = AddParticleAttribute( "ParticleTracerIdx" );
 }
 
-#endif // end of ifdef PARTICLE
+#endif // end of ifdef MASSIVE_PARTICLES
 
 
 
@@ -845,7 +845,7 @@ static void Init_User_ELBDM_Black_Hole_in_Soliton(void)
       first_run_flag = true;
    else
       first_run_flag = false;
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    if ( BH_AddParForRestart == 1 )
       Par_Init_ByRestart_Black_Hole_in_Soliton();
 #endif
@@ -1198,8 +1198,8 @@ static void Record_CenterOfMass( void )
                      "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
                      "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
             fclose( file_center );
-#ifndef PARTICLE
-            first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
+#ifndef MASSIVE_PARTICLES
+            first_run_flag = false;   // if #define MASSIVE_PARTICLES, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
 #endif
          }
          first_enter_flag_center = false;
@@ -1273,7 +1273,7 @@ static void Record_CenterOfMass( void )
 static void Do_COM_and_CF( void )
 {
    Record_CenterOfMass();
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    char Particle_Log_Filename_Full[MAX_STRING];
    if ( WriteDataInBinaryFlag == 0 )
    {
@@ -1302,7 +1302,7 @@ static void Do_COM_and_CF( void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Black_Hole_in_Soliton()
 {
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    delete [] Particle_Data_Table;
 #endif
 } // FUNCTION : End_Black_Hole_in_Soliton
@@ -1342,10 +1342,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Soliton()
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Soliton;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_NSDPot;
    End_User_Ptr                = End_Black_Hole_in_Soliton;
-#  ifdef PARTICLE
+#  ifdef MASSIVE_PARTICLES
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Soliton;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Soliton;
-#  endif // #ifdef PARTICLE
+#  endif // #ifdef MASSIVE_PARTICLES
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
