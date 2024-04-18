@@ -185,7 +185,7 @@ void SetParameter()
        RemoveEmpty_prof                         = false;                   // hard-coded by Test Problem
 
        if ( MinLv < 0 ) MinLv = 0;
-       if ( MaxLv <= MinLv ) MaxLv = MAX_LEVEL;
+       if ( MaxLv < MinLv ) MaxLv = MAX_LEVEL;
        if ( FilePath_corr == "\0" )  sprintf( FilePath_corr, "./" );
        else
        { 
