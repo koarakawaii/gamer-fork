@@ -117,7 +117,7 @@ for idx_sample in range(total_sample):
    for i in range(1,wave_vector_truncation+1): # ignore DC mode
       PS_selected[i-1] = CALCULATE_POWER(classifier_list[i], density_k) # save the i*k_min power at PS_selected[i-1]
    print("\tSpectrum analysis finished")
-   
+
    with open(spectrum_save_path,'a') as fw:
       fw.write("%5d\t%10d\t"%(idx_sample,random_seed))
       for i in range(1,wave_vector_truncation): # ignore DC mode
