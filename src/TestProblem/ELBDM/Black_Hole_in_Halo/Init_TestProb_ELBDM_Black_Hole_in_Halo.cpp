@@ -27,7 +27,7 @@ static bool     EraseSolVelFlag;                    // flag to determine whether
 static bool     AddNewSolFlag;                      // flag to determine whether add new soliton (using density profile table) to no soliton FDM halo
 static bool     Fluid_Periodic_BC_Flag;             // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 static double  *Soliton_DensProf   = NULL;          // soliton density profile [radius/density]
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
 static int      NewParAttTracerIdx = Idx_Undefined; // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;              // flag for determining output data type (0:text 1:binary Other: Do not write)
 
@@ -83,7 +83,7 @@ void Validate()
       Aux_Error( ERROR_INFO, "do not support OPT__EXT_POT = %d !!\n", EXT_POT_TABLE );
 #  endif
 
-# ifdef PARTICLE
+# ifdef MASSIVE_PARTICLES
    if ( ( OPT__INIT == INIT_BY_FILE ) && ( amr->Par->Init != PAR_INIT_BY_FUNCTION ) )
       Aux_Error( ERROR_INFO, "must set PAR_INIT == PAR_INIT_BY_FUNCTION for OPT__INIT == INIT_BY_FILE !!\n" );
 # endif
@@ -186,7 +186,7 @@ void SetParameter()
    }
    if ( AddNewSolFlag == 1 )
       ReadPara->Add( "Soliton_DensProf_Filename",  Soliton_DensProf_Filename,  NoDef_str,     Useless_str,      Useless_str       );
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    ReadPara->Add( "ParRefineFlag",            &ParRefineFlag,            false,         Useless_bool,      Useless_bool      );
    ReadPara->Add( "WriteDataInBinaryFlag",    &WriteDataInBinaryFlag,         -1,          NoMin_int,      NoMax_int         );
    ReadPara->Read( FileName );
@@ -229,7 +229,7 @@ void SetParameter()
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_FILE if EraseSolVelFlag is enabled !!\n" );
    if ( ( AddNewSolFlag == 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__INIT == INIT_BY_FILE if AddNewSolFlag is enabled !!\n" );
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
@@ -341,7 +341,7 @@ void SetParameter()
          Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
       }
       
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
       if ( ( WriteDataInBinaryFlag == 0 ) || ( WriteDataInBinaryFlag == 1 ) )
@@ -367,7 +367,7 @@ void SetParameter()
 
 
 
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Par_Init_ByRestart_Black_Hole_in_Halo()
@@ -405,18 +405,18 @@ static void Par_Init_ByRestart_Black_Hole_in_Halo()
    const long   NNewPar        = ( MPI_Rank == 0 ) ? BH_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
 
-   real *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAtt[PAR_NATT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NNewPar];
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NNewPar];
 
 // set particle attributes
 // ============================================================================================================
-   real *Time_AllRank      = NewParAtt[PAR_TIME];
-   real *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real *Type_AllRank      = NewParAtt[PAR_TYPE];
-   real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real_par *Type_AllRank      = NewParAtt[PAR_TYPE];
+   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -454,7 +454,7 @@ static void Par_Init_ByRestart_Black_Hole_in_Halo()
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
@@ -464,7 +464,7 @@ static void Par_Init_ByRestart_Black_Hole_in_Halo()
          Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real)p;
+         TracerIdx_AllRank[p] = (real_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -558,9 +558,9 @@ static void Par_Init_ByRestart_Black_Hole_in_Halo()
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
 void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const long NPar_AllRank,
-                                             real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
-                                             real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
-                                             real *ParType, real *AllAttribute[PAR_NATT_TOTAL] )
+                                             real_par *ParMass, real_par *ParPosX, real_par *ParPosY, real_par *ParPosZ,
+                                             real_par *ParVelX, real_par *ParVelY, real_par *ParVelZ, real_par *ParTime,
+                                             real_par *ParType, real_par *AllAttribute[PAR_NATT_TOTAL] )
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -582,18 +582,18 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
    }
 
 
-   real *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAtt[PAR_NATT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real [NPar_AllRank];
+   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NPar_AllRank];
 
 // set particle attributes
 // ============================================================================================================
-   real *Time_AllRank      = NewParAtt[PAR_TIME];
-   real *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real *Type_AllRank      = NewParAtt[PAR_TYPE];
-   real *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
+   real_par *Type_AllRank      = NewParAtt[PAR_TYPE];
+   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
+   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -631,7 +631,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
@@ -641,7 +641,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
          Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real)p;
+         TracerIdx_AllRank[p] = (real_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -678,34 +678,22 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
 
 
 // send particle attributes from the master rank to all ranks
-   real *Mass      =   ParMass;
-   real *Type      =   ParType;
-   real *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
-   real *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
-   real *TracerIdx = AllAttribute[NewParAttTracerIdx];
+   real_par *Mass      =   ParMass;
+   real_par *Type      =   ParType;
+   real_par *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
+   real_par *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
+   real_par *TracerIdx = AllAttribute[NewParAttTracerIdx];
 
-#  ifdef FLOAT8
-   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_DOUBLE, Mass, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_DOUBLE, Type, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_DOUBLE, TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-
-   for (int d=0; d<3; d++)
-   {
-      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Pos[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Vel[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   }
-
-#  else
-   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_FLOAT,  Mass, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_FLOAT,  Type, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_FLOAT,  TracerIdx, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_GAMER_REAL_PAR, Mass, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_GAMER_REAL_PAR, Type, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_GAMER_REAL_PAR, TracerIdx, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)
    {
-      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Pos[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Vel[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Pos[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Vel[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
    }
-#  endif
+
 
 // free memory
    for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
@@ -839,7 +827,7 @@ static void Record_Particle_Data_Binary( char *FileName )
          {
 //          skip inactive particles
             if ( amr->Par->Mass[p] < 0.0 )   continue;
-            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real), 1, File );  // write all attribute for selected particle for each time step
+            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real_par), 1, File );  // write all attribute for selected particle for each time step
          }
 
          fclose( File );
@@ -871,7 +859,7 @@ static void AddNewParticleAttribute_Black_Hole_in_Halo(void)
       NewParAttTracerIdx = AddParticleAttribute( "ParticleTracerIdx" );
 }
 
-#endif // end of ifdef PARTICLE
+#endif // end of ifdef MASSIVE_PARTICLES
 
 
 
@@ -940,7 +928,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       else
          first_run_flag = false;
    }
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    if ( BH_AddParForRestart == 1 )
       Par_Init_ByRestart_Black_Hole_in_Halo();
 #endif
@@ -1187,26 +1175,41 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_HALO
 // Description :  Set the extenral boundary condition
-//
+//                
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
-//                2. Set the BC as isolated
-//
-// Parameter   :  fluid    : Fluid field to be set
-//                x/y/z    : Physical coordinates
-//                Time     : Physical time
-//                lv       : Refinement level
-//                AuxArray : Auxiliary array
-//
+//                
+// Parameter   :  Array          : Array to store the prepared data including ghost zones
+//                ArraySize      : Size of Array including the ghost zones on each side
+//                fluid          : Fluid fields to be set
+//                NVar_Flu       : Number of fluid variables to be prepared
+//                GhostSize      : Number of ghost zones
+//                idx            : Array indices
+//                pos            : Physical coordinates
+//                Time           : Physical time
+//                lv             : Refinement level
+//                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
+//                AuxArray       : Auxiliary array
+//                
 // Return      :  fluid
-////-------------------------------------------------------------------------------------------------------
-static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
-         const int lv, double AuxArray[] )
+//-------------------------------------------------------------------------------------------------------
+static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
+                     const int GhostSize, const int idx[], const double pos[], const double Time,
+                     const int lv, const int TFluVarIdxList[], double AuxArray[] )
 {
-
-   fluid[REAL] = (real)0.0;
-   fluid[IMAG] = (real)0.0;
-   fluid[DENS] = (real)0.0;
-
+   #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+   #  endif
+      fluid[DENS] = (real)0.0;
+      fluid[REAL] = (real)0.0;
+      fluid[IMAG] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else {
+      fluid[DENS] = (real)TINY_NUMBER;
+      fluid[PHAS] = (real)0.0;
+      fluid[STUB] = (real)0.0;
+   }
+#  endif
+            
 } // FUNCTION : BC_HALO
 
 
@@ -1231,9 +1234,10 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
+   const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
-#  ifdef PARTICLE
+#  ifdef MASSIVE_PARTICLES
    const bool   TimingSendPar_No  = false;
    const bool   PredictParPos_No  = false;
    const bool   JustCountNPar_No  = false;
@@ -1244,7 +1248,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const bool   SibBufPatch       = NULL_BOOL;
    const bool   FaSibBufPatch     = NULL_BOOL;
 #  endif // #ifdef LOAD_BALANCE
-#  endif // #ifdef PARTICLE
+#  endif // #ifdef MASSIVE_PARTICLES
 
    int   *PID0List = NULL;
    double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
@@ -1256,14 +1260,14 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
    for (int lv=0; lv<NLEVEL; lv++)
    {
-//    initialize the particle density array (rho_ext) and collect particles to the target level, only used for ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
-#     ifdef PARTICLE
+//    initialize the particle density array (rho_ext) and collect particles to the target level, only used for ( DensMode == _TOTAL_DENS ) and MASSIVE_PARTICLES is enabled
+#     ifdef MASSIVE_PARTICLES
       if ( DensMode == _TOTAL_DENS )
       {
-         Prepare_PatchData_InitParticleDensityArray( lv );
-
          Par_CollectParticle2OneLevel( lv, _PAR_MASS|_PAR_POSX|_PAR_POSY|_PAR_POSZ|_PAR_TYPE, PredictParPos_No, NULL_REAL,
                                        SibBufPatch, FaSibBufPatch, JustCountNPar_No, TimingSendPar_No );
+
+         Prepare_PatchData_InitParticleDensityArray( lv, Time[lv] );
       }
 #     endif
 
@@ -1275,12 +1279,12 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
 
       delete [] PID0List;
 
-//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext), only used fro ( DensMode == _TOTAL_DENS ) and PARTICLE is enabled
-#     ifdef PARTICLE
+//    free memory for collecting particles from other ranks and levels, and free density arrays with ghost zones (rho_ext), only used fro ( DensMode == _TOTAL_DENS ) and MASSIVE_PARTICLES is enabled
+#     ifdef MASSIVE_PARTICLES
       if ( DensMode == _TOTAL_DENS )
       {
          Par_CollectParticle2OneLevel_FreeMemory( lv, SibBufPatch, FaSibBufPatch );
@@ -1392,6 +1396,7 @@ static void Record_CenterOfMass( void )
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
+   const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
 // collect local data
@@ -1407,7 +1412,7 @@ static void Record_CenterOfMass( void )
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
 
       delete [] PID0List;
 
@@ -1513,8 +1518,8 @@ static void Record_CenterOfMass( void )
                      "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
                      "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
             fclose( file_center );
-#ifndef PARTICLE
-         first_run_flag = false;   // if #define PARTICLE, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
+#ifndef MASSIVE_PARTICLES
+         first_run_flag = false;   // if #define MASSIVE_PARTICLES, first_run_flag will be turned to false after recording the data for first time step, so in that case no need to turn it to false here
 #endif
          }
          first_enter_flag_center = false;
@@ -1607,7 +1612,7 @@ static void Record_CenterOfMass( void )
 static void Do_COM_and_CF( void )
 {
    Record_CenterOfMass();
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    char Particle_Log_Filename_Full[MAX_STRING];
    if ( WriteDataInBinaryFlag == 0 )
    {
@@ -1636,7 +1641,7 @@ static void Do_COM_and_CF( void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Black_Hole_in_Halo()
 {
-#ifdef PARTICLE
+#ifdef MASSIVE_PARTICLES
    delete [] Particle_Data_Table;
 #endif
 } // FUNCTION : End_Black_Hole_in_Halo
@@ -1675,10 +1680,10 @@ void Init_TestProb_ELBDM_Black_Hole_in_Halo()
    Init_User_Ptr               = Init_User_ELBDM_Black_Hole_in_Halo;
    Init_ExtPot_Ptr             = Init_ExtPot_ELBDM_SolitonPot;
    End_User_Ptr                = End_Black_Hole_in_Halo;
-#  ifdef PARTICLE
+#  ifdef MASSIVE_PARTICLES
    Par_Init_Attribute_User_Ptr = AddNewParticleAttribute_Black_Hole_in_Halo;
    Par_Init_ByFunction_Ptr     = Par_Init_ByFunction_Black_Hole_in_Halo;
-#  endif // #ifdef PARTICLE
+#  endif // #ifdef MASSIVE_PARTICLES
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 // replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
