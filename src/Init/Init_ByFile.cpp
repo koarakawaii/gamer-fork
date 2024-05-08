@@ -16,8 +16,6 @@ static void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, c
 static void Load_RefineRegion( const char Filename[] );
 static void Flag_RefineRegion( const int lv, const int FlagPatch[6] );
 
-extern void (*Flu_ResetByUser_API_Ptr)( const int lv, const int FluSg, const int MagSg, const double TimeNew, const double dt );
-
 
 
 
@@ -47,13 +45,14 @@ extern void (*Flu_ResetByUser_API_Ptr)( const int lv, const int FluSg, const int
 //                               --> Only NCOMP_TOTAL-1 (which equals 2+NCOMP_PASSIVE_USER currently) fields
 //                                   should be stored in "UM_IC"
 //
-//                                  ELBDM_SCHEME == ELBDM_WAVE:
-//                                     We will load the real and imaginary parts from the disk on all levels
-//                                     and calculate the density field from the input wave function
-//                                     directly instead of loading it from the disk.
-//                                  ELBDM_SCHEME == ELBDM_HYBRID
-//                                     We will load the density and phase fields from the disk on all levels.
-//                                     There is no need to separately calculate the density field.
+//                               ELBDM_SCHEME == ELBDM_WAVE:
+//                               --> We will load the real and imaginary parts from the disk on all levels
+//                                   and calculate the density field from the input wave function
+//                                   directly instead of loading it from the disk.
+//
+//                               ELBDM_SCHEME == ELBDM_HYBRID:
+//                               --> We will load the density and phase fields from the disk on all levels.
+//                                   There is no need to separately calculate the density field.
 //                4. The data format of the UM_IC file is controlled by the runtime parameter OPT__UM_IC_FORMAT
 //                5. Does not work with rectangular domain decomposition anymore
 //                   --> Must enable either SERIAL or LOAD_BALANCE
@@ -181,12 +180,7 @@ void Init_ByFile()
 
    ExpectSize = 0;
    for (int t=0; t<OPT__UM_IC_NLEVEL; t++)
-   {
-      if ( OPT__INIT_DOUBLE && (OPT__INIT==3) )  // Only valid for UM_IC initialization 
-          ExpectSize += long(OPT__UM_IC_NVAR)*UM_Size3D[t][0]*UM_Size3D[t][1]*UM_Size3D[t][2]*sizeof(double);
-      else
-          ExpectSize += long(OPT__UM_IC_NVAR)*UM_Size3D[t][0]*UM_Size3D[t][1]*UM_Size3D[t][2]*sizeof(float);
-   }
+      ExpectSize += long(OPT__UM_IC_NVAR)*UM_Size3D[t][0]*UM_Size3D[t][1]*UM_Size3D[t][2]*( (OPT__UM_IC_FLOAT8)?sizeof(double):sizeof(float) );
 
    if ( FileSize != ExpectSize )
       Aux_Error( ERROR_INFO, "size of the file <%s> (%ld) != expected (%ld) !!\n", UM_Filename, FileSize, ExpectSize );
@@ -362,14 +356,16 @@ void Init_ByFile()
    {
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Restricting level %d ... ", lv );
 
+      const long ResVar = ( lv < OPT__UM_IC_LEVEL ) ? _TOTAL : FixUpVar_Restrict;
+
       Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT,
-                          _TOTAL, _MAG );
+                          ResVar, _MAG );
 
 #     ifdef LOAD_BALANCE
-      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT, _TOTAL, _MAG, NULL_INT,    USELB_YES );
+      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT, ResVar, _MAG, NULL_INT,    USELB_YES );
 
 //    use DATA_GENERAL instead of DATA_AFTER_FIXUP since we haven't call Buf_GetBufferData() on levels 0 ~ OPT__UM_IC_LEVEL-1
-      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL,  _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
+      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL,  ResVar, _MAG, Flu_ParaBuf, USELB_YES );
 #     endif
 
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
@@ -442,12 +438,12 @@ void Init_ByFile()
 
 //    no need to restrict potential since it will be recalculated later
       Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT,
-                          _TOTAL, _MAG );
+                          FixUpVar_Restrict, _MAG );
 
 #     ifdef LOAD_BALANCE
-      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT,    _TOTAL, _MAG, NULL_INT,    USELB_YES );
+      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT,    FixUpVar_Restrict, _MAG, NULL_INT,    USELB_YES );
 
-      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_AFTER_FIXUP, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
+      Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_AFTER_FIXUP, FixUpVar_Restrict, _MAG, Flu_ParaBuf, USELB_YES );
 #     endif
 
       if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
@@ -496,24 +492,6 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
 // check
    if ( Init_ByFile_User_Ptr == NULL )  Aux_Error( ERROR_INFO, "Init_ByFile_User_Ptr == NULL !!\n" );
 
-// set data_size
-   size_t data_size;
-   float  *sPG_Data;
-   double *dPG_Data;
-   bool   use_double;
-
-   if ( OPT__INIT_DOUBLE && (OPT__INIT==3) )  // Only valid for UM_IC initialization
-   {
-       use_double = true;
-       data_size  = sizeof(double);
-       dPG_Data   = new double [ CUBE(PS2)*UM_NVar ];
-   }
-   else
-   {
-       use_double = false;
-       data_size = sizeof(float);
-       sPG_Data  = new float  [ CUBE(PS2)*UM_NVar ];
-   }
 
    const int    dlv         = UM_lv - UM_lv0;
    const long   UM_Size1v   = UM_Size3D[dlv][0]*UM_Size3D[dlv][1]*UM_Size3D[dlv][2];
@@ -526,11 +504,15 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
    double x, y, z;
 
 
+// determine the load_data_size and allocate buffer for loading UM_IC
+   size_t load_data_size = ( OPT__UM_IC_FLOAT8 ) ? sizeof(double) : sizeof(float);
+   char*  PG_Data        = new char [ CUBE(PS2)*UM_NVar*load_data_size ];
+
 
 // calculate the file offset of the target level
    Offset_lv = 0;
    for (int t=0; t<dlv; t++)
-      Offset_lv += long(UM_NVar)*UM_Size3D[t][0]*UM_Size3D[t][1]*UM_Size3D[t][2]*data_size;
+      Offset_lv += long(UM_NVar)*UM_Size3D[t][0]*UM_Size3D[t][1]*UM_Size3D[t][2]*load_data_size;
 
 
 // load data with UM_LoadNRank ranks at a time
@@ -560,7 +542,7 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
 
             Offset_File0  = IDX321( Offset3D_File0[0], Offset3D_File0[1], Offset3D_File0[2],
                                     UM_Size3D[dlv][0], UM_Size3D[dlv][1] );
-            Offset_File0 *= (long)NVarPerLoad*data_size;
+            Offset_File0 *= (long)NVarPerLoad*load_data_size;
 
 
 //          load data from the disk (one row at a time)
@@ -572,18 +554,16 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
                for (int j=0; j<PS2; j++)
                {
                   Offset_File = Offset_lv + Offset_File0
-                                + (long)NVarPerLoad*data_size*( ((long)k*UM_Size3D[dlv][1] + j)*UM_Size3D[dlv][0] )
-                                + v*UM_Size1v*data_size;
+                                + (long)NVarPerLoad*load_data_size*( ((long)k*UM_Size3D[dlv][1] + j)*UM_Size3D[dlv][0] )
+                                + v*UM_Size1v*load_data_size;
 
                   fseek( File, Offset_File, SEEK_SET );
-                  
-                  if ( use_double )   fread( dPG_Data+Offset_PG, data_size, NVarPerLoad*PS2, File );
-                  else                fread( sPG_Data+Offset_PG, data_size, NVarPerLoad*PS2, File );
+                  fread( PG_Data+Offset_PG, load_data_size, NVarPerLoad*PS2, File );
 
 //                verify that the file size is not exceeded
                   if ( feof(File) )   Aux_Error( ERROR_INFO, "reaching the end of the file \"%s\" !!\n", UM_Filename );
 
-                  Offset_PG += NVarPerLoad*PS2;
+                  Offset_PG += NVarPerLoad*PS2*load_data_size;
                }
             }
 
@@ -600,34 +580,22 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
                for (int j=0; j<PS1; j++)  {  y = amr->patch[0][UM_lv][PID]->EdgeL[1] + (j+0.5)*dh;
                for (int i=0; i<PS1; i++)  {  x = amr->patch[0][UM_lv][PID]->EdgeL[0] + (i+0.5)*dh;
 
-                  Offset_PG = (long)NVarPerLoad*IDX321( i+Disp_i, j+Disp_j, k+Disp_k, PS2, PS2 );
+                  Offset_PG = (long)NVarPerLoad*IDX321( i+Disp_i, j+Disp_j, k+Disp_k, PS2, PS2 )*load_data_size;
 
-                  if ( UM_Format==UM_IC_FORMAT_ZYXV )
+                  if ( UM_Format == UM_IC_FORMAT_ZYXV )
                   {
-                     if ( sizeof(real)==data_size  )
-                     {
-                        if ( use_double ) memcpy( fluid_in, dPG_Data+Offset_PG, UM_NVar*data_size );
-                        else              memcpy( fluid_in, sPG_Data+Offset_PG, UM_NVar*data_size );
-                     }
+                     if ( OPT__UM_IC_FLOAT8 )
+                        for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)( *((double*)( PG_Data + Offset_PG + v*load_data_size )) ) ;
                      else
-                     {
-                        if ( use_double ) { for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)(*( dPG_Data + Offset_PG + v )); }
-                        else              { for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)(*( sPG_Data + Offset_PG + v )); }
-                     }
+                        for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)( *((float* )( PG_Data + Offset_PG + v*load_data_size )) ) ;
                   }
 
                   else
                   {
-                     if ( sizeof(real)==data_size )
-                     {
-                        if ( use_double ) { for (int v=0; v<UM_NVar; v++) fluid_in[v] = *( dPG_Data + Offset_PG + v*CUBE(PS2) ); }
-                        else              { for (int v=0; v<UM_NVar; v++) fluid_in[v] = *( sPG_Data + Offset_PG + v*CUBE(PS2) ); }
-                     }
+                     if ( OPT__UM_IC_FLOAT8 )
+                        for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)( *((double*)( PG_Data + Offset_PG + v*CUBE(PS2)*load_data_size )) );
                      else
-                     {
-                        if ( use_double ) { for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)(*( dPG_Data + Offset_PG + v*CUBE(PS2) )); }
-                        else              { for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)(*( sPG_Data + Offset_PG + v*CUBE(PS2) )); }
-                     }
+                        for (int v=0; v<UM_NVar; v++) fluid_in[v] = (real)( *((float* )( PG_Data + Offset_PG + v*CUBE(PS2)*load_data_size )) );
                   }
 
                   Init_ByFile_User_Ptr( fluid_out, fluid_in, UM_NVar, x, y, z, Time[UM_lv], UM_lv, NULL );
@@ -646,8 +614,7 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
       MPI_Barrier( MPI_COMM_WORLD );
    } // for (int TRank0=0; TRank0<MPI_NRank; TRank0+=UM_LoadNRank)
 
-   if ( use_double )  delete [] dPG_Data;
-   else               delete [] sPG_Data;
+   delete [] PG_Data;
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "      Loading data from the input file on level %d ... done\n", UM_lv );
@@ -669,11 +636,11 @@ void Init_ByFile_AssignData( const char UM_Filename[], const int UM_lv, const in
 //                       variable
 //                4. ELBDM:
 //                   ELBDM_SCHEME == ELBDM_WAVE:
-//                       Calculate the density field automatically instead of loading it from the disk for ELBDM
-//                       --> For ELBDM, the input uniform-mesh array must NOT include the density field
-//                   ELBDM_SCHEME == ELBDM_HYBRID
-//                       We will load the density and phase fields from the disk on all levels
-//                       There is no need to separately calculate the density field.
+//                   --> Calculate the density field automatically instead of loading it from the disk for ELBDM
+//                   --> The input uniform-mesh array must NOT include the density field
+//                   ELBDM_SCHEME == ELBDM_HYBRID:
+//                   --> We will load the density and phase fields from the disk on all levels
+//                   --> There is no need to separately calculate the density field
 //                5. Assuming nvar_in (i.e., OPT__UM_IC_NVAR) == NCOMP_TOTAL
 //                   --> Unless either DUAL_ENERGY or ELBDM is adopted, for which it assumes nvar_in == NCOMP_TOTAL-1
 //
@@ -719,7 +686,7 @@ void Init_ByFile_Default( real fluid_out[], const real fluid_in[], const int nva
 #     elif ( MODEL == ELBDM )
 #     if ( ELBDM_SCHEME == ELBDM_WAVE )
       if ( v_out == DENS )    v_out ++;
-#     endif // ELBDM_SCHEME
+#     endif
 #     endif // MODEL
 
       fluid_out[v_out] = fluid_in[v_in];
@@ -741,21 +708,23 @@ void Init_ByFile_Default( real fluid_out[], const real fluid_in[], const int nva
 #  endif
 
 #  elif ( MODEL == ELBDM )
+
+#  if   ( ELBDM_SCHEME == ELBDM_WAVE )
 // calculate the density field for ELBDM wave scheme
-#  if ( ELBDM_SCHEME == ELBDM_WAVE )
    fluid_out[DENS] = SQR( fluid_out[REAL] ) + SQR( fluid_out[IMAG] );
+
 #  elif ( ELBDM_SCHEME == ELBDM_HYBRID )
 // convert density and phase to real and imaginary part on wave levels for hybrid scheme
    if ( amr->use_wave_flag[lv] ) {
       const real Phase = fluid_out[PHAS];
-      const real Amp   = SQRT(fluid_out[DENS]);
-      fluid_out[REAL] = Amp * COS(Phase);
-      fluid_out[IMAG] = Amp * SIN(Phase);
+      const real Amp   = SQRT( fluid_out[DENS] );
+      fluid_out[REAL] = Amp * COS( Phase );
+      fluid_out[IMAG] = Amp * SIN( Phase );
    } else {
-      fluid_out[STUB] = 0.0;
+      fluid_out[STUB] = (real)0.0;
    }
-#  endif // # if ELBDM_SCHEME
-#  endif
+#  endif // ELBDM_SCHEME
+#  endif // MODEL
 
 } // FUNCTION : Init_ByFile_Default
 

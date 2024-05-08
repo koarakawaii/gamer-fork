@@ -217,25 +217,40 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_HALO
 // Description :  Set the extenral boundary condition
-//
+//                
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
-//                2. Set the BC as isolated
-//
-// Parameter   :  fluid    : Fluid field to be set
-//                x/y/z    : Physical coordinates
-//                Time     : Physical time
-//                lv       : Refinement level
-//                AuxArray : Auxiliary array
-//
+//                
+// Parameter   :  Array          : Array to store the prepared data including ghost zones
+//                ArraySize      : Size of Array including the ghost zones on each side
+//                fluid          : Fluid fields to be set
+//                NVar_Flu       : Number of fluid variables to be prepared
+//                GhostSize      : Number of ghost zones
+//                idx            : Array indices
+//                pos            : Physical coordinates
+//                Time           : Physical time
+//                lv             : Refinement level
+//                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
+//                AuxArray       : Auxiliary array
+//                
 // Return      :  fluid
-////-------------------------------------------------------------------------------------------------------
-static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
-                     const int lv, double AuxArray[] )
+//-------------------------------------------------------------------------------------------------------
+static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
+                     const int GhostSize, const int idx[], const double pos[], const double Time,
+                     const int lv, const int TFluVarIdxList[], double AuxArray[] )
 {
-
-   fluid[REAL] = (real)0.0;
-   fluid[IMAG] = (real)0.0;
-   fluid[DENS] = (real)0.0;
+   #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+   #  endif          
+      fluid[DENS] = (real)0.0;
+      fluid[REAL] = (real)0.0;
+      fluid[IMAG] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else {       
+      fluid[DENS] = (real)TINY_NUMBER;
+      fluid[PHAS] = (real)0.0;
+      fluid[STUB] = (real)0.0;
+   }              
+#  endif
 
 } // FUNCTION : BC_HALO
 
@@ -260,6 +275,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
+   const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
    int   *PID0List = NULL;
@@ -281,7 +297,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
 
       delete [] PID0List;
 
@@ -386,6 +402,7 @@ void Record_CenterOfMass(void )
    const real   MinDens_No        = -1.0;
    const real   MinPres_No        = -1.0;
    const real   MinTemp_No        = -1.0;
+   const real   MinEntr_No        = -1.0;
    const bool   DE_Consistency_No = false;
 
 // collect local data
@@ -399,7 +416,7 @@ void Record_CenterOfMass(void )
 
       Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
                          OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
-                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
+                         MinDens_No, MinPres_No, MinTemp_No, MinEntr_No, DE_Consistency_No );
 
       delete [] PID0List;
 
