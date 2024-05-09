@@ -679,29 +679,47 @@ void End_Soliton_Toy_Model()
 } // FUNCTION : End_Soliton_Toy_model
 
 
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_Toy_Model
 // Description :  Set the extenral boundary condition
 //
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
 //
-// Parameter   :  fluid    : Fluid field to be set
-//                x/y/z    : Physical coordinates
-//                Time     : Physical time
-//                lv       : Refinement level
-//                AuxArray : Auxiliary array
+// Parameter   :  Array          : Array to store the prepared data including ghost zones
+//                ArraySize      : Size of Array including the ghost zones on each side
+//                fluid          : Fluid fields to be set
+//                NVar_Flu       : Number of fluid variables to be prepared
+//                GhostSize      : Number of ghost zones
+//                idx            : Array indices
+//                pos            : Physical coordinates
+//                Time           : Physical time
+//                lv             : Refinement level
+//                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
+//                AuxArray       : Auxiliary array
 //
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
-void BC_Toy_Model( real fluid[], const double x, const double y, const double z, const double Time,
-         const int lv, double AuxArray[] )
+static void BC_Toy_Model( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
+                          const int GhostSize, const int idx[], const double pos[], const double Time,
+                          const int lv, const int TFluVarIdxList[], double AuxArray[] )
 {
-
-   fluid[REAL] = (real)0.0;
-   fluid[IMAG] = (real)0.0;
-   fluid[DENS] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+#  endif
+      fluid[DENS] = (real)0.0;
+      fluid[REAL] = (real)0.0;
+      fluid[IMAG] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else {
+      fluid[DENS] = (real)TINY_NUMBER;
+      fluid[PHAS] = (real)0.0;
+      fluid[STUB] = (real)0.0;
+   }
+#  endif
 
 } // FUNCTION : BC_Toy_Model
+
 
 
 //-------------------------------------------------------------------------------------------------------

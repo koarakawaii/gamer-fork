@@ -1,11 +1,20 @@
 #include "GAMER.h"
+#include "TestProb.h"
 
+
+static void BC( real fluid[], const double x, const double y, const double z, const double Time,
+                const int lv, double AuxArray[] );
 
 
 // problem-specific global variables
 // =======================================================================================
-static FieldIdx_t Idx_Dens0 = Idx_Undefined;    // field index for storing the **initial** density
+static double ELBDM_ExtPot_Amp;     // initial wave function amplitude
+       double ELBDM_ExtPot_M;       // point source mass
+       double ELBDM_ExtPot_Cen[3];  // point source position
 // =======================================================================================
+
+// external potential routines
+void Init_ExtPot_ELBDM_ExtPot();
 
 
 
@@ -26,7 +35,6 @@ void Validate()
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ...\n", TESTPROB_ID );
 
 
-// errors
 #  if ( MODEL != ELBDM )
    Aux_Error( ERROR_INFO, "MODEL != ELBDM !!\n" );
 #  endif
@@ -35,8 +43,17 @@ void Validate()
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
 #  endif
 
-#  if ( NCOMP_PASSIVE_USER == 0 )
-   if ( MPI_Rank == 0 )    Aux_Message( stderr, "WARNING : NCOMP_PASSIVE_USER == 0 !!\n" );
+#  ifdef COMOVING
+   Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
+#  endif
+
+#  ifdef PARTICLE
+   Aux_Error( ERROR_INFO, "PARTICLE must be disabled !!\n" );
+#  endif
+
+#  ifdef GRAVITY
+   if ( OPT__EXT_POT != EXT_POT_FUNC )
+   Aux_Error( ERROR_INFO, "OPT__EXT_POT != EXT_POT_FUNC (%d) !!\n", EXT_POT_FUNC );
 #  endif
 
 
@@ -72,37 +89,43 @@ void SetParameter()
    const char FileName[] = "Input__TestProb";
    ReadPara_t *ReadPara  = new ReadPara_t;
 
-// (1-1) add parameters in the following format:
+// add parameters in the following format:
 // --> note that VARIABLE, DEFAULT, MIN, and MAX must have the same data type
-// --> some handy constants (e.g., Useless_bool, Eps_double, NoMin_int, ...) are defined in "include/ReadPara.h"
+// --> some handy constants (e.g., NoMin_int, Eps_float, ...) are defined in "include/ReadPara.h"
 // ********************************************************************************************************************************
 // ReadPara->Add( "KEY_IN_THE_FILE",      &VARIABLE,              DEFAULT,       MIN,              MAX               );
 // ********************************************************************************************************************************
+   ReadPara->Add( "ELBDM_ExtPot_Amp",     &ELBDM_ExtPot_Amp,      -1.0,          Eps_double,       NoMax_double      );
+   ReadPara->Add( "ELBDM_ExtPot_M",       &ELBDM_ExtPot_M,        -1.0,          Eps_double,       NoMax_double      );
+   ReadPara->Add( "ELBDM_ExtPot_Cen_X",   &ELBDM_ExtPot_Cen[0],   -1.0,          NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ELBDM_ExtPot_Cen_Y",   &ELBDM_ExtPot_Cen[1],   -1.0,          NoMin_double,     NoMax_double      );
+   ReadPara->Add( "ELBDM_ExtPot_Cen_Z",   &ELBDM_ExtPot_Cen[2],   -1.0,          NoMin_double,     NoMax_double      );
 
    ReadPara->Read( FileName );
 
    delete ReadPara;
 
-// (1-2) set the default values
-
-// (1-3) check the runtime parameters
-   if ( OPT__INIT == INIT_BY_FUNCTION )
-      Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
+// set the default center
+   for (int d=0; d<3; d++)
+      if ( ELBDM_ExtPot_Cen[d] < 0.0 )    ELBDM_ExtPot_Cen[d] = 0.5*amr->BoxSize[d];
 
 
-// (2) reset other general-purpose parameters
-//     --> a helper macro PRINT_RESET_PARA is defined in Macro.h
+// (2) set the problem-specific derived parameters
+
+
+// (3) reset other general-purpose parameters
+//     --> a helper macro PRINT_WARNING is defined in TestProb.h
    const long   End_Step_Default = __INT_MAX__;
-   const double End_T_Default    = 0.5;   // ~7 Gyr
+   const double End_T_Default    = 1.0e-2;
 
    if ( END_STEP < 0 ) {
       END_STEP = End_Step_Default;
-      PRINT_RESET_PARA( END_STEP, FORMAT_LONG, "" );
+      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
    }
 
    if ( END_T < 0.0 ) {
       END_T = End_T_Default;
-      PRINT_RESET_PARA( END_T, FORMAT_REAL, "" );
+      PRINT_WARNING( "END_T", END_T, FORMAT_REAL );
    }
 
 
@@ -110,7 +133,12 @@ void SetParameter()
    if ( MPI_Rank == 0 )
    {
       Aux_Message( stdout, "=============================================================================\n" );
-      Aux_Message( stdout, "  test problem ID = %d\n", TESTPROB_ID         );
+      Aux_Message( stdout, "  test problem ID         = %d\n",                       TESTPROB_ID );
+      Aux_Message( stdout, "  wave function amplitude = %13.7e\n",                   ELBDM_ExtPot_Amp );
+      Aux_Message( stdout, "  point source mass       = %13.7e\n",                   ELBDM_ExtPot_M );
+      Aux_Message( stdout, "  point source position   = (%13.7e, %13.7e, %13.7e)\n", ELBDM_ExtPot_Cen[0],
+                                                                                     ELBDM_ExtPot_Cen[1],
+                                                                                     ELBDM_ExtPot_Cen[2] );
       Aux_Message( stdout, "=============================================================================\n" );
    }
 
@@ -142,85 +170,45 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
                 const int lv, double AuxArray[] )
 {
 
-   Aux_Error( ERROR_INFO, "OPT__INIT=1 is not supported for this test problem !!\n" );
+   const double r     = sqrt( SQR(x-ELBDM_ExtPot_Cen[0]) + SQR(y-ELBDM_ExtPot_Cen[1]) + SQR(z-ELBDM_ExtPot_Cen[2]) );
+   const double Coeff = 2.0*SQR(ELBDM_ETA)*NEWTON_G*ELBDM_ExtPot_M;
+   const double R     = sqrt( Coeff*r );
+
+   fluid[REAL] = ELBDM_ExtPot_Amp*j1( 2.0*R )/R;
+   fluid[IMAG] = 0.0;                                       // imaginary part is always zero --> no initial velocity
+   fluid[DENS] = SQR( fluid[REAL] ) + SQR( fluid[IMAG] );
 
 } // FUNCTION : SetGridIC
 
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  AddNewField_ELBDM_IsolatedHalo
-// Description :  Add the problem-specific fields
+// Function    :  BC
+// Description :  Set the extenral boundary condition to the analytical solution
 //
-// Note        :  1. Ref: https://github.com/gamer-project/gamer/wiki/Adding-New-Simulations#v-add-problem-specific-grid-fields-and-particle-attributes
-//                2. Invoke AddField() for each of the problem-specific field:
-//                   --> Field label sent to AddField() will be used as the output name of the field
-//                   --> Field index returned by AddField() can be used to access the field data
-//                3. Pre-declared field indices are put in Field.h
+// Note        :  1. Linked to the function pointer "BC_User_Ptr"
 //
-// Parameter   :  None
+// Parameter   :  fluid    : Fluid field to be set
+//                x/y/z    : Physical coordinates
+//                Time     : Physical time
+//                lv       : Refinement level
+//                AuxArray : Auxiliary array
 //
-// Return      :  None
+// Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
-void AddNewField_ELBDM_IsolatedHalo()
+void BC( real fluid[], const double x, const double y, const double z, const double Time,
+         const int lv, double AuxArray[] )
 {
 
-#  if ( NCOMP_PASSIVE_USER > 0 )
-   Idx_Dens0 = AddField( "Dens0", FIXUP_FLUX_NO, FIXUP_REST_NO, NORMALIZE_NO, INTERP_FRAC_NO );
-#  endif
+   SetGridIC( fluid, x, y, z, Time, lv, AuxArray );
 
-} // FUNCTION : AddNewField_ELBDM_IsolatedHalo
-
-
-
-//-------------------------------------------------------------------------------------------------------
-// Function    :  Init_User_ELBDM_IsolatedHalo
-// Description :  Store the initial density
-//
-// Note        :  1. Invoked by Init_GAMER() using the function pointer "Init_User_Ptr",
-//                   which must be set by a test problem initializer
-//
-// Parameter   :  None
-//
-// Return      :  None
-//-------------------------------------------------------------------------------------------------------
-void Init_User_ELBDM_IsolatedHalo()
-{
-
-#  if ( NCOMP_PASSIVE_USER > 0 )
-   for (int lv=0; lv<NLEVEL; lv++)
-   for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-   for (int k=0; k<PS1; k++)
-   for (int j=0; j<PS1; j++)
-   for (int i=0; i<PS1; i++)
-   {
-//    store the initial density in both Sg so that we don't have to worry about which Sg to be used
-//    a. for restart, the initial density has already been loaded and we just need to copy the data to another Sg
-      if ( OPT__INIT == INIT_BY_RESTART ) {
-         const real Dens0 = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i];
-
-         amr->patch[ 1-amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i] = Dens0;
-      }
-
-//    b. for starting a new simulation, we must copy the initial density to both Sg
-      else {
-         const real Dens0 = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
-
-         amr->patch[   amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i] = Dens0;
-         amr->patch[ 1-amr->FluSg[lv] ][lv][PID]->fluid[Idx_Dens0][k][j][i] = Dens0;
-      }
-   }
-#  endif
-
-} // FUNCTION : Init_User_ELBDM_IsolatedHalo
+} // FUNCTION : BC
 #endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 
 
-
-
 //-------------------------------------------------------------------------------------------------------
-// Function    :  Init_TestProb_ELBDM_IsolatedHalo
+// Function    :  Init_TestProb_ELBDM_ExtPot
 // Description :  Test problem initializer
 //
 // Note        :  None
@@ -229,7 +217,7 @@ void Init_User_ELBDM_IsolatedHalo()
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Init_TestProb_ELBDM_IsolatedHalo()
+void Init_TestProb_ELBDM_ExtPot()
 {
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
@@ -244,12 +232,13 @@ void Init_TestProb_ELBDM_IsolatedHalo()
    SetParameter();
 
 
+// set the function pointers of various problem-specific routines
    Init_Function_User_Ptr = SetGridIC;
-   Init_Field_User_Ptr    = AddNewField_ELBDM_IsolatedHalo;
-   Init_User_Ptr          = Init_User_ELBDM_IsolatedHalo;
-#  endif // if ( MODEL == ELBDM  &&  defined GRAVITY )
+   BC_User_Ptr            = BC;
+   Init_ExtPot_Ptr        = Init_ExtPot_ELBDM_ExtPot;
+#  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 
 
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
 
-} // FUNCTION : Init_TestProb_ELBDM_IsolatedHalo
+} // FUNCTION : Init_TestProb_ELBDM_ExtPot

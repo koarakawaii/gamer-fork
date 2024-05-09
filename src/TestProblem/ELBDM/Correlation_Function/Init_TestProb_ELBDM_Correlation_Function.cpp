@@ -371,7 +371,7 @@ static void AddNewField_ELBDM_Correlation_Function(void)
 {
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
-   Idx_Dens0 = AddField( "Dens0", NORMALIZE_NO, INTERP_FRAC_NO );
+   Idx_Dens0 = AddField( "Dens0", FIXUP_FLUX_NO, FIXUP_REST_NO, NORMALIZE_NO, INTERP_FRAC_NO );
 //   if ( MPI_Rank == 0 )   printf("Idx_Dens0 = %d \n", Idx_Dens0);
 #  endif
 
@@ -523,29 +523,44 @@ static void Init_User_ELBDM_Correlation_Function(void)
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  BC_HALO
+// Function    :  BC_Correlation_Function
 // Description :  Set the extenral boundary condition
 //
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
 //                2. Set the BC as isolated
 //
-// Parameter   :  fluid    : Fluid field to be set
-//                x/y/z    : Physical coordinates
-//                Time     : Physical time
-//                lv       : Refinement level
-//                AuxArray : Auxiliary array
+// Parameter   :  Array          : Array to store the prepared data including ghost zones
+//                ArraySize      : Size of Array including the ghost zones on each side
+//                fluid          : Fluid fields to be set
+//                NVar_Flu       : Number of fluid variables to be prepared
+//                GhostSize      : Number of ghost zones
+//                idx            : Array indices
+//                pos            : Physical coordinates
+//                Time           : Physical time
+//                lv             : Refinement level                                                                                             //                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
+//                AuxArray       : Auxiliary array
 //
 // Return      :  fluid
-////-------------------------------------------------------------------------------------------------------
-static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
-                     const int lv, double AuxArray[] )
+//-------------------------------------------------------------------------------------------------------
+static void BC_Correlation_Function( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
+                const int GhostSize, const int idx[], const double pos[], const double Time,
+                const int lv, const int TFluVarIdxList[], double AuxArray[] )
 {
-
-   fluid[REAL] = (real)0.0;
-   fluid[IMAG] = (real)0.0;
-   fluid[DENS] = (real)0.0;
-
-} // FUNCTION : BC_HALO
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+#  endif
+      fluid[DENS] = (real)0.0;
+      fluid[REAL] = (real)0.0;
+      fluid[IMAG] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else {
+      fluid[DENS] = (real)TINY_NUMBER;
+      fluid[PHAS] = (real)0.0;
+      fluid[STUB] = (real)0.0;
+   }
+#  endif
+            
+} // FUNCTION : BC_Correlation_Function
 
 
 
@@ -633,7 +648,7 @@ void Init_TestProb_ELBDM_Correlation_Function()
    Init_Field_User_Ptr    = AddNewField_ELBDM_Correlation_Function;
    Init_User_Ptr          = Init_User_ELBDM_Correlation_Function;
    Aux_Record_User_Ptr    = Do_CF;
-   BC_User_Ptr            = BC_HALO;
+   BC_User_Ptr            = BC_Correlation_Function;
    End_User_Ptr           = End_Correlation_Function;
 #  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
 

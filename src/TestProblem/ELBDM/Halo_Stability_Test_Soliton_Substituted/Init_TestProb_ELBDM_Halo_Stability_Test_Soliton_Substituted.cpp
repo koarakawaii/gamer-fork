@@ -397,7 +397,7 @@ static void AddNewField_ELBDM_Halo_Stability_Test(void)
 {
 
 #  if ( NCOMP_PASSIVE_USER > 0 )
-   Idx_Dens0 = AddField( "Dens0", NORMALIZE_NO, INTERP_FRAC_NO );
+   Idx_Dens0 = AddField( "Dens0", FIXUP_FLUX_NO, FIXUP_REST_NO, NORMALIZE_NO, INTERP_FRAC_NO );
 //   if ( MPI_Rank == 0 )   printf("Idx_Dens0 = %d \n", Idx_Dens0);
 #  endif
 
@@ -666,24 +666,47 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 } // FUNCTION : SetGridIC
 
 
+
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_HALO
-// Description :  Set the boundary condition for halo
+// Description :  Set the extenral boundary condition
 //
-// Note        :  1. Isolated boundary condition, i.e. real part = imaginary part = 0 on all boundaries
+// Note        :  1. Linked to the function pointer "BC_User_Ptr"
 //
-// Parameter   :  fluid[REAL] : Wave function real part
-//                fluid[IMAG] : Wave function imaginary part
-//                fluid[DENS] : density
-static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
-         const int lv, double AuxArray[] )
+// Parameter   :  Array          : Array to store the prepared data including ghost zones
+//                ArraySize      : Size of Array including the ghost zones on each side
+//                fluid          : Fluid fields to be set
+//                NVar_Flu       : Number of fluid variables to be prepared
+//                GhostSize      : Number of ghost zones
+//                idx            : Array indices
+//                pos            : Physical coordinates
+//                Time           : Physical time
+//                lv             : Refinement level
+//                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
+//                AuxArray       : Auxiliary array
+//
+// Return      :  fluid
+//-------------------------------------------------------------------------------------------------------
+static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
+                     const int GhostSize, const int idx[], const double pos[], const double Time,
+                     const int lv, const int TFluVarIdxList[], double AuxArray[] )
 {
-
-   fluid[REAL] = (real)0.0;
-   fluid[IMAG] = (real)0.0;
-   fluid[DENS] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   if ( amr->use_wave_flag[lv] ) {
+#  endif
+      fluid[DENS] = (real)0.0;
+      fluid[REAL] = (real)0.0;
+      fluid[IMAG] = (real)0.0;
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   } else {
+      fluid[DENS] = (real)TINY_NUMBER;
+      fluid[PHAS] = (real)0.0;
+      fluid[STUB] = (real)0.0;
+   }
+#  endif
 
 } // FUNCTION : BC_HALO
+
 
 
 //-------------------------------------------------------------------------------------------------------

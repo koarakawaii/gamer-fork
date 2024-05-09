@@ -1,0 +1,815 @@
+#include "GAMER.h"
+#include "TestProb.h"
+
+// problem-specific global variables
+// =======================================================================================
+static double   System_CM_MaxR;                         // maximum radius for determining System CM
+static double   System_CM_TolErrR;                      // maximum allowed errors for determining System CM
+static double   Soliton_CM_MaxR;                        // maximum radius for determining Soliton CM
+static double   Soliton_CM_TolErrR;                     // maximum allowed errors for determining Soliton CM
+static double   CoreRadius;                         // soliton core radius (mass core ratio should be included), will be called by external
+static double   DensPeakRealPart;                   // real part of soliton peak density
+static double   DensPeakImagPart;                   // imaginary part of soliton peak density
+static double   TransitionFactor;                   // determine how sharp the phase will transist from \approx 0 to its original value
+static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*CoreRadius will has nearly constant phase \approx 0
+static double   ScaleFactor;                        // scaling factor, cosmology parameter
+static double   h_0;                                // small h_0, Hubble constant/100, cosmology parameter  
+static double   SolitonPotScale;                    // proportional factor for coverting potential from GM_sun/r_c -> code unit, where r_c in unit of Mpc/h
+static double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential center, will be called by external
+static bool     EraseSolVelFlag;                    // flag to determine whether erase soliton inital veloicty or not
+static bool     AddExternalPotFlag;                 // flag to add external potential to substitute soliton
+// =======================================================================================
+//
+// external potential routines
+//void Init_ExtPot_ELBDM_SolitonPot();
+//
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Validate
+// Description :  Validate the compilation flags and runtime parameters for this test problem
+//
+// Note        :  None
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void Validate()
+{
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ...\n", TESTPROB_ID );
+
+   // errors
+#  if ( MODEL != ELBDM )
+   Aux_Error( ERROR_INFO, "MODEL != ELBDM !!\n" );
+#  endif
+
+#  ifndef GRAVITY
+   Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
+#  endif
+
+#  ifdef COMOVING
+   Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
+   #  endif
+
+#  ifdef PARTICLE
+   Aux_Error( ERROR_INFO, "PARTICLE must be disabled !!\n" );
+   #  endif
+
+#  ifdef GRAVITY
+   if ( OPT__BC_POT != BC_POT_ISOLATED )
+      Aux_Error( ERROR_INFO, "must adopt isolated BC for gravity --> reset OPT__BC_POT !!\n" );
+#  endif
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
+
+} // FUNCTION : Validate
+
+
+
+// replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
+#if ( MODEL == ELBDM && defined GRAVITY )
+//-------------------------------------------------------------------------------------------------------
+// Function    :  SetParameter
+// Description :  Load and set the problem-specific runtime parameters
+//
+// Note        :  1. Filename is set to "Input__TestProb" by default
+//                2. Major tasks in this function:
+//                   (1) load the problem-specific runtime parameters
+//                   (2) set the problem-specific derived parameters
+//                   (3) reset other general-purpose parameters if necessary
+//                   (4) make a note of the problem-specific parameters
+//                3. Must NOT call any EoS routine here since it hasn't been initialized at this point
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void SetParameter()
+{
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Setting runtime parameters ...\n" );
+
+
+// (1) load the problem-specific runtime parameters
+   const char FileName[] = "Input__TestProb_ELBDM_Halo_Stability_Test";
+   ReadPara_t *ReadPara  = new ReadPara_t;
+
+// (1-1) add parameters in the following format:
+// --> note that VARIABLE, DEFAULT, MIN, and MAX must have the same data type
+// --> some handy constants (e.g., Useless_bool, Eps_double, NoMin_int, ...) are defined in "include/ReadPara.h"
+// ********************************************************************************************************************************
+// ReadPara->Add( "KEY_IN_THE_FILE",   &VARIABLE,              DEFAULT,       MIN,              MAX               );
+// ********************************************************************************************************************************
+   ReadPara->Add( "System_CM_MaxR",           &System_CM_MaxR,           -1.0,           Eps_double,       NoMax_double      );
+   ReadPara->Add( "System_CM_TolErrR",        &System_CM_TolErrR,        -1.0,           NoMin_double,     NoMax_double      );
+   ReadPara->Add( "Soliton_CM_MaxR",          &Soliton_CM_MaxR,          -1.0,          Eps_double,       NoMax_double       );
+   ReadPara->Add( "Soliton_CM_TolErrR",       &Soliton_CM_TolErrR,       -1.0,          NoMin_double,     NoMax_double       );
+   ReadPara->Add( "EraseSolVelFlag",          &EraseSolVelFlag,           false,         Useless_bool,     Useless_bool      );
+   ReadPara->Add( "AddExternalPotFlag",       &AddExternalPotFlag,        false,         Useless_bool,     Useless_bool      );
+   if ( EraseSolVelFlag == 1 )
+   {
+      ReadPara->Add( "DensPeakRealPart",         &DensPeakRealPart,          0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "TransitionFactor",         &TransitionFactor,       Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "CriteriaFactor",           &CriteriaFactor,         Eps_double,       Eps_double,       NoMax_double      );
+   } 
+   if ( AddExternalPotFlag ==1 )
+   {
+      ReadPara->Add( "ScaleFactor",              &ScaleFactor,            Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "h_0",                      &h_0,                    Eps_double,       Eps_double,       NoMax_double      );
+   }
+   if ( ( EraseSolVelFlag == 1 ) || ( AddExternalPotFlag == 1 ) )
+   {
+      ReadPara->Add( "CoreRadius",               &CoreRadius,              Eps_double,      Eps_double,       NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0],       0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_y",       &SolitonSubCenter[1],       0.0,          NoMin_double,      NoMax_double      );
+      ReadPara->Add( "SolitonSubCenter_z",       &SolitonSubCenter[2],       0.0,          NoMin_double,      NoMax_double      );
+   }
+
+   ReadPara->Read( FileName );
+
+   delete ReadPara;
+
+// (1-2) set the default values
+   if ( System_CM_TolErrR < 0.0 )  System_CM_TolErrR = 1.0*amr->dh[MAX_LEVEL];
+
+// (1-3) check the runtime parameters
+   if ( ( EraseSolVelFlag == 1 ) && ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 if EraseSolVelFlag is enabled !!\n" );
+   if ( ( AddExternalPotFlag == 1 ) && (OPT__RESTART_RESET != 1) && ( OPT__INIT != INIT_BY_FILE ) )
+      Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 if AddExternalPotFlag is enabled !!\n" );
+
+
+// (2) set the problem-specific derived parameters
+
+
+// (3) reset other general-purpose parameters
+//     --> a helper macro PRINT_WARNING is defined in TestProb.h
+   const long   End_Step_Default = __INT_MAX__;
+   const double End_T_Default    = __FLT_MAX__;
+
+   if ( END_STEP < 0 ) {
+      END_STEP = End_Step_Default;
+      PRINT_WARNING( "END_STEP", END_STEP, FORMAT_LONG );
+   }
+
+   if ( END_T < 0.0 ) {
+      END_T = End_T_Default;
+      PRINT_WARNING( "END_T", END_T, FORMAT_REAL );
+   }
+
+
+// (4) make a note
+   if ( MPI_Rank == 0 )
+   {
+      Aux_Message( stdout, "=============================================================================\n" );
+      Aux_Message( stdout, "  test problem ID           = %d\n",     TESTPROB_ID );
+      Aux_Message( stdout, "  system CM max radius                     = %13.6e\n", System_CM_MaxR            );
+      Aux_Message( stdout, "  system CM tolerated error                = %13.6e\n", System_CM_TolErrR         );
+      Aux_Message( stdout, "  soliton CM max radius                    = %13.6e\n", Soliton_CM_MaxR           );
+      Aux_Message( stdout, "  soliton CM tolerated error               = %13.6e\n", Soliton_CM_TolErrR        );
+      Aux_Message( stdout, "  erase soliton initial velocity flag          = %d\n",     EraseSolVelFlag           );
+      Aux_Message( stdout, "  add external potential flag                  = %d\n",     AddExternalPotFlag        );
+      if ( EraseSolVelFlag == 1 )
+      {
+         Aux_Message( stdout, "  criteria factor defining constant phase zone = %13.6e\n", CriteriaFactor            );
+         Aux_Message( stdout, "  transition factor for transition zone width  = %13.6e\n", TransitionFactor          );
+         Aux_Message( stdout, "  soliton peak density real part               = %13.6e\n", DensPeakRealPart          );
+         Aux_Message( stdout, "  soliton peak density imaginary part          = %13.6e\n", DensPeakImagPart          );
+      }
+      if ( AddExternalPotFlag == 1 )
+      {
+         Aux_Message( stdout, "  scaling factor                               = %13.6e\n", ScaleFactor               );
+         Aux_Message( stdout, "  h_0                                          = %13.6e\n", h_0                       );
+         Aux_Message( stdout, "  soliton potential proportional factor        = %13.6e\n", SolitonPotScale           );
+      }
+      if ( ( EraseSolVelFlag == 1 ) || ( AddExternalPotFlag ==1 ) )
+      {
+         Aux_Message( stdout, "  core radius (mass core ration included)      = %13.6e\n", CoreRadius                );
+         Aux_Message( stdout, "  soliton substitution center_x                = %13.6e\n", SolitonSubCenter[0]       );
+         Aux_Message( stdout, "  soliton substitution center_y                = %13.6e\n", SolitonSubCenter[1]       );
+         Aux_Message( stdout, "  soliton substitution center_z                = %13.6e\n", SolitonSubCenter[2]       );
+      }
+      Aux_Message( stdout, "=============================================================================\n" );
+   }
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Setting runtime parameters ... done\n" );
+
+} // FUNCTION : SetParameter
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  GetPhase
+// Description :  Calculate the wave function phase based on real/imaginary part
+//
+// Note        :  1.  Will be called whenever phase is needed
+//
+// Parameter   :  real dens_sqrt: square root of wave function 
+//                real real_part: real part of wave function
+//                real imag_part: imaginary part of wave function 
+//
+// Return      :  phase
+//-------------------------------------------------------------------------------------------------------
+static double GetPhase(real dens_sqrt, real real_part, real imag_part)
+{
+   double phase;
+   if ( fabs(real_part) < fabs(imag_part) )  // use acos when abs(real_part) < abs(imag_part) since it will be more precise in that regeion
+   {
+      phase = acos (real_part/dens_sqrt);
+      if ( imag_part < 0. )
+         phase = 2.*M_PI-phase;
+   }
+   else // use asin when abs(real_part) >= abs(imag_part) since it will be more precise in that region
+   {
+      phase = asin (imag_part/dens_sqrt);
+      if ( real_part < 0. )
+         phase = 1.*M_PI-phase;
+   }
+
+   // makes the phase always between [0,2\pi)
+   if ( phase < 0.)
+      phase += 2.*M_PI;
+   else if ( phase>=2.*M_PI )
+      phase -= 2.*M_PI;
+   //
+
+   if ( ( phase < 0. ) || ( phase >= 2.*M_PI ) )
+      Aux_Error( ERROR_INFO, "Phase %.8e is not in range [0,2*pi) !!\n", phase );
+   if ( phase!=phase )
+      Aux_Error( ERROR_INFO, "Phase is NaN !! Square root of density is %.8e ; real part = %.8e ; imaginary part = %.8e \n", dens_sqrt, real_part, imag_part );
+   return phase;
+} // FUNCTION : GetPhase
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Init_User_ELBDM_Halo_Stability_Test
+// Description :  Erase the soliton initial velocity by phase modulation scheme if EraseSolVelFlag is enabled; treated as normal restart if it is not enabled
+//
+// Note        :  1. Invoked by Init_GAMER() using the function pointer "Init_User_Ptr",
+//                   which must be set by a test problem initializer
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+static void Init_User_ELBDM_Halo_Stability_Test(void)
+{
+   if ( EraseSolVelFlag )  
+   {
+      double x, y, z, x0, y0, z0, modulator;
+      real   dr[3];
+      real   r;
+      double   global_phase = GetPhase( SQRT( DensPeakRealPart*DensPeakRealPart + DensPeakImagPart*DensPeakImagPart ), DensPeakRealPart, DensPeakImagPart );
+      for (int lv=0; lv<NLEVEL; lv++)
+      {
+//         if ( lv==NLEVEL-1 )
+//             printf("Global phase is %.8e .\n", global_phase);
+         const double dh = amr->dh[lv];
+#  pragma omp parallel for private( dr, x, y, z, x0, y0, z0, r, modulator ) schedule( runtime )
+         for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+         {
+            x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh;
+            y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
+            z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
+            for (int k=0; k<PS1; k++)
+            {
+               z = z0 + k*dh;
+               for (int j=0; j<PS1; j++)
+               {
+                  y = y0 + j*dh;
+                  for (int i=0; i<PS1; i++)
+                  {
+                     real dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+                     if ( dens==0.0 )
+                     {
+                         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] = 0.0;
+                         amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] = 0.0;
+                         continue;
+                     }
+                     else
+                     {
+                        x = x0 + i*dh;
+                        dr[0] = x-SolitonSubCenter[0];
+                        dr[1] = y-SolitonSubCenter[1];
+                        dr[2] = z-SolitonSubCenter[2];
+                        r     = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
+                        real dens_sqrt = SQRT( dens );
+                        real real_part = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
+                        real imag_part = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+                        double phase = GetPhase( dens_sqrt, real_part, imag_part ) - global_phase; // phase will be inbetween (-2\pi,2\pi)
+                        // makes the phase always between [-\pi,\pi], so after apply the modulation, the phase will not shrink drastically
+                        if ( phase < -1.*M_PI)
+                           phase += 2.*M_PI;
+                        else if ( phase > 1.*M_PI )
+                           phase -= 2.*M_PI;
+                        if ( (phase<-1.*M_PI) || (phase>1.*M_PI) )
+                           Aux_Error( ERROR_INFO, "Phase %.8e is not in range [-\\pi,\\pi] !!\n" );
+                        //
+//                        if ( lv==NLEVEL-1 )
+//                            printf("dens_sqrt is %.8e ; real_part is %.8e ; imag_part is %.8e ; phase before modulation is %.8e .\n", dens_sqrt, real_part, imag_part, phase);
+                        modulator =  1./(1. + exp(-2.*TransitionFactor*(double)(r/CoreRadius-CriteriaFactor)));
+                        if ( ( modulator < 0. ) || ( modulator > 1.0 ) )
+                           Aux_Error( ERROR_INFO, "Modulator %.8e is not in range [0.,1.] !!\n" );
+                        if ( modulator!=modulator )
+                           Aux_Error( ERROR_INFO, "Modulator is NaN !!\n" );
+                        else
+                           phase *= modulator;
+//                        if ( lv==NLEVEL-1 )
+//                            printf("Phase after modulation is %.8e .\n", phase);
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] = dens_sqrt*COS((real)phase);
+                        amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] = dens_sqrt*SIN((real)phase);
+                     }
+        	  } // end of for loop i
+               } // end of for loop j
+            } // end of for loop k
+         } // end of for loop PID
+      } // end of for loop lv
+
+//    restrict all variables to be consistent with the finite volume scheme
+      if ( OPT__INIT_RESTRICT )
+      {
+         if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Re-restricting level %d ... ", NLEVEL-1 );
+         Buf_GetBufferData( NLEVEL-1, amr->FluSg[NLEVEL-1], amr->MagSg[NLEVEL-1], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
+            
+         for (int lv=NLEVEL-2; lv>=0; lv--)
+         {
+            if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Re-restricting level %d ... ", lv );
+      
+            Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT, _TOTAL, _MAG );
+   
+#  ifdef LOAD_BALANCE
+            LB_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT, _TOTAL, _MAG, NULL_INT );
+#  endif
+            Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
+   
+            if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
+         } // for (int lv=NLEVEL-2; lv>=0; lv--)
+      } // if ( OPT__INIT_RESTRICT )
+   } // end of if ( EraseSolVelFlag )
+
+} // FUNCTION : Init_User_ELBDM_Halo_Stability_Test
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  SetGridIC
+// Description :  Set the problem-specific initial condition on grids
+//
+// Note        :  1. This function may also be used to estimate the numerical errors when OPT__OUTPUT_USER is enabled
+//                   --> In this case, it should provide the analytical solution at the given "Time"
+//                2. This function will be invoked by multiple OpenMP threads when OPENMP is enabled
+//                   (unless OPT__INIT_GRID_WITH_OMP is disabled)
+//                   --> Please ensure that everything here is thread-safe
+//                3. Even when DUAL_ENERGY is adopted for HYDRO, one does NOT need to set the dual-energy variable here
+//                   --> It will be calculated automatically
+//                4. For MHD, do NOT add magnetic energy (i.e., 0.5*B^2) to fluid[ENGY] here
+//                   --> It will be added automatically later
+//
+// Parameter   :  fluid    : Fluid field to be initialized
+//                x/y/z    : Physical coordinates
+//                Time     : Physical time
+//                lv       : Target refinement level
+//                AuxArray : Auxiliary array
+//
+// Return      :  fluid
+//-------------------------------------------------------------------------------------------------------
+void SetGridIC( real fluid[], const double x, const double y, const double z, const double Time,
+                const int lv, double AuxArray[] )
+{
+
+//// HYDRO example
+//   double Dens, MomX, MomY, MomZ, Pres, Eint, Etot;
+//
+//   Dens = 1.0;
+//   MomX = 0.0;
+//   MomY = 0.0;
+//   MomZ = 0.0;
+//   Pres = 2.0;
+//   Eint = EoS_DensPres2Eint_CPUPtr( Dens, Pres, NULL, EoS_AuxArray_Flt,
+//                                    EoS_AuxArray_Int, h_EoS_Table, NULL ); // assuming EoS requires no passive scalars
+//   Etot = Hydro_ConEint2Etot( Dens, MomX, MomY, MomZ, Eint, 0.0 );         // do NOT include magnetic energy here
+//
+//// set the output array
+//   fluid[DENS] = Dens;
+//   fluid[MOMX] = MomX;
+//   fluid[MOMY] = MomY;
+//   fluid[MOMZ] = MomZ;
+//   fluid[ENGY] = Etot;
+
+} // FUNCTION : SetGridIC
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  BC_HALO
+// Description :  Set the extenral boundary condition
+//
+// Note        :  1. Linked to the function pointer "BC_User_Ptr"
+//                2. Set the BC as isolated
+//
+// Parameter   :  fluid    : Fluid field to be set
+//                x/y/z    : Physical coordinates
+//                Time     : Physical time
+//                lv       : Refinement level
+//                AuxArray : Auxiliary array
+//
+// Return      :  fluid
+////-------------------------------------------------------------------------------------------------------
+static void BC_HALO( real fluid[], const double x, const double y, const double z, const double Time,
+         const int lv, double AuxArray[] )
+{
+
+   fluid[REAL] = (real)0.0;
+   fluid[IMAG] = (real)0.0;
+   fluid[DENS] = (real)0.0;
+
+} // FUNCTION : BC_HALO
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  GetCenterOfMass
+// Description :  Record the center of mass (CM)
+//
+// Note        :  1. Invoked by Record_CenterOfMass() recursively
+//                2. Only include cells within CM_MaxR from CM_Old[] when updating CM
+//
+// Parameter   :  CM_Old[] : Previous CM
+//                CM_New[] : New CM to be returned
+void GetCenterOfMass( const double CM_Old[], double CM_New[], const double CM_MaxR )
+{
+
+   const double CM_MaxR2          = SQR( CM_MaxR );
+   const double HalfBox[3]        = { 0.5*amr->BoxSize[0], 0.5*amr->BoxSize[1], 0.5*amr->BoxSize[2] };
+   const bool   Periodic          = ( OPT__BC_FLU[0] == BC_FLU_PERIODIC );
+   const bool   IntPhase_No       = false;
+   const real   MinDens_No        = -1.0;
+   const real   MinPres_No        = -1.0;
+   const real   MinTemp_No        = -1.0;
+   const bool   DE_Consistency_No = false;
+
+   int   *PID0List = NULL;
+   double M_ThisRank, MR_ThisRank[3], M_AllRank, MR_AllRank[3];
+   real (*TotalDens)[PS1][PS1][PS1];
+
+   M_ThisRank = 0.0;
+   for (int d=0; d<3; d++)    MR_ThisRank[d] = 0.0;
+
+
+   for (int lv=0; lv<NLEVEL; lv++)
+   {
+
+//    get the total density on grids
+      TotalDens = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
+      PID0List  = new int  [ amr->NPatchComma[lv][1]/8 ];
+
+      for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
+
+      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, _TOTAL_DENS, _NONE,
+                         OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
+                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
+
+      delete [] PID0List;
+
+//    calculate the center of mass
+      const double dh = amr->dh[lv];
+      const double dv = CUBE( dh );
+
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      {
+//       skip non-leaf patches
+         if ( amr->patch[0][lv][PID]->son != -1 )  continue;
+
+         const double x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh;
+         const double y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
+         const double z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
+
+         double x, y, z, dx, dy, dz;
+
+         for (int k=0; k<PS1; k++)  {  z = z0 + k*dh;  dz = z - CM_Old[2];
+                                       if ( Periodic ) {
+                                          if      ( dz > +HalfBox[2] )  {  z -= amr->BoxSize[2];  dz -= amr->BoxSize[2];  }
+                                          else if ( dz < -HalfBox[2] )  {  z += amr->BoxSize[2];  dz += amr->BoxSize[2];  }
+                                       }
+         for (int j=0; j<PS1; j++)  {  y = y0 + j*dh;  dy = y - CM_Old[1];
+                                       if ( Periodic ) {
+                                          if      ( dy > +HalfBox[1] )  {  y -= amr->BoxSize[1];  dy -= amr->BoxSize[1];  }
+                                          else if ( dy < -HalfBox[1] )  {  y += amr->BoxSize[1];  dy += amr->BoxSize[1];  }
+                                       }
+         for (int i=0; i<PS1; i++)  {  x = x0 + i*dh;  dx = x - CM_Old[0];
+                                       if ( Periodic ) {
+                                          if      ( dx > +HalfBox[0] )  {  x -= amr->BoxSize[0];  dx -= amr->BoxSize[0];  }
+                                          else if ( dx < -HalfBox[0] )  {  x += amr->BoxSize[0];  dx += amr->BoxSize[0];  }
+                                       }
+
+//          only include cells within CM_MaxR
+            const double R2 = SQR(dx) + SQR(dy) + SQR(dz);
+            if ( R2 < CM_MaxR2 )
+            {
+               const double dm = TotalDens[PID][k][j][i]*dv;
+
+               M_ThisRank     += dm;
+               MR_ThisRank[0] += dm*x;
+               MR_ThisRank[1] += dm*y;
+               MR_ThisRank[2] += dm*z;
+            }
+         }}}
+      } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+
+      delete [] TotalDens;
+   } // for (int lv=0; lv<NLEVEL; lv++)
+
+
+// collect data from all ranks to calculate the CM
+// --> note that all ranks will get CM_New[]
+   MPI_Allreduce( &M_ThisRank, &M_AllRank, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+   MPI_Allreduce( MR_ThisRank, MR_AllRank, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+
+   for (int d=0; d<3; d++)    CM_New[d] = MR_AllRank[d] / M_AllRank;
+
+// map the new CM back to the simulation domain
+   if ( Periodic )
+   for (int d=0; d<3; d++)
+   {
+      if      ( CM_New[d] >= amr->BoxSize[d] )  CM_New[d] -= amr->BoxSize[d];
+      else if ( CM_New[d] < 0.0              )  CM_New[d] += amr->BoxSize[d];
+
+   }
+
+   for (int d=0; d<3; d++)
+      if ( CM_New[d] >= amr->BoxSize[d]  ||  CM_New[d] < 0.0 )
+         Aux_Error( ERROR_INFO, "CM_New[%d] = %14.7e lies outside the domain !!\n", d, CM_New[d] );
+
+} // FUNCTION : GetCenterOfMass
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Record_CenterOfMass
+// Description :  Record the maximum density and center coordinates
+//
+// Note        :  1. It will also record the real and imaginary parts associated with the maximum density
+//                2. For the center coordinates, it will record the position of maximum density, minimum potential,
+//                   and center-of-mass
+//                3. Output filename is fixed to "Record__Center"
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void Record_CenterOfMass(void )
+{
+
+   const char filename_center  [] = "Record__Center";
+   const int  CountMPI            = 10;
+
+   double dens, max_dens_loc=-__DBL_MAX__, max_dens_pos_loc[3], real_loc, imag_loc;
+   double pote, min_pote_loc=+__DBL_MAX__, min_pote_pos_loc[3];
+   double send[CountMPI], (*recv)[CountMPI]=new double [MPI_NRank][CountMPI];
+   const long   DensMode          = _TOTAL_DENS;
+
+   const bool   IntPhase_No       = false;
+   const real   MinDens_No        = -1.0;
+   const real   MinPres_No        = -1.0;
+   const real   MinTemp_No        = -1.0;
+   const bool   DE_Consistency_No = false;
+
+// collect local data
+   for (int lv=0; lv<NLEVEL; lv++)
+   {
+//    get the total density on grids
+      real (*TotalDens)[PS1][PS1][PS1] = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
+      int   *PID0List                  = new int  [ amr->NPatchComma[lv][1]/8 ];
+
+      for (int PID0=0, t=0; PID0<amr->NPatchComma[lv][1]; PID0+=8, t++)    PID0List[t] = PID0;
+
+      Prepare_PatchData( lv, Time[lv], TotalDens[0][0][0], NULL, 0, amr->NPatchComma[lv][1]/8, PID0List, DensMode, _NONE,
+                         OPT__RHO_INT_SCHEME, INT_NONE, UNIT_PATCH, NSIDE_00, IntPhase_No, OPT__BC_FLU, BC_POT_NONE,
+                         MinDens_No, MinPres_No, MinTemp_No, 0.0, DE_Consistency_No );
+
+      delete [] PID0List;
+
+      for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+      {
+//       skip non-leaf patches
+         if ( amr->patch[0][lv][PID]->son != -1 )  continue;
+
+         for (int k=0; k<PS1; k++)  {  const double z = amr->patch[0][lv][PID]->EdgeL[2] + (k+0.5)*amr->dh[lv];
+         for (int j=0; j<PS1; j++)  {  const double y = amr->patch[0][lv][PID]->EdgeL[1] + (j+0.5)*amr->dh[lv];
+         for (int i=0; i<PS1; i++)  {  const double x = amr->patch[0][lv][PID]->EdgeL[0] + (i+0.5)*amr->dh[lv];
+
+//          dens = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[DENS][k][j][i];
+            dens = TotalDens[PID][k][j][i];
+            pote = amr->patch[ amr->PotSg[lv] ][lv][PID]->pot[k][j][i];
+
+            if ( dens > max_dens_loc )
+            {
+               max_dens_loc        = dens;
+               real_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i];
+               imag_loc            = amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i];
+               max_dens_pos_loc[0] = x;
+               max_dens_pos_loc[1] = y;
+               max_dens_pos_loc[2] = z;
+            }
+
+            if ( pote < min_pote_loc )
+            {
+               min_pote_loc        = pote;
+               min_pote_pos_loc[0] = x;
+               min_pote_pos_loc[1] = y;
+               min_pote_pos_loc[2] = z;
+            }
+         }}}
+      } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
+
+      delete [] TotalDens;
+   } // for (int lv=0; lv<NLEVEL; lv++)
+
+
+// gather data to the root rank
+   send[0] = max_dens_loc;
+   send[1] = real_loc;
+   send[2] = imag_loc;
+   send[3] = max_dens_pos_loc[0];
+   send[4] = max_dens_pos_loc[1];
+   send[5] = max_dens_pos_loc[2];
+   send[6] = min_pote_loc;
+   send[7] = min_pote_pos_loc[0];
+   send[8] = min_pote_pos_loc[1];
+   send[9] = min_pote_pos_loc[2];
+
+   MPI_Gather( send, CountMPI, MPI_DOUBLE, recv[0], CountMPI, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+
+// record the maximum density and center coordinates
+   double max_dens      = -__DBL_MAX__;
+   double min_pote      = +__DBL_MAX__;
+   int    max_dens_rank = -1;
+   int    min_pote_rank = -1;
+
+   if ( MPI_Rank == 0 )
+   {
+      for (int r=0; r<MPI_NRank; r++)
+      {
+         if ( recv[r][0] > max_dens )
+         {
+            max_dens      = recv[r][0];
+            max_dens_rank = r;
+         }
+
+         if ( recv[r][6] < min_pote )
+         {
+            min_pote      = recv[r][6];
+            min_pote_rank = r;
+         }
+      }
+
+      if ( max_dens_rank < 0  ||  max_dens_rank >= MPI_NRank )
+         Aux_Error( ERROR_INFO, "incorrect max_dens_rank (%d) !!\n", max_dens_rank );
+
+      if ( min_pote_rank < 0  ||  min_pote_rank >= MPI_NRank )
+         Aux_Error( ERROR_INFO, "incorrect min_pote_rank (%d) !!\n", min_pote_rank );
+
+      static bool FirstTime = true;
+
+      if ( FirstTime )
+      {
+         if ( Aux_CheckFileExist(filename_center) )
+            Aux_Message( stderr, "WARNING : file \"%s\" already exists !!\n", filename_center );
+         else
+         {
+            FILE *file_center = fopen( filename_center, "w" );
+            fprintf( file_center, "#%s  %10s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %14s  %10s  %14s  %14s  %14s %10s  %14s  %14s  %14s\n",
+                     "Time", "Step", "Dens", "Real", "Imag", "Dens_x", "Dens_y", "Dens_z", "Pote", "Pote_x", "Pote_y", "Pote_z",
+                     "NIter_h", "CM_x_h", "CM_y_h", "CM_z_h",
+                     "NIter_s", "CM_x_s", "CM_y_s", "CM_z_s");
+            fclose( file_center );
+         }
+
+         FirstTime = false;
+      }
+
+      FILE *file_center = fopen( filename_center, "a" );
+      fprintf( file_center, "%20.14e  %10ld  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e  %14.7e",
+               Time[0], Step, recv[max_dens_rank][0], recv[max_dens_rank][1], recv[max_dens_rank][2], recv[max_dens_rank][3],
+                              recv[max_dens_rank][4], recv[max_dens_rank][5], recv[min_pote_rank][6], recv[min_pote_rank][7],
+                              recv[min_pote_rank][8], recv[min_pote_rank][9] );
+      fclose( file_center );
+   } // if ( MPI_Rank == 0 )
+
+
+// compute the center of mass until convergence
+   const double TolErrR2 = SQR( System_CM_TolErrR );
+   const int    NIterMax = 10;
+
+   double dR2, CM_Old[3], CM_New[3];
+   int NIter = 0;
+
+// repeat 2 times: first for system CM, next for soliton CM
+   for (int repeat=0; repeat<2; repeat++)
+   {
+// set an initial guess by the peak density position
+       if ( MPI_Rank == 0 )
+          for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
+    
+       MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+    
+       while ( true )
+       {
+          if (repeat==0)
+              GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR );
+          else
+              GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR );
+    
+          dR2 = SQR( CM_Old[0] - CM_New[0] )
+              + SQR( CM_Old[1] - CM_New[1] )
+              + SQR( CM_Old[2] - CM_New[2] );
+          NIter ++;
+    
+          if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
+             break;
+          else
+             memcpy( CM_Old, CM_New, sizeof(double)*3 );
+       }
+    
+       if ( MPI_Rank == 0 )
+       {
+          if ( dR2 > TolErrR2 )
+             Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
+    
+          FILE *file_center = fopen( filename_center, "a" );
+          if (repeat==0)
+              fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e", NIter, CM_New[0], CM_New[1], CM_New[2] );
+          else
+              fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e\n", NIter, CM_New[0], CM_New[1], CM_New[2] );
+          fclose( file_center );
+       }
+   }
+
+   delete [] recv;
+
+} // FUNCTION : Record_CenterOfMass
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  End_Halo_Stability_Test
+// Description :  Free memory before terminating the program
+//
+// Note        :  1. Linked to the function pointer "End_User_Ptr" to replace "End_User()"
+//
+// Parameter   :  None
+//-------------------------------------------------------------------------------------------------------
+static void End_Halo_Stability_Test()
+{
+   
+} // FUNCTION : End_Halo_Stability_Test
+#endif // end of if ( MODEL == ELBDM && defined GRAVITY )
+
+
+
+//-------------------------------------------------------------------------------------------------------
+// Function    :  Init_TestProb_ELBDM_Halo_Stability_Test
+// Description :  Test problem initializer
+//
+// Note        :  None
+//
+// Parameter   :  None
+//
+// Return      :  None
+//-------------------------------------------------------------------------------------------------------
+void Init_TestProb_ELBDM_Halo_Stability_Test()
+{
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ...\n", __FUNCTION__ );
+
+
+// validate the compilation flags and runtime parameters
+   Validate();
+
+
+#  if ( MODEL == ELBDM  &&  defined GRAVITY )
+// set the problem-specific runtime parameters
+   SetParameter();
+
+
+   Init_Function_User_Ptr = SetGridIC;
+   BC_User_Ptr            = BC_HALO;
+   Aux_Record_User_Ptr    = Record_CenterOfMass;
+   Init_User_Ptr          = Init_User_ELBDM_Halo_Stability_Test;
+//   Init_ExtPot_Ptr        = Init_ExtPot_ELBDM_SolitonPot;
+#  endif // #if ( MODEL == ELBDM  &&  defined GRAVITY )
+
+// replace HYDRO by the target model (e.g., MHD/ELBDM) and also check other compilation flags if necessary (e.g., GRAVITY/PARTICLE)
+   Src_Init_User_Ptr              = NULL; // option: SRC_USER;                example: SourceTerms/User_Template/CPU_Src_User_Template.cpp
+   End_User_Ptr            = End_Halo_Stability_Test;
+
+
+   if ( MPI_Rank == 0 )    Aux_Message( stdout, "%s ... done\n", __FUNCTION__ );
+
+} // FUNCTION : Init_TestProb_ELBDM_Halo_Stability_Test
