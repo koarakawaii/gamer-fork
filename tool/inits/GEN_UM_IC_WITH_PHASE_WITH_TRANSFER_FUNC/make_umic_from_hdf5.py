@@ -19,9 +19,14 @@
 # (4) Convert density and phase field to real and imaginary part of wave function           #
 # (5) Output as binary file "UM_IC"                                                         #
 #                                                                                           #
-# Unit(s): MUCIS v.s. here                                                                  #
+# Unit(s): MUSIC v.s. here                                                                  #
 # (1) density: back ground density ; back ground density                                    #
 # (2) velocity: box length*H_0	   ; m/s                                                    #
+#                                                                                           #
+# Physical meaning for MUSIC's velocity recorded in HDF5 is peculiar velocity (in physical  #
+# frame, not comoving frame), i.e., after multiplying box_length*1000, we have:             #
+#           (v_hdf5),i = (v_peculiar,physical),i = a*(dx_{comoving}),i/dt                   #
+# where i=x, y, z                                                                           #
 #############################################################################################
 
 import os, h5py, subprocess, re, sys
