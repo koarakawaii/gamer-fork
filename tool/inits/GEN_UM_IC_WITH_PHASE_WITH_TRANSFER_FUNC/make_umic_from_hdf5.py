@@ -19,9 +19,12 @@
 # (4) Convert density and phase field to real and imaginary part of wave function           #
 # (5) Output as binary file "UM_IC"                                                         #
 #                                                                                           #
-# Unit(s): MUCIS v.s. here                                                                  #
+# Unit(s): MUSIC v.s. here                                                                  #
 # (1) density: back ground density ; back ground density                                    #
 # (2) velocity: box length*H_0	   ; m/s                                                    #
+#                                                                                           #
+# Phyiscal meaning for MUSIC's velocity recorded in HDF5 is perculiar velocity (in physical #
+# frame, not comoving frame)                                                                #
 #############################################################################################
 
 import os, h5py, subprocess, re, sys
