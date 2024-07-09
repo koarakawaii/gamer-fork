@@ -24,7 +24,9 @@
 # (2) velocity: box length*H_0	   ; m/s                                                    #
 #                                                                                           #
 # Phyiscal meaning for MUSIC's velocity recorded in HDF5 is perculiar velocity (in physical #
-# frame, not comoving frame)                                                                #
+# frame, not comoving frame), i.e., after multiplying box_length*1000, we have:             #
+#           (v_hdf5),i = (v_peculiar,physical),i = a*(dx_{comoving}),i/dt                   #
+# where i=x, y, z                                                                           #
 #############################################################################################
 
 import os, h5py, subprocess, re, sys
