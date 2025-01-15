@@ -13,7 +13,7 @@
 
 #ifndef __CUDACC__
 extern double SolitonSubCenter[3];
-extern double CoreRadius;
+extern double SolitonCoreRadius;
 extern double SolitonPotScale;
 
 //-------------------------------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ void SetExtPotAuxArray_ELBDM_SolitonPot( double AuxArray_Flt[], int AuxArray_Int
    AuxArray_Flt[0] = SolitonSubCenter[0];
    AuxArray_Flt[1] = SolitonSubCenter[1];
    AuxArray_Flt[2] = SolitonSubCenter[2];
-   AuxArray_Flt[3] = CoreRadius;
+   AuxArray_Flt[3] = SolitonCoreRadius;
    AuxArray_Flt[4] = (real)SolitonPotScale;
 
 } // FUNCTION : SetExtPotAuxArray_ELBDM_SolitonPot

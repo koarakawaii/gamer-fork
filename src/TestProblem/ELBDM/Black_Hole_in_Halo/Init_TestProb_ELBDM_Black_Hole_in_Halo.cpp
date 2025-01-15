@@ -9,14 +9,14 @@ static double   System_CM_MaxR;                     // maximum radius for determ
 static double   System_CM_TolErrR;                  // maximum allowed errors for determining System CM
 static double   Soliton_CM_MaxR;                    // maximum radius for determining Soliton CM
 static double   Soliton_CM_TolErrR;                 // maximum allowed errors for determining Soliton CM
-       double   CoreRadius;                         // soliton core radius in Mpc/h (mass core ratio should be included), will be called by extern
+       double   SolitonCoreRadius;                  // soliton core radius in Mpc/h (mass core ratio should be included), will be called by extern
 static double   EqualRadius;                        // equal radius in Mpc/h, where NFW density equals soliton density; for rebuilding external potential mimicking soliton
 static double   DensPeakRealPart;                   // real part of soliton peak density, will be found automatically
 static double   DensPeakImagPart;                   // imaginary part of soliton peak density, will be found automatically
 static double   TransitionFactor;                   // determine how sharp the phase will transist from \approx 0 to its original value
-static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*CoreRadius will has nearly constant phase \approx 0
+static double   CriteriaFactor;                     // wave function inside radius<CriteriaFactor*SolitonCoreRadius will has nearly constant phase \approx 0
 static double   ScaleFactor;                        // scaling factor, cosmology parameter
-static double   h_0;                                // small h_0, Hubble constant/100, cosmology parameter  
+static double   h_0;                                // small h_0, Hubble constant/100, cosmology parameter
        double   SolitonPotScale;                    // proportional factor for coverting potential from GM_sun/r_c -> code unit, where r_c in unit of Mpc/h; will be called by extern
 static double   SolitonMassScale;                   // proportional factor for coverting mass from M_sun -> code unit, where r_c in unit of Mpc/h
        double   SolitonSubCenter[3];                // user defined center for soliton substitution and external potential, will be called by extern
@@ -175,9 +175,9 @@ void SetParameter()
 //      ReadPara->Add( "DensPeakImagPart",         &DensPeakImagPart,          0.0,          NoMin_double,      NoMax_double      );
       ReadPara->Add( "TransitionFactor",         &TransitionFactor,       Eps_double,       Eps_double,       NoMax_double      );
       ReadPara->Add( "CriteriaFactor",           &CriteriaFactor,         Eps_double,       Eps_double,       NoMax_double      );
-   } 
+   }
    if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
-      ReadPara->Add( "CoreRadius",               &CoreRadius,             Eps_double,       Eps_double,       NoMax_double      );
+      ReadPara->Add( "SolitonCoreRadius",        &SolitonCoreRadius,      Eps_double,       Eps_double,       NoMax_double      );
    if ( ( AddNewSolFlag == 1 ) || ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
    {
       ReadPara->Add( "SolitonSubCenter_x",       &SolitonSubCenter[0], amr->BoxCenter[0],  NoMin_double,      NoMax_double      );
@@ -252,20 +252,20 @@ void SetParameter()
 
 
 // (2) set the problem-specific derived parameters
-   
+
    if ( OPT__EXT_POT == EXT_POT_FUNC )
    {
       const double mass_of_sun       = 1.98892e33;             // in unit of g
       const double newton_g_cgs      = 6.6743e-8;              // in cgs
       const double m_a_22            = ELBDM_MASS*UNIT_M/(Const_eV/pow(Const_c,2.))/1e-22;        // eV/c^2 -> 10^-22 ev/c^2
 
-      SolitonMassScale  = 4.077703890131877e6/ScaleFactor/pow(m_a_22*10.,2.)/(CoreRadius*1000./h_0);
-      SolitonMassScale *= mass_of_sun/UNIT_M;   // convert to code unit 
+      SolitonMassScale  = 4.077703890131877e6/ScaleFactor/pow(m_a_22*10.,2.)/(SolitonCoreRadius*1000./h_0);
+      SolitonMassScale *= mass_of_sun/UNIT_M;   // convert to code unit
 //      printf("SolitonMassSale = %.8e \n", SolitonMassScale);
       const double SolitonTotalMass  = SolitonMass(SolitonMassScale, 1.e3);                     // approximate the soliton mass by M_sol(1000*r_c)
-      const double SolitonEqualMass  = SolitonMass(SolitonMassScale, EqualRadius/CoreRadius);   // M_sol(r_e)
-      SolitonPotScale   = SolitonEqualMass/SolitonTotalMass*newton_g_cgs*4.077703890131877e6/ScaleFactor/pow(m_a_22*10.,2.)/(CoreRadius*1000./h_0); // to here is in unit of GM_sun/r_c, where  r_c is in unit of Mpc/h
-      SolitonPotScale  *= mass_of_sun/(CoreRadius*UNIT_L)/pow(UNIT_V,2.);  // convert to code unit
+      const double SolitonEqualMass  = SolitonMass(SolitonMassScale, EqualRadius/SolitonCoreRadius);   // M_sol(r_e)
+      SolitonPotScale   = SolitonEqualMass/SolitonTotalMass*newton_g_cgs*4.077703890131877e6/ScaleFactor/pow(m_a_22*10.,2.)/(SolitonCoreRadius*1000./h_0); // to here is in unit of GM_sun/r_c, where  r_c is in unit of Mpc/h
+      SolitonPotScale  *= mass_of_sun/(SolitonCoreRadius*UNIT_L)/pow(UNIT_V,2.);  // convert to code unit
    }
 // load the reference soliton density profile
    if ( AddNewSolFlag == 1 )
@@ -275,7 +275,7 @@ void SetParameter()
       const bool AllocMem_Yes = true;     // allocate memory for Soliton_DensProf
       const int  NCol         = 2;        // total number of columns to load
       const int  Col[NCol]    = {0, 1};   // target columns: (radius, density)
-      
+
       Soliton_DensProf_NBin = Aux_LoadTable( Soliton_DensProf, Soliton_DensProf_Filename, NCol, Col, RowMajor_No, AllocMem_Yes );
    }
 
@@ -322,10 +322,10 @@ void SetParameter()
          Aux_Message( stdout, "  transition factor for transition zone width  = %13.6e\n", TransitionFactor          );
 //         Aux_Message( stdout, "  soliton peak density real part               = %13.6e\n", DensPeakRealPart          );
 //         Aux_Message( stdout, "  soliton peak density imaginary part          = %13.6e\n", DensPeakImagPart          );
-//         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
+//         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", SolitonCoreRadius                );
       }
       if ( ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
-         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", CoreRadius                );
+         Aux_Message( stdout, "  core radius (mass core ratio included)       = %13.6e\n", SolitonCoreRadius                );
       if ( ( AddNewSolFlag == 1 ) || ( EraseSolVelFlag == 1 ) || ( OPT__EXT_POT == EXT_POT_FUNC ) )
       {
          Aux_Message( stdout, "  soliton substitution center_x                = %13.6e\n", SolitonSubCenter[0]       );
@@ -340,7 +340,7 @@ void SetParameter()
          Aux_Message( stdout, "  soliton density profile filename             = %s\n",     Soliton_DensProf_Filename  );
          Aux_Message( stdout, "  number of bins of soliton density profile    = %d\n",     Soliton_DensProf_NBin      );
       }
-      
+
 #ifdef MASSIVE_PARTICLES
       Aux_Message( stdout, "  refine grid based on particles               = %d\n",     ParRefineFlag              );
       Aux_Message( stdout, "  write particle data in binary format         = %d\n",     WriteDataInBinaryFlag      );
@@ -1072,7 +1072,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
                            //
 //                           if ( lv==NLEVEL-1 )
 //                               printf("dens_sqrt is %.8e ; real_part is %.8e ; imag_part is %.8e ; phase before modulation is %.8e .\n", dens_sqrt, real_part, imag_part, phase);
-                           modulator =  1./(1. + exp(-2.*TransitionFactor*(double)(r/CoreRadius-CriteriaFactor)));
+                           modulator =  1./(1. + exp(-2.*TransitionFactor*(double)(r/SolitonCoreRadius-CriteriaFactor)));
                            if ( ( modulator < 0. ) || ( modulator > 1.0 ) )
                               Aux_Error( ERROR_INFO, "Modulator %.8e is not in range [0.,1.] !!\n" );
                            if ( modulator!=modulator )

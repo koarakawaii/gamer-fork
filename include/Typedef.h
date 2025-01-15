@@ -28,6 +28,23 @@ typedef double real_par;
 typedef float  real_par;
 #endif
 
+#ifdef INT8_PAR
+typedef long long_par;
+#else
+typedef int  long_par;
+#endif
+
+#ifdef SUPPORT_GRACKLE
+#include <grackle_float.h>
+#if   defined GRACKLE_FLOAT_8
+typedef double real_che;
+#elif defined GRACKLE_FLOAT_4
+typedef float  real_che;
+#else
+#error : ERROR : GRACKLE_FLOAT_8 and GRACKLE_FLOAT_4 are not defined in Grackle library !!
+#endif
+#endif // #ifdef SUPPORT_GRACKLE
+
 #if ( GRAMFE_SCHEME == GRAMFE_FFT )
 #ifdef GRAMFE_FFT_FLOAT8
 typedef double gramfe_fft_float;
@@ -93,6 +110,7 @@ const TestProbID_t
    TESTPROB_ELBDM_PLANE_WAVE                   = 1010,
    TESTPROB_ELBDM_PERTURBATION                 = 1011,
    TESTPROB_ELBDM_HALO_MERGER                  = 1012,
+   TESTPROB_ELBDM_DISK_HEATING                 = 1013,
    TESTPROB_ELBDM_HALO_STABILITY_TEST          = 1020,
    TESTPROB_ELBDM_BLACK_HOLE_IN_HALO           = 1021,  // 1023:TESTPROB_ELBDM_SOLITON_TOY_MODEL, 1024: TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON, 1025: TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED
    TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON        = 1022;  // 1023:TESTPROB_ELBDM_SOLITON_TOY_MODEL, 1024: TESTPROB_ELBDM_HALO_STABILITY_TEST_NO_SOLITON, 1025: TESTPROB_ELBDM_HALO_STABILITY_TEST_SOLITON_SUBSTITUTED
