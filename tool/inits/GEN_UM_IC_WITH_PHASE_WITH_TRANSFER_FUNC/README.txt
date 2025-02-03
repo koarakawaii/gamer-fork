@@ -13,8 +13,8 @@ The procedures of this LSS simulation includes:
            |                                           |
            |                                           |
            ------->  [(b) set_velocities_zero.py] <-----
-                     [python3 ./set_velocities_zero.py F planck_2018_trnasfer_out.dat (CAMB)]
-                     [python3 ./set_velocities_zero.py T planck_2018_axion_trnasfer_out.dat (axionCAMB)]
+                     [python3 ./set_velocities_zero.py F planck_2018_trnasfer_out.dat planck_2018_transfer_out_no_vel.dat (CAMB)]
+                     [python3 ./set_velocities_zero.py T planck_2018_axion_trnasfer_out.dat planck_2018_axion_transfer_out_no_vel.dat (axionCAMB)]
                                  |
                                  | "planck_2018_transfer_out_no_vel.dat" (CAMB)
                                  | "planck_2018_axion_transfer_out_no_vel.dat" (axionCAMB)
@@ -44,14 +44,14 @@ The procedures of this LSS simulation includes:
         planck_2018_trnasfer_out.dat       -> for CAMB
         planck_2018_axion_trnasfer_out.dat -> for axionCAMB
 
-(b) Run the script: "python3 ./set_velocities_zero.py F(T) planck_2018_trnasfer_out.dat(planck_2018_axion_trnasfer_out.dat)".
+(b) Run the script: "python3 ./set_velocities_zero.py F(T) planck_2018_trnasfer_out.dat(planck_2018_axion_trnasfer_out.dat) planck_2018_transfer_out_no_vel.dat(planck_2018_axion_transfer_out_no_vel.dat)".
     The script reads-in the output files in step(a), and produce the transfer function requireded by MUSIC.
     The boolean F/T suggests whether axion-physics is included in the input transfer function files.
     The expected output files are:
         planck_2018_transfer_out_no_vel.dat       -> for CAMB
         planck_2018_axion_transfer_out_no_vel.dat -> for axionCAMB
 
-(c) Modifying the cosmology paramters consistent with CAMB/axionCAMB .ini files, as well as the input file parameters in MUSIC input file ics_example.conf:
+(c) Modifying the cosmology paramters to be consistent with CAMB/axionCAMB .ini files, as well as the input file parameters in MUSIC input file ics_example.conf:
         transfer      = camb_file
         transfer_file = planck_2018_transfer_out_no_vel.dat/planck_2018_axion_transfer_out_no_vel.dat
         format        = generic
@@ -65,7 +65,7 @@ The procedures of this LSS simulation includes:
 # Notes
   1. CAMB will automatically compute \sigma_8 based on the given cosomology parameters.
      If you find the given \sigma_8 is not the desired value, it can be tuned by changing the As (scalar_amp in the input file .ini).
-     Say if one wants to change the original \simga_8 = 0.8119112  with As = 2.100549e-9 , to new value \simga_8 = 0.818 , one just changes the new As to (0.818/0.8119112)^2*2.100549e-9 = 2.132173e-09 , then CAMB will give new \simga_8 = 0.818.
+     Say if one wants to change the original \sigma_8 = 0.8119112  with As = 2.100549e-9 , to new value \sigma_8 = 0.818 , one just changes the new As to (0.818/0.8119112)^2*2.100549e-9 = 2.132173e-09 , then CAMB will give new \sigma_8 = 0.818.
      This is due to power spectrum is proportional to As*f(k) .
   2. CAMB (Code for Anisotropies in the Microwave Background)
          GitHub page:                    https://github.com/cmbant/CAMB
