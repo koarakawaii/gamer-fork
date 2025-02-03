@@ -94,7 +94,7 @@ else:
     z           = eval(re.sub("\n","", z))
     print("z_start is %.2f ."%z)
 
-    factor      = box_length*km_to_m.
+    factor      = box_length*km_to_m
     N           = 2**level
     h           = 1./N
     k_factor    = 2.*np.pi/N
