@@ -32,11 +32,11 @@ void YT_Init( int argc, char *argv[] )
    param_libyt.script  = YT_SCRIPT;
 
 // YT check data or not interface turned off (default=true)
-#ifdef GAMER_DEBUG
+#  ifdef GAMER_DEBUG
    param_libyt.check_data = true;
-#else
+#  else
    param_libyt.check_data = false;
-#endif
+#  endif
 
 // counter for recording times of yt inline analysis and for naming files
    param_libyt.counter = ExecuteYTID;
