@@ -34,6 +34,10 @@ void Validate()
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
 #  endif
 
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   Aux_Error( ERROR_INFO, "Test problem %d does not support ELBDM_HYBRID. The phase cannot be unwrapped due to the presence of vortices in the halo !!\n", TESTPROB_ID );
+#  endif
+
 #  ifdef COMOVING
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
    #  endif
@@ -110,7 +114,7 @@ void SetParameter()
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
    {
       for ( int direction = 0; direction < 6; direction++ )
-      {   
+      {
          if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
             Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
       }
@@ -118,7 +122,7 @@ void SetParameter()
    else  // use user define boundary condition
    {
       for ( int direction = 0; direction < 6; direction++ )
-      {   
+      {
          if ( OPT__BC_FLU[direction] != BC_FLU_USER )
             Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
       }
@@ -217,9 +221,9 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_HALO
 // Description :  Set the extenral boundary condition
-//                
+//
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
-//                
+//
 // Parameter   :  Array          : Array to store the prepared data including ghost zones
 //                ArraySize      : Size of Array including the ghost zones on each side
 //                fluid          : Fluid fields to be set
@@ -231,7 +235,7 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 //                lv             : Refinement level
 //                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
 //                AuxArray       : Auxiliary array
-//                
+//
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
 static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
@@ -240,16 +244,16 @@ static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const in
 {
    #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
    if ( amr->use_wave_flag[lv] ) {
-   #  endif          
+   #  endif
       fluid[DENS] = (real)0.0;
       fluid[REAL] = (real)0.0;
       fluid[IMAG] = (real)0.0;
 #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
-   } else {       
+   } else {
       fluid[DENS] = (real)TINY_NUMBER;
       fluid[PHAS] = (real)0.0;
       fluid[STUB] = (real)0.0;
-   }              
+   }
 #  endif
 
 } // FUNCTION : BC_HALO
@@ -546,27 +550,27 @@ void Record_CenterOfMass(void )
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
-    
+
        MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-    
+
        while ( true )
        {
           if (repeat==0)
               GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR, _TOTAL_DENS ); // for system center of mass, use total density
           else
               GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR, _DENS );      // for soliton center of mass, use FDM density
-    
+
           dR2 = SQR( CM_Old[0] - CM_New[0] )
               + SQR( CM_Old[1] - CM_New[1] )
               + SQR( CM_Old[2] - CM_New[2] );
           NIter ++;
-    
+
           if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
              break;
           else
              memcpy( CM_Old, CM_New, sizeof(double)*3 );
        }
-    
+
        if ( MPI_Rank == 0 )
        {
           if ( dR2 > TolErrR2 )
@@ -574,7 +578,7 @@ void Record_CenterOfMass(void )
                 Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
              else
                 Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
-    
+
           FILE *file_center = fopen( filename_center, "a" );
           if (repeat==0)
               fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e", NIter, CM_New[0], CM_New[1], CM_New[2] );
@@ -600,7 +604,7 @@ void Record_CenterOfMass(void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Halo_Stability_Test()
 {
-   
+
 } // FUNCTION : End_Halo_Stability_Test
 #endif // end of if ( MODEL == ELBDM && defined GRAVITY )
 

@@ -72,6 +72,10 @@ void Validate()
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
 #  endif
 
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   Aux_Error( ERROR_INFO, "Test problem %d does not support ELBDM_HYBRID. The phase cannot be unwrapped due to the presence of vortices in the halo !!\n", TESTPROB_ID );
+#  endif
+
 #  ifdef COMOVING
    Aux_Error( ERROR_INFO, "COMOVING must be disabled !!\n" );
 #  endif
@@ -106,7 +110,7 @@ void Validate()
       if ( amr->BoxSize[0] != amr->BoxSize[1]  ||  amr->BoxSize[0] != amr->BoxSize[2] )
          Aux_Message( stderr, "WARNING : non-cubic box (currently the flag routine \"Flag_UM_IC_AMR()\" assumes a cubic box) !!\n" );
    }
-      
+
    if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Validating test problem %d ... done\n", TESTPROB_ID );
 
 } // FUNCTION : Validate
@@ -230,7 +234,7 @@ void SetParameter()
    if ( ( AddNewSolFlag == 1 ) && ( OPT__INIT != INIT_BY_FILE ) )
       Aux_Error( ERROR_INFO, "must set OPT__INIT == INIT_BY_FILE if AddNewSolFlag is enabled !!\n" );
 #ifdef MASSIVE_PARTICLES
-   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )  
+   if ( ( BH_AddParForRestart == 1 ) &&  ( OPT__RESTART_RESET != 1 ) && ( OPT__INIT != INIT_BY_RESTART ) )
       Aux_Error( ERROR_INFO, "must set OPT__RESTART_RESET == 1 or OPT__INIT == INIT_BY_RESTART if BH_AddParForRestart is enabled !!\n" );
 #endif
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
@@ -380,13 +384,13 @@ void SetParameter()
 //
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime
 //-------------------------------------------------------------------------------------------------------
-static void Par_Init_ByRestart_Black_Hole_in_Halo() 
+static void Par_Init_ByRestart_Black_Hole_in_Halo()
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
    const int  NCol_particle_data                    = 7;                     // total number of columns to load for particle data
    const int  Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
-   long       BH_AddParForRestart_Check;         
+   long       BH_AddParForRestart_Check;
 
    if ( MPI_Rank == 0 )
    {
@@ -566,7 +570,7 @@ void Par_Init_ByFunction_Black_Hole_in_Halo( const long NPar_ThisRank, const lon
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
    const int  NCol_particle_data                    = 7;                     // total number of columns to load for particle data
    const int  Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
-   long       BH_AddParByFunction_Check;         
+   long       BH_AddParByFunction_Check;
 
    if ( MPI_Rank == 0 )
    {
@@ -717,7 +721,7 @@ static void Record_Particle_Data_Text( char *FileName )
 //      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
 
    FILE *File;
-   
+
 // header
    if ( MPI_Rank == 0 )
    {
@@ -793,7 +797,7 @@ static void Record_Particle_Data_Binary( char *FileName )
 
    FILE *File;
    int par_natt_total = PAR_NATT_TOTAL;
-   
+
 // open the file by root rank
    if ( MPI_Rank == 0 )
    {
@@ -818,8 +822,8 @@ static void Record_Particle_Data_Binary( char *FileName )
          if ( MPI_Rank == 0 )
          {
              fwrite(&(Time[0])                      , sizeof(double), 1, File);  // write level 0 time by rank == 0 for each time step
-             fwrite(&Step                           , sizeof(long)  , 1, File);  // write step index by rank == 0 for each time step  
-             fwrite(&par_natt_total                 , sizeof(int)   , 1, File);  // write number of attribute by rank == 0 for each time step 
+             fwrite(&Step                           , sizeof(long)  , 1, File);  // write step index by rank == 0 for each time step
+             fwrite(&par_natt_total                 , sizeof(int)   , 1, File);  // write number of attribute by rank == 0 for each time step
              fwrite(&(amr->Par->NPar_Active_AllRank), sizeof(long)  , 1, File);  // write active particle number  by rank ==0 for each time step
          }
 
@@ -869,9 +873,9 @@ static void AddNewParticleAttribute_Black_Hole_in_Halo(void)
 //
 // Note        :  1.  Will be called whenever phase is needed
 //
-// Parameter   :  real dens_sqrt: square root of wave function 
+// Parameter   :  real dens_sqrt: square root of wave function
 //                real real_part: real part of wave function
-//                real imag_part: imaginary part of wave function 
+//                real imag_part: imaginary part of wave function
 //
 // Return      :  phase
 //-------------------------------------------------------------------------------------------------------
@@ -910,7 +914,7 @@ static double GetPhase(real dens_sqrt, real real_part, real imag_part)
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Init_User_ELBDM_Black_Hole_in_Halo
-// Description :  Set the particle IC if BH_AddParForRestart is enabled; erase the soliton initial velocity by phase modulation scheme if EraseSolVelFlag is enabled; treated as normal restart if neither of them is enabled 
+// Description :  Set the particle IC if BH_AddParForRestart is enabled; erase the soliton initial velocity by phase modulation scheme if EraseSolVelFlag is enabled; treated as normal restart if neither of them is enabled
 //
 // Note        :  1. Invoked by Init_GAMER() using the function pointer "Init_User_Ptr",
 //                   which must be set by a test problem initializer
@@ -936,7 +940,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
    if ( ( AddNewSolFlag == 1 ) || ( EraseSolVelFlag == 1 ) )
    {
       // add new soliton first, since we might want to remove the soliton initial velocity after adding it
-      if ( AddNewSolFlag == 1 ) 
+      if ( AddNewSolFlag == 1 )
       {
          const double *Table_Radius  = Soliton_DensProf + 0*Soliton_DensProf_NBin;  // radius
          const double *Table_Density = Soliton_DensProf + 1*Soliton_DensProf_NBin;  // density
@@ -975,10 +979,10 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
                         {
                            if      ( r_tar <  Table_Radius[0] )
                               dens_tar = Table_Density[0];
-      
+
                            else if ( r_tar >= Table_Radius[Soliton_DensProf_NBin-1] )
                               dens_tar = Table_Density[Soliton_DensProf_NBin-1];
-      
+
                            else
                               Aux_Error( ERROR_INFO, "interpolation failed at radius %13.7e (min/max radius = %13.7e/%13.7e) !!\n",
                                          r_tar, Table_Radius[0], Table_Radius[Soliton_DensProf_NBin-1] );
@@ -993,7 +997,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
          } // end of for loop lv
       } // end of ( AddNewSolFlag ==1 )
 
-      if ( EraseSolVelFlag == 1 )  
+      if ( EraseSolVelFlag == 1 )
       {
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Applying phase scheme to erase soliton velocity ... ");
          double x, y, z, x0, y0, z0, modulator;
@@ -1007,7 +1011,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
          Extrema.Center[1] = SolitonSubCenter[1];
          Extrema.Center[2] = SolitonSubCenter[2];
          Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
-         
+
          SolitonSubCenter[0] = Extrema.Coord[0];
          SolitonSubCenter[1] = Extrema.Coord[1];
          SolitonSubCenter[2] = Extrema.Coord[2];
@@ -1096,18 +1100,18 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
       {
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Re-restricting level %d ... ", NLEVEL-1 );
          Buf_GetBufferData( NLEVEL-1, amr->FluSg[NLEVEL-1], amr->MagSg[NLEVEL-1], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
-            
+
          for (int lv=NLEVEL-2; lv>=0; lv--)
          {
             if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Re-restricting level %d ... ", lv );
-      
+
             Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT, _TOTAL, _MAG );
-   
+
 #  ifdef LOAD_BALANCE
             LB_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT, _TOTAL, _MAG, NULL_INT );
 #  endif
             Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
-   
+
             if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
          } // for (int lv=NLEVEL-2; lv>=0; lv--)
       } // if ( OPT__INIT_RESTRICT )
@@ -1175,9 +1179,9 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_HALO
 // Description :  Set the extenral boundary condition
-//                
+//
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
-//                
+//
 // Parameter   :  Array          : Array to store the prepared data including ghost zones
 //                ArraySize      : Size of Array including the ghost zones on each side
 //                fluid          : Fluid fields to be set
@@ -1189,7 +1193,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
 //                lv             : Refinement level
 //                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
 //                AuxArray       : Auxiliary array
-//                
+//
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
 static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
@@ -1209,7 +1213,7 @@ static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const in
       fluid[STUB] = (real)0.0;
    }
 #  endif
-            
+
 } // FUNCTION : BC_HALO
 
 
@@ -1367,14 +1371,14 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  
+// Function    :
 // Description :  Record the maximum density and center coordinates
 //
 // Note        :  1. It will also record the real and imaginary parts associated with the maximum density
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
-//                4. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density 
+//                4. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density
 //                   profile, which will be used to calculate correlation function, if ComputeCorrelation is true.
 //
 // Parameter   :  None
@@ -1403,7 +1407,7 @@ static void Record_CenterOfMass( void )
    for (int lv=0; lv<NLEVEL; lv++)
    {
 //    no need to initialize the particle density array (rho_ext) and collect particles to the target level since we only want peak density and minimum potential (and their locations) for FDM component.
-    
+
 //    get the total density on grids
       real (*TotalDens)[PS1][PS1][PS1] = new real [ amr->NPatchComma[lv][1] ][PS1][PS1][PS1];
       int   *PID0List                  = new int  [ amr->NPatchComma[lv][1]/8 ];
@@ -1546,32 +1550,32 @@ static void Record_CenterOfMass( void )
    {
       if ( repeat==0 )
          TolErrR2 = SQR( System_CM_TolErrR );
-      else 
+      else
          TolErrR2 = SQR( Soliton_CM_TolErrR );
 // set an initial guess by the peak density position
       if ( MPI_Rank == 0 )
          for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
-   
+
       MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   
+
       while ( true )
       {
          if (repeat==0)
             GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR, _TOTAL_DENS ); // for system center of mass, use total density
          else
             GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR, _DENS );      // for soliton center of mass, use FDM density
-   
+
          dR2 = SQR( CM_Old[0] - CM_New[0] )
              + SQR( CM_Old[1] - CM_New[1] )
              + SQR( CM_Old[2] - CM_New[2] );
          NIter ++;
-   
+
          if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
             break;
          else
             memcpy( CM_Old, CM_New, sizeof(double)*3 );
       }
-   
+
       if ( MPI_Rank == 0 )
       {
          if ( dR2 > TolErrR2 )
@@ -1581,7 +1585,7 @@ static void Record_CenterOfMass( void )
             else
                Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
          }
-   
+
          FILE *file_center = fopen( filename_center, "a" );
          if (repeat==0)
             fprintf( file_center, "  %10d  %14.7e  %14.7e  %14.7e", NIter, CM_New[0], CM_New[1], CM_New[2] );
@@ -1592,15 +1596,15 @@ static void Record_CenterOfMass( void )
    }
    delete [] recv;
 
-} // FUNCTION : Record_CenterOfMass 
+} // FUNCTION : Record_CenterOfMass
 
 
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Do_COM_and_CF
-// Description :  Do record center of mass and calculate correlation function 
+// Description :  Do record center of mass and calculate correlation function
 //
-// Note        :  1. It will call center of mass routine 
+// Note        :  1. It will call center of mass routine
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
