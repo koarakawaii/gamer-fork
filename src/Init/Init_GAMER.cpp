@@ -7,7 +7,8 @@
 // Function    :  Init
 // Description :  Initialize GAMER
 //
-// Note        :  1. Function pointer "Init_User_Ptr" may be set by a test problem initializer
+// Note        :  1. Function pointers "Init_User_Ptr" and "Init_User_AfterPoisson_Ptr" may be set by a
+//                   test problem initializer
 //
 // Parameter   :  argc, argv: Command line arguments
 //-------------------------------------------------------------------------------------------------------
@@ -187,6 +188,12 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif
 
 
+// initialize variables for dumping particle attributes mapped from mesh quantities
+#  ifdef PARTICLE
+   if ( OPT__OUTPUT_PAR_MESH )   Par_Init_Attribute_Mesh();
+#  endif
+
+
 // initialize particles
 #  ifdef PARTICLE
    switch ( amr->Par->Init )
@@ -196,7 +203,7 @@ void Init_GAMER( int *argc, char ***argv )
             Par_Init_ByFunction_Ptr( amr->Par->NPar_Active, amr->Par->NPar_Active_AllRank,
                                      amr->Par->Mass, amr->Par->PosX, amr->Par->PosY, amr->Par->PosZ,
                                      amr->Par->VelX, amr->Par->VelY, amr->Par->VelZ, amr->Par->Time,
-                                     amr->Par->Type, amr->Par->Attribute );
+                                     amr->Par->Type, amr->Par->AttributeFlt, amr->Par->AttributeInt );
          else
             Aux_Error( ERROR_INFO, "Par_Init_ByFunction_Ptr == NULL for PAR_INIT = 1 !!\n" );
          break;
@@ -251,7 +258,7 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif
 
 
-// user-defined initialization
+// user-defined initialization (before the Poisson solver)
    if ( Init_User_Ptr != NULL )  Init_User_Ptr();
 
 
@@ -324,6 +331,10 @@ void Init_GAMER( int *argc, char ***argv )
 #  endif // #ifdef TRACER
 
 #  endif // #ifdef PARTICLE
+
+
+// user-defined initialization (after the Poisson solver)
+   if ( Init_User_AfterPoisson_Ptr != NULL )    Init_User_AfterPoisson_Ptr();
 
 
 // initialize source-term fields (e.g., cooling time)

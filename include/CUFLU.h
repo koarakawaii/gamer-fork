@@ -37,29 +37,6 @@
 #  define  __mul24( a, b )   ( (a)*(b) )
 #endif
 
-// define GPU compute capabilities
-#ifdef GPU
-#  if   ( GPU_ARCH == FERMI )
-   #define GPU_COMPUTE_CAPABILITY 200
-#  elif ( GPU_ARCH == KEPLER )
-   #define GPU_COMPUTE_CAPABILITY 300
-#  elif ( GPU_ARCH == MAXWELL )
-   #define GPU_COMPUTE_CAPABILITY 500
-#  elif ( GPU_ARCH == PASCAL )
-   #define GPU_COMPUTE_CAPABILITY 600
-#  elif ( GPU_ARCH == VOLTA )
-   #define GPU_COMPUTE_CAPABILITY 700
-#  elif ( GPU_ARCH == TURING )
-   #define GPU_COMPUTE_CAPABILITY 750
-#  elif ( GPU_ARCH == AMPERE )
-// #define GPU_COMPUTE_CAPABILITY 800
-   #define GPU_COMPUTE_CAPABILITY 860
-// #define GPU_COMPUTE_CAPABILITY 870
-#  else
-#  error : ERROR : Please add GPU_COMPUTE_CAPABILITY for GPU_ARCH!
-#  endif // GPU_ARCH
-#endif // GPU
-
 
 // #################################
 // ## macros for different models ##
@@ -366,6 +343,18 @@
 #     else
 #     define FLU_BLOCK_SIZE_X       512      // not optimized yet
 #     endif
+#  elif ( GPU_ARCH == ADA_LOVELACE )
+#     ifdef FLOAT8
+#     define FLU_BLOCK_SIZE_X       256
+#     else
+#     define FLU_BLOCK_SIZE_X       512      // not optimized yet
+#     endif
+#  elif ( GPU_ARCH == HOPPER )
+#     ifdef FLOAT8
+#     define FLU_BLOCK_SIZE_X       256
+#     else
+#     define FLU_BLOCK_SIZE_X       512      // not optimized yet
+#     endif
 #  else
 #     define FLU_BLOCK_SIZE_X       NULL_INT
 #     ifdef GPU
@@ -414,6 +403,18 @@
 #     define FLU_BLOCK_SIZE_X       512      // not optimized yet
 #     endif
 #  elif ( GPU_ARCH == AMPERE )
+#     ifdef FLOAT8
+#     define FLU_BLOCK_SIZE_X       256
+#     else
+#     define FLU_BLOCK_SIZE_X       512      // not optimized yet
+#     endif
+#  elif ( GPU_ARCH == ADA_LOVELACE )
+#     ifdef FLOAT8
+#     define FLU_BLOCK_SIZE_X       256
+#     else
+#     define FLU_BLOCK_SIZE_X       512      // not optimized yet
+#     endif
+#  elif ( GPU_ARCH == HOPPER )
 #     ifdef FLOAT8
 #     define FLU_BLOCK_SIZE_X       256
 #     else
@@ -487,6 +488,20 @@
 #        define FLU_BLOCK_SIZE_Y    32    // not optimized yet
 #     endif
 
+#  elif ( GPU_ARCH == ADA_LOVELACE )
+#     ifdef FLOAT8
+#        define FLU_BLOCK_SIZE_Y    16    // not optimized yet
+#     else
+#        define FLU_BLOCK_SIZE_Y    32    // not optimized yet
+#     endif
+
+#  elif ( GPU_ARCH == HOPPER )
+#     ifdef FLOAT8
+#        define FLU_BLOCK_SIZE_Y    16    // not optimized yet
+#     else
+#        define FLU_BLOCK_SIZE_Y    32    // not optimized yet
+#     endif
+
 #  else
 #        define FLU_BLOCK_SIZE_Y    NULL_INT
 #        ifdef GPU
@@ -523,7 +538,7 @@
       &&  GPU_COMPUTE_CAPABILITY != 800 && GPU_COMPUTE_CAPABILITY != 860 && GPU_COMPUTE_CAPABILITY != 870 \
       &&  GPU_COMPUTE_CAPABILITY != 890 \
       &&  GPU_COMPUTE_CAPABILITY != 900 )
-#     error : ERROR : GPU_COMPUTE_CAPABILITY unsupported by cuFFTdx (please visit cuFFTdx website to check whether your GPU is supported and update CUFLU.h accordingly if it is) !
+#     error : ERROR : GPU_COMPUTE_CAPABILITY unsupported by cuFFTdx (please visit cuFFTdx website to check whether your GPU is supported and update CUFLU.h accordingly if it is) !!
 #  endif
 
 // number of blocks suggested by cufftdx disabled by default
@@ -561,8 +576,8 @@ using complex_type = typename FFT::value_type;
 #     define DT_FLU_BLOCK_SIZE      512
 
 // use shuffle reduction in the KEPLER and later GPUs
-#  if ( GPU_ARCH == KEPLER  ||  GPU_ARCH == MAXWELL  ||  GPU_ARCH == PASCAL  ||  GPU_ARCH == VOLTA  ||  \
-        GPU_ARCH == TURING  ||  GPU_ARCH == AMPERE )
+#  if ( GPU_ARCH == KEPLER  ||  GPU_ARCH == MAXWELL  ||  GPU_ARCH == PASCAL        ||  GPU_ARCH == VOLTA  ||  \
+        GPU_ARCH == TURING  ||  GPU_ARCH == AMPERE   ||  GPU_ARCH == ADA_LOVELACE  ||  GPU_ARCH == HOPPER )
 #     define DT_FLU_USE_SHUFFLE
 #  endif
 
@@ -577,8 +592,8 @@ using complex_type = typename FFT::value_type;
 // --> please refer to https://en.wikipedia.org/wiki/CUDA#Version_features_and_specifications
 //     for information on warp size
 #ifdef __CUDACC__
-#if ( GPU_ARCH == FERMI  ||  GPU_ARCH == KEPLER  ||  GPU_ARCH == MAXWELL  ||  GPU_ARCH == PASCAL  ||  GPU_ARCH == VOLTA  ||  \
-      GPU_ARCH == TURING  ||  GPU_ARCH == AMPERE  )
+#if ( GPU_ARCH == FERMI   ||  GPU_ARCH == KEPLER  ||  GPU_ARCH == MAXWELL       ||  GPU_ARCH == PASCAL  ||  GPU_ARCH == VOLTA  ||  \
+      GPU_ARCH == TURING  ||  GPU_ARCH == AMPERE  ||  GPU_ARCH == ADA_LOVELACE  ||  GPU_ARCH == HOPPER )
 // CUPOT.h will define WARP_SIZE as well
 #  ifndef WARP_SIZE
 #  define WARP_SIZE 32

@@ -44,6 +44,7 @@ void Init_TestProb_ELBDM_LSS();
 void Init_TestProb_ELBDM_PlaneWave();
 void Init_TestProb_ELBDM_Perturbation();
 void Init_TestProb_ELBDM_HaloMerger();
+void Init_TestProb_ELBDM_DiskHeating();
 
 void Init_TestProb_ELBDM_Halo_Stability_Test();
 void Init_TestProb_ELBDM_Black_Hole_in_Halo();
@@ -116,6 +117,7 @@ void Init_TestProb()
       case TESTPROB_ELBDM_PLANE_WAVE :                      Init_TestProb_ELBDM_PlaneWave();                       break;
       case TESTPROB_ELBDM_PERTURBATION :                    Init_TestProb_ELBDM_Perturbation();                    break;
       case TESTPROB_ELBDM_HALO_MERGER :                     Init_TestProb_ELBDM_HaloMerger();                      break;
+      case TESTPROB_ELBDM_DISK_HEATING :                    Init_TestProb_ELBDM_DiskHeating();                     break;
       case TESTPROB_ELBDM_HALO_STABILITY_TEST :             Init_TestProb_ELBDM_Halo_Stability_Test();             break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_HALO :              Init_TestProb_ELBDM_Black_Hole_in_Halo();              break;
       case TESTPROB_ELBDM_BLACK_HOLE_IN_SOLITON :           Init_TestProb_ELBDM_Black_Hole_in_Soliton();           break;

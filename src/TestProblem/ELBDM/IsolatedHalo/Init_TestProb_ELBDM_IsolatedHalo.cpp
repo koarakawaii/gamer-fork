@@ -35,8 +35,8 @@ void Validate()
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
 #  endif
 
-#  if ( NCOMP_PASSIVE_USER == 0 )
-   if ( MPI_Rank == 0 )    Aux_Message( stderr, "WARNING : NCOMP_PASSIVE_USER == 0 !!\n" );
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   Aux_Error( ERROR_INFO, "Test problem %d does not support ELBDM_HYBRID. The phase cannot be unwrapped due to the presence of vortices in the halo !!\n", TESTPROB_ID );
 #  endif
 
 
