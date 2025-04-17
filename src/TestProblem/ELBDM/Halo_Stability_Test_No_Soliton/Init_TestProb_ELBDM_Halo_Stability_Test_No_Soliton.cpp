@@ -4,7 +4,7 @@
 
 // extern functions
 
-// This function computes desnity profil, with standare deviation 
+// This function computes desnity profil, with standare deviation
 void Aux_ComputeProfile_with_Sigma( Profile_with_Sigma_t *Prof[], const double Center[], const double r_max_input, const double dr_min,
                                     const bool LogBin, const double LogBinRatio, const bool RemoveEmpty, const long TVarBitIdx[],
                                     const int NProf, const int MinLv, const int MaxLv, const PatchType_t PatchType,
@@ -39,7 +39,7 @@ static bool     RemoveEmpty_corr;             // remove 0 sample bins; false: Da
 static int      MinLv;                        // do statistics from MinLv to MaxLv
 static int      MaxLv;                        // do statistics from MinLv to MaxLv
 static int      OutputCorrelationMode;        // output correlation function mode=> 0: constant interval 1: by table
-static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0) 
+static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0)
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
@@ -49,7 +49,7 @@ static int      step_counter;                                // counter for cach
 static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer to save initial density profile
 static Profile_with_Sigma_t *Prof[] = { &Prof_Dens_initial };
 static Profile_t            Correlation_Dens;                       // pointer to save density correlation function
-static Profile_t            *Correlation[] = { &Correlation_Dens };       
+static Profile_t            *Correlation[] = { &Correlation_Dens };
 //FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
 #ifdef PARTICLE
 static long     NPar_AllRank_Check;
@@ -81,6 +81,10 @@ void Validate()
 
 #  ifndef GRAVITY
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
+#  endif
+
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   Aux_Error( ERROR_INFO, "Test problem %d does not support ELBDM_HYBRID. The phase cannot be unwrapped due to the presence of vortices in the halo !!\n", TESTPROB_ID );
 #  endif
 
 #  ifdef COMOVING
@@ -185,7 +189,7 @@ void SetParameter()
        if ( (OutputCorrelationMode==0) && (StepInterval<1) ) StepInterval = 1;
        if ( strcmp(FilePath_corr,"\0")==0 ) sprintf(FilePath_corr, "./");
        else
-       { 
+       {
           FILE *file_checker = fopen(FilePath_corr, "r");
           if (!file_checker)
              Aux_Error( ERROR_INFO, "File path %s for saving correlation function text files does not exist!! Please create!!\n", FilePath_corr );
@@ -193,7 +197,7 @@ void SetParameter()
              fclose(file_checker);
        }
    }
-   
+
 
 // (1-3) check the runtime parameters
    if ( OPT__INIT == INIT_BY_FUNCTION )
@@ -207,7 +211,7 @@ void SetParameter()
          const bool AllocMem_Yes_particle_data           = true;                  // allocate memory for Soliton_DensProf
          const int NCol_particle_data                    = 7;                     // total number of columns to load for particle data
          const int Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
-         if (amr->Par->Init == PAR_INIT_BY_FUNCTION && amr->Par->NPar_Active_AllRank>0) 
+         if (amr->Par->Init == PAR_INIT_BY_FUNCTION && amr->Par->NPar_Active_AllRank>0)
             NPar_AllRank_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
       }
 #endif
@@ -905,7 +909,7 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
 } // FUNCTION : GetCenterOfMass
 
 //-------------------------------------------------------------------------------------------------------
-// Function    :  
+// Function    :
 // Description :  Record the maximum density and center coordinates
 //
 // Note        :  1. It will also record the real and imaginary parts associated with the maximum density
@@ -913,7 +917,7 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
 //                4. Use "record_flag" to determine whether record all data in "Record__Center" or not
-//                5. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density 
+//                5. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density
 //                   profile, which will be used to calculate correlation function, if ComputeCorrelation is true.
 //
 // Parameter   :  None
@@ -1077,29 +1081,29 @@ static void Record_CenterOfMass( bool record_flag )
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
-    
+
        MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-    
+
        while ( true )
        {
           GetCenterOfMass( record_flag, CM_Old, CM_New, System_CM_MaxR );
-    
+
           dR2 = SQR( CM_Old[0] - CM_New[0] )
               + SQR( CM_Old[1] - CM_New[1] )
               + SQR( CM_Old[2] - CM_New[2] );
           NIter ++;
-    
+
           if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
              break;
           else
              memcpy( CM_Old, CM_New, sizeof(double)*3 );
        }
-    
+
        if ( MPI_Rank == 0 )
        {
           if ( dR2 > TolErrR2 )
              Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
-    
+
           if (record_flag)
           {
              FILE *file_center = fopen( filename_center, "a" );
@@ -1112,20 +1116,20 @@ static void Record_CenterOfMass( bool record_flag )
 // Only cached the center coordinate by CoM coordiante of the whole halo for passive field, when simuliation BEGINS!!
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
-// 
+//
        }
 
    delete [] recv;
 
-} // FUNCTION : Record_CenterOfMass 
+} // FUNCTION : Record_CenterOfMass
 
 
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Do_COM_and_CF
-// Description :  Do record center of mass and calculate correlation function 
+// Description :  Do record center of mass and calculate correlation function
 //
-// Note        :  1. It will call center of mass routine 
+// Note        :  1. It will call center of mass routine
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"

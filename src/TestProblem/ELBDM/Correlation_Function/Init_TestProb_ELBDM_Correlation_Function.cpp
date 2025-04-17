@@ -3,7 +3,7 @@
 
 // extern functions
 
-// This function computes desnity profil, with standare deviation 
+// This function computes desnity profil, with standare deviation
 void Aux_ComputeProfile_with_Sigma( Profile_with_Sigma_t *Prof[], const double Center[], const double r_max_input, const double dr_min,
                                     const bool LogBin, const double LogBinRatio, const bool RemoveEmpty, const long TVarBitIdx[],
                                     const int NProf, const int MinLv, const int MaxLv, const PatchType_t PatchType,
@@ -40,7 +40,7 @@ static bool     RemoveEmpty_corr;             // remove 0 sample bins; false: Da
 static int      MinLv;                        // do statistics from MinLv to MaxLv
 static int      MaxLv;                        // do statistics from MinLv to MaxLv
 static int      OutputCorrelationMode;        // output correlation function mode=> 0: constant interval 1: by table
-static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0) 
+static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0)
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
@@ -49,7 +49,7 @@ static int step_counter;                             // counter for caching cons
 static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer to save initial density profile
 static Profile_with_Sigma_t *Prof[] = { &Prof_Dens_initial };
 static Profile_t            Correlation_Dens;                       // pointer to save density correlation function
-static Profile_t            *Correlation[] = { &Correlation_Dens };       
+static Profile_t            *Correlation[] = { &Correlation_Dens };
 // =======================================================================================
 
 //-------------------------------------------------------------------------------------------------------
@@ -175,7 +175,7 @@ void SetParameter()
    if ( MaxLv <= MinLv ) MaxLv = MAX_LEVEL;
    if ( FilePath_corr == "\0" )  sprintf( FilePath_corr, "./" );
    else
-   { 
+   {
       FILE *file_checker = fopen(FilePath_corr, "r");
       if (!file_checker)
          Aux_Error( ERROR_INFO, "File path %s for saving correlation function text files does not exist!! Please create!!\n", FilePath_corr );
@@ -188,7 +188,7 @@ void SetParameter()
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
    {
       for ( int direction = 0; direction < 6; direction++ )
-      {   
+      {
          if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
             Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
       }
@@ -196,7 +196,7 @@ void SetParameter()
    else  // use user define boundary condition
    {
       for ( int direction = 0; direction < 6; direction++ )
-      {   
+      {
          if ( OPT__BC_FLU[direction] != BC_FLU_USER )
             Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
       }
@@ -439,7 +439,7 @@ static void Init_User_ELBDM_Correlation_Function(void)
       Extrema.Center[1] = amr->BoxCenter[1];
       Extrema.Center[2] = amr->BoxCenter[2];
       Aux_FindExtrema( &Extrema, EXTREMA_MAX, 0, TOP_LEVEL, PATCH_LEAF );
-                                                                     
+
       Center[0] = Extrema.Coord[0];
       Center[1] = Extrema.Coord[1];
       Center[2] = Extrema.Coord[2];
@@ -559,7 +559,7 @@ static void BC_Correlation_Function( real Array[], const int ArraySize[], real f
       fluid[STUB] = (real)0.0;
    }
 #  endif
-            
+
 } // FUNCTION : BC_Correlation_Function
 
 
@@ -568,7 +568,7 @@ static void BC_Correlation_Function( real Array[], const int ArraySize[], real f
 // Function    :  Do_CF
 // Description :  Do correlation function calculation
 //
-// Note        :  1. It will call center of mass routine 
+// Note        :  1. It will call center of mass routine
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
@@ -613,7 +613,7 @@ static void Do_CF( void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Correlation_Function()
 {
-   
+
 } // FUNCTION : End_Correlation_Function
 #endif // end of if ( MODEL == ELBDM )
 

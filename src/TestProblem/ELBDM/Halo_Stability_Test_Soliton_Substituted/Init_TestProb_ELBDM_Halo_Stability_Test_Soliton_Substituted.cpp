@@ -7,7 +7,7 @@
 // extern functions
 //extern void (*Flu_ResetByUser_API_Ptr)( const int lv, const int FluSg, const double TimeNew, const double dt );
 
-// This function computes density profile, with standare deviation 
+// This function computes density profile, with standare deviation
 extern void Aux_ComputeProfile_with_Sigma( Profile_with_Sigma_t *Prof[], const double Center[], const double r_max_input, const double dr_min,
                                            const bool LogBin, const double LogBinRatio, const bool RemoveEmpty, const long TVarBitIdx[],
                                            const int NProf, const int MinLv, const int MaxLv, const PatchType_t PatchType,
@@ -55,7 +55,7 @@ static bool     RemoveEmpty_corr;             // remove 0 sample bins; false: Da
 static int      MinLv;                        // do statistics from MinLv to MaxLv
 static int      MaxLv;                        // do statistics from MinLv to MaxLv
 static int      OutputCorrelationMode;        // output correlation function mode=> 0: constant interval 1: by table
-static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0) 
+static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0)
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
 static char     FilePath_corr[MAX_STRING];    // output path for correlation function text files
@@ -64,7 +64,7 @@ static int step_counter;                             // counter for caching cons
 static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer to save initial density profile
 static Profile_with_Sigma_t *Prof[] = { &Prof_Dens_initial };
 static Profile_t            Correlation_Dens;                       // pointer to save density correlation function
-static Profile_t            *Correlation[] = { &Correlation_Dens };       
+static Profile_t            *Correlation[] = { &Correlation_Dens };
 //FieldIdx_t *Passive_idx[] = { &Idx_Dens0 };                // array of pointer to save indices for passive field (initial density profile here)
 static double factor = pow(pow(2.,1./8.)-1.,0.5);  // for soliton density profile calculation
 //static double m_23;                           // particle mass in unit of 10^{-23} eV/c^2
@@ -93,6 +93,10 @@ void Validate()
 
 #  ifndef GRAVITY
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
+#  endif
+
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   Aux_Error( ERROR_INFO, "Test problem %d does not support ELBDM_HYBRID. The phase cannot be unwrapped due to the presence of vortices in the halo !!\n", TESTPROB_ID );
 #  endif
 
 #  ifdef COMOVING
@@ -213,7 +217,7 @@ void SetParameter()
        if ( (OutputCorrelationMode==0) && (StepInterval<1) ) StepInterval = 1;
        if ( FilePath_corr == "\0" )  sprintf( FilePath_corr, "./" );
        else
-       { 
+       {
           FILE *file_checker = fopen(FilePath_corr, "r");
           if (!file_checker)
              Aux_Error( ERROR_INFO, "File path %s for saving correlation function text files does not exist!! Please create!!\n", FilePath_corr );
@@ -221,7 +225,7 @@ void SetParameter()
              fclose(file_checker);
        }
    }
-   
+
 
 // (1-3) check the runtime parameters
 //   if ( OPT__INIT == INIT_BY_FUNCTION )
@@ -410,9 +414,9 @@ static void AddNewField_ELBDM_Halo_Stability_Test(void)
 //
 // Note        :  1.  Will be called whenever phase is needed
 //
-// Parameter   :  real dens_sqrt: square root of wave function 
+// Parameter   :  real dens_sqrt: square root of wave function
 //                real real_part: real part of wave function
-//                real imag_part: imaginary part of wave function 
+//                real imag_part: imaginary part of wave function
 //
 // Return      :  phase
 //-------------------------------------------------------------------------------------------------------
@@ -465,7 +469,7 @@ static void Init_User_ELBDM_Halo_Stability_Test_Soliton_Substituted(void)
 //      if ( MPI_Rank==0 )
 //          printf("Center position for reset central region is (%.6e,%.6e,%.6e) \n", Center[0], Center[1], Center[2]);
 //      //
-      
+
       double x, y, z, x0, y0, z0, modulator;
       real   dr[3];
       real   r;
@@ -540,18 +544,18 @@ static void Init_User_ELBDM_Halo_Stability_Test_Soliton_Substituted(void)
       {
          if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Re-restricting level %d ... ", NLEVEL-1 );
          Buf_GetBufferData( NLEVEL-1, amr->FluSg[NLEVEL-1], amr->MagSg[NLEVEL-1], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
-            
+
          for (int lv=NLEVEL-2; lv>=0; lv--)
          {
             if ( MPI_Rank == 0 )    Aux_Message( stdout, "   Re-restricting level %d ... ", lv );
-   
+
             Flu_FixUp_Restrict( lv, amr->FluSg[lv+1], amr->FluSg[lv], amr->MagSg[lv+1], amr->MagSg[lv], NULL_INT, NULL_INT, _TOTAL, _MAG );
-   
+
 #  ifdef LOAD_BALANCE
             LB_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_RESTRICT, _TOTAL, _MAG, NULL_INT );
 #  endif
             Buf_GetBufferData( lv, amr->FluSg[lv], amr->MagSg[lv], NULL_INT, DATA_GENERAL, _TOTAL, _MAG, Flu_ParaBuf, USELB_YES );
-   
+
             if ( MPI_Rank == 0 )    Aux_Message( stdout, "done\n" );
          } // for (int lv=NLEVEL-2; lv>=0; lv--)
       } // if ( OPT__INIT_RESTRICT )
@@ -841,14 +845,14 @@ static void GetCenterOfMass( bool record_flag, const double CM_Old[], double CM_
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
 //                4. Use "record_flag" to determine whether record all data in "Record__Center" or not
-//                5. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density 
+//                5. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density
 //                   profile, which will be used to calculate correlation function, if ComputeCorrelation is true.
 //
 // Parameter   :  None
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
-void Record_CenterOfMass( bool record_flag , int loop_terminated)  // use loop_terminated to decide at which loop the "repeat" loop will be determined 
+void Record_CenterOfMass( bool record_flag , int loop_terminated)  // use loop_terminated to decide at which loop the "repeat" loop will be determined
 {
    const char filename_center  [] = "Record__Center";
    const int  CountMPI            = 10;
@@ -1008,32 +1012,32 @@ void Record_CenterOfMass( bool record_flag , int loop_terminated)  // use loop_t
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
-    
+
        MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-    
+
        while ( true )
        {
           if (repeat==0)
               GetCenterOfMass( record_flag, CM_Old, CM_New, System_CM_MaxR );
           else
               GetCenterOfMass( record_flag, CM_Old, CM_New, Soliton_CM_MaxR );
-    
+
           dR2 = SQR( CM_Old[0] - CM_New[0] )
               + SQR( CM_Old[1] - CM_New[1] )
               + SQR( CM_Old[2] - CM_New[2] );
           NIter ++;
-    
+
           if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
              break;
           else
              memcpy( CM_Old, CM_New, sizeof(double)*3 );
        }
-    
+
        if ( MPI_Rank == 0 )
        {
           if ( dR2 > TolErrR2 )
              Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
-    
+
           if (record_flag)
           {
              FILE *file_center = fopen( filename_center, "a" );
@@ -1052,7 +1056,7 @@ void Record_CenterOfMass( bool record_flag , int loop_terminated)  // use loop_t
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
            break;  // break the for loop since only CoM of whole halo is needed for passive field
-// 
+//
        }
    }  // end of for loop for repeat = 2
 
@@ -1080,7 +1084,7 @@ real Soliton_DensProfile(real r)
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Reset_Centeral_Region
-// Description :  Reset the wave function inside assigned region by wave function calculated from analytical soliton density profile 
+// Description :  Reset the wave function inside assigned region by wave function calculated from analytical soliton density profile
 //
 // Note        :  1. Invoked by Flu_ResetByUser_API_Default() and Model_Init_ByFunction_AssignData() using the
 //                   function pointer "Flu_ResetByUser_Func_Ptr", which must be set by a test problem initializer
@@ -1110,11 +1114,11 @@ real Soliton_DensProfile(real r)
 //{
 //   real SolitonDens;
 //   real r_criteria     = CriteriaFactor*CoreRadius;
-//   
+//
 //   const real dr[3]   = { x-Center[0], y-Center[1], z-Center[2] };
 //   const real r       = SQRT( dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2] );
 //   SolitonDens = Soliton_DensProfile(r);
-//   if ( r<=r_criteria )  
+//   if ( r<=r_criteria )
 //   {
 ////      printf("Effective !! r = %.6e ; r_criteria = %.6e ; original density = %.6e ;", r, r_criteria, fluid[DENS]);
 //      fluid[DENS] = SolitonDens;
@@ -1187,11 +1191,11 @@ real Soliton_DensProfile(real r)
 //         x0 = amr->patch[0][lv][PID]->EdgeL[0] + 0.5*dh;
 //         y0 = amr->patch[0][lv][PID]->EdgeL[1] + 0.5*dh;
 //         z0 = amr->patch[0][lv][PID]->EdgeL[2] + 0.5*dh;
-//   
+//
 //         for (int k=0; k<PS1; k++)  {  z = z0 + k*dh;
 //         for (int j=0; j<PS1; j++)  {  y = y0 + j*dh;
 //         for (int i=0; i<PS1; i++)  {  x = x0 + i*dh;
-//   
+//
 //            for (int v=0; v<NCOMP_TOTAL; v++)   fluid[v] = amr->patch[FluSg][lv][PID]->fluid[v][k][j][i];
 ////          reset this cell
 //            Reset = Flu_ResetByUser_Func_Ptr( fluid, x, y, z, TimeNew, dt, lv, NULL );
@@ -1200,7 +1204,7 @@ real Soliton_DensProfile(real r)
 //
 //         }}} // i,j,k
 //      } // for (int PID=0; PID<amr->NPatchComma[lv][1]; PID++)
-//   } // if TimeNew == 0 
+//   } // if TimeNew == 0
 ////   else
 ////   {
 ////      if ( MPI_Rank==0 )
@@ -1211,9 +1215,9 @@ real Soliton_DensProfile(real r)
 
 //-------------------------------------------------------------------------------------------------------
 // Function    :  Do_COM_and_CF
-// Description :  Do record center of mass and calculate correlation function 
+// Description :  Do record center of mass and calculate correlation function
 //
-// Note        :  1. It will call center of mass routine 
+// Note        :  1. It will call center of mass routine
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
@@ -1227,7 +1231,7 @@ static void Do_COM_and_CF( void )
    bool record_flag = true;
    int loop_terminated = 2;
    Record_CenterOfMass( record_flag, loop_terminated );
-   
+
 // Compute correlation if ComputeCorrelation flag is true
    if (ComputeCorrelation)
    {
@@ -1235,7 +1239,7 @@ static void Do_COM_and_CF( void )
       {
          const long TVar[] = {_DENS};
 //         if ( MPI_Rank == 0 )    Aux_Message( stdout, "calculate correlation function at step = %d , prepared time =  %20.14e:\n", Step, Time[0] );
-// for GNU compiler  
+// for GNU compiler
 //         const Profile_with_Sigma_t **Prof_init = (const Profile_with_Sigma_t**)(Prof);
          Aux_ComputeCorrelation( Correlation, (const Profile_with_Sigma_t**)Prof, Center, RadiusMax_corr, dr_min_corr, LogBin_corr, LogBinRatio_corr,
                                  RemoveEmpty_corr, TVar, 1, MinLv, MaxLv, PATCH_LEAF, Time[0], dr_min_prof);

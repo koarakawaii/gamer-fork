@@ -151,7 +151,7 @@ void SetParameter()
 
    if ( Soliton_CoreRadiusAll == NoDef_double )
       Aux_Error( ERROR_INFO, "Runtime parameter \"Soliton_CoreRadiusAll\" is not set !!\n" );
-   
+
 // (2) set the problem-specific derived parameters
 // (2-1) allocate memory
    Soliton_CoreRadius       = new double [Soliton_N];
@@ -224,12 +224,12 @@ void SetParameter()
          const bool AllocMem_Yes_soliton_ratio            = true;     // allocate memory for Soliton_DensProf
          const int  NCol_soliton_ratio                    = 3;        // total number of columns to load
          const int  Col_soliton_ratio[NCol_soliton_ratio] = {0, 1, 2};   // target columns: (radius, density)
-          
+
          const int Soliton_Number_Check = Aux_LoadTable( Soliton_Distortion_Ratio, Soliton_Distortion_Filename, NCol_soliton_ratio, Col_soliton_ratio, RowMajor_No_soliton_ratio, AllocMem_Yes_soliton_ratio );
          if (Soliton_Number_Check!=Soliton_N)
             Aux_Error( ERROR_INFO, "Soliton_Number_Check (%d) != Soliton_N (%d) !! Exit!!", Soliton_Number_Check, Soliton_N);
       }
-      
+
 #ifdef PARTICLE
       if (amr->Par->NPar_Active_AllRank>0)
       {
@@ -237,7 +237,7 @@ void SetParameter()
          const bool AllocMem_Yes_particle_data           = true;                  // allocate memory for Soliton_DensProf
          const int NCol_particle_data                    = 7;                     // total number of columns to load for particle data
          const int Col_particle_data[NCol_particle_data] = {0, 1, 2, 3, 4, 5, 6}; // target columns: (mass, position_x, position_y, position_z, velocity_x, velocity_y, velocity_z)
-         if (amr->Par->NPar_Active_AllRank>0) 
+         if (amr->Par->NPar_Active_AllRank>0)
             NPar_AllRank_Check = Aux_LoadTable( Particle_Data_Table, Particle_Data_Filename, NCol_particle_data, Col_particle_data, RowMajor_No_particle_data, AllocMem_Yes_particle_data );
       }
 #endif
@@ -309,7 +309,7 @@ void SetParameter()
           Aux_Message( stdout, "  particle log filename                     = %s\n",     Particle_Log_Filename            );
       }
 #endif
-      
+
       Aux_Message( stdout, "\n" );
       Aux_Message( stdout, "  Soliton info:\n" );
       if (Soliton_Distortion==1)
@@ -383,8 +383,8 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
    for (int t=0; t<Soliton_N; t++)
    {
       if (Soliton_Distortion==1)
-         r_tar = sqrt( SQR((x-Soliton_Center[t][0])/Soliton_Distortion_Ratio[0]) + 
-                       SQR((y-Soliton_Center[t][1])/Soliton_Distortion_Ratio[1]) + 
+         r_tar = sqrt( SQR((x-Soliton_Center[t][0])/Soliton_Distortion_Ratio[0]) +
+                       SQR((y-Soliton_Center[t][1])/Soliton_Distortion_Ratio[1]) +
                        SQR((z-Soliton_Center[t][2])/Soliton_Distortion_Ratio[2]) );
       else
          r_tar = sqrt( SQR(x-Soliton_Center[t][0]) + SQR(y-Soliton_Center[t][1]) + SQR(z-Soliton_Center[t][2]) );
@@ -1078,12 +1078,12 @@ void Record_Fake_Soliton_CoM(void)
 // Function    :  Record_COM_and_Particle_Pos
 // Description :  Record center of mass and position of particles
 //
-// Note        :  1. It will call center of mass routine 
+// Note        :  1. It will call center of mass routine
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
 //                4. It will call record particle position routine
-//                5. Output filename is 
+//                5. Output filename is
 //
 // Parameter   :  None
 //

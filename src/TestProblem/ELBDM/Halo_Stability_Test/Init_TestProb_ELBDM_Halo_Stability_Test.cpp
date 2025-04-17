@@ -4,7 +4,7 @@
 
 // extern functions
 
-// This function computes desnity profil, with standare deviation 
+// This function computes desnity profil, with standare deviation
 void Aux_ComputeProfile_with_Sigma( Profile_with_Sigma_t *Prof[], const double Center[], const double r_max_input, const double dr_min,
                                     const bool LogBin, const double LogBinRatio, const bool RemoveEmpty, const long TVarBitIdx[],
                                     const int NProf, const int MinLv, const int MaxLv, const PatchType_t PatchType,
@@ -43,7 +43,7 @@ static bool     RemoveEmpty_corr;             // remove 0 sample bins; false: Da
 static int      MinLv;                        // do statistics from MinLv to MaxLv
 static int      MaxLv;                        // do statistics from MinLv to MaxLv
 static int      OutputCorrelationMode;        // output correlation function mode=> 0: constant interval 1: by table
-static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0) 
+static int      StepInitial;                  // inital step for recording correlation function (OutputCorrelationMode = 0)
 static int      StepInterval;                 // interval for recording correlation function (OutputCorrelationMode = 0)
 static int      *StepTable;                   // step index table for output correlation function (OutputCorrelationMode = 1)
 static bool     Fluid_Periodic_BC_Flag;       // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
@@ -53,7 +53,7 @@ static int step_counter;                             // counter for caching cons
 static Profile_with_Sigma_t Prof_Dens_initial;                      // pointer to save initial density profile
 static Profile_with_Sigma_t *Prof[] = { &Prof_Dens_initial };
 static Profile_t            Correlation_Dens;                       // pointer to save density correlation function
-static Profile_t            *Correlation[] = { &Correlation_Dens };       
+static Profile_t            *Correlation[] = { &Correlation_Dens };
 // =======================================================================================
 
 //-------------------------------------------------------------------------------------------------------
@@ -78,6 +78,10 @@ void Validate()
 
 #  ifndef GRAVITY
    Aux_Error( ERROR_INFO, "GRAVITY must be enabled !!\n" );
+#  endif
+
+#  if ( ELBDM_SCHEME == ELBDM_HYBRID )
+   Aux_Error( ERROR_INFO, "Test problem %d does not support ELBDM_HYBRID. The phase cannot be unwrapped due to the presence of vortices in the halo !!\n", TESTPROB_ID );
 #  endif
 
 #  ifdef COMOVING
@@ -188,7 +192,7 @@ void SetParameter()
        if ( MaxLv < MinLv ) MaxLv = MAX_LEVEL;
        if ( FilePath_corr == "\0" )  sprintf( FilePath_corr, "./" );
        else
-       { 
+       {
           FILE *file_checker = fopen(FilePath_corr, "r");
           if (!file_checker)
              Aux_Error( ERROR_INFO, "File path %s for saving correlation function text files does not exist!! Please create!!\n", FilePath_corr );
@@ -196,7 +200,7 @@ void SetParameter()
              fclose(file_checker);
        }
    }
-   
+
 
 // (1-3) check the runtime parameters
    if ( OPT__INIT == INIT_BY_FUNCTION )
@@ -205,7 +209,7 @@ void SetParameter()
    if ( Fluid_Periodic_BC_Flag )  // use periodic boundary condition
    {
       for ( int direction = 0; direction < 6; direction++ )
-      {   
+      {
          if ( OPT__BC_FLU[direction] != BC_FLU_PERIODIC )
             Aux_Error( ERROR_INFO, "must set periodic BC for fluid --> reset OPT__BC_FLU[%d] to 1 !!\n", direction );
       }
@@ -213,7 +217,7 @@ void SetParameter()
    else  // use user define boundary condition
    {
       for ( int direction = 0; direction < 6; direction++ )
-      {   
+      {
          if ( OPT__BC_FLU[direction] != BC_FLU_USER )
             Aux_Error( ERROR_INFO, "must adopt user defined BC for fluid --> reset OPT__BC_FLU[%d] to 4 !!\n", direction );
       }
@@ -524,9 +528,9 @@ static void Init_User_ELBDM_Halo_Stability_Test(void)
 //-------------------------------------------------------------------------------------------------------
 // Function    :  BC_HALO
 // Description :  Set the extenral boundary condition
-//                
+//
 // Note        :  1. Linked to the function pointer "BC_User_Ptr"
-//                
+//
 // Parameter   :  Array          : Array to store the prepared data including ghost zones
 //                ArraySize      : Size of Array including the ghost zones on each side
 //                fluid          : Fluid fields to be set
@@ -538,7 +542,7 @@ static void Init_User_ELBDM_Halo_Stability_Test(void)
 //                lv             : Refinement level
 //                TFluVarIdxList : List recording the target fluid variable indices ( = [0 ... NCOMP_TOTAL-1] )
 //                AuxArray       : Auxiliary array
-//                
+//
 // Return      :  fluid
 //-------------------------------------------------------------------------------------------------------
 static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const int NVar_Flu,
@@ -547,16 +551,16 @@ static void BC_HALO( real Array[], const int ArraySize[], real fluid[], const in
 {
    #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
    if ( amr->use_wave_flag[lv] ) {
-   #  endif          
+   #  endif
       fluid[DENS] = (real)0.0;
       fluid[REAL] = (real)0.0;
       fluid[IMAG] = (real)0.0;
 #  if ( ELBDM_SCHEME == ELBDM_HYBRID )
-   } else {       
+   } else {
       fluid[DENS] = (real)TINY_NUMBER;
       fluid[PHAS] = (real)0.0;
       fluid[STUB] = (real)0.0;
-   }              
+   }
 #  endif
 
 } // FUNCTION : BC_HALO
@@ -691,7 +695,7 @@ static void GetCenterOfMass( const double CM_Old[], double CM_New[], const doubl
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
 //                4. Use "record_flag" to determine whether record all data in "Record__Center" or not
-//                5. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density 
+//                5. When simulation starts, this function will be called to calculate center of whole halo for calculating initial density
 //                   profile, which will be used to calculate correlation function, if ComputeCorrelation is true.
 //
 // Parameter   :  None
@@ -859,27 +863,27 @@ static void Record_CenterOfMass( bool record_flag )
 // set an initial guess by the peak density position
        if ( MPI_Rank == 0 )
           for (int d=0; d<3; d++)    CM_Old[d] = recv[max_dens_rank][3+d];
-    
+
        MPI_Bcast( CM_Old, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-    
+
        while ( true )
        {
           if (repeat==0)
               GetCenterOfMass( CM_Old, CM_New, System_CM_MaxR, _TOTAL_DENS ); // for system center of mass, use total density
           else
               GetCenterOfMass( CM_Old, CM_New, Soliton_CM_MaxR, _DENS );      // for soliton center of mass, use FDM density
-    
+
           dR2 = SQR( CM_Old[0] - CM_New[0] )
               + SQR( CM_Old[1] - CM_New[1] )
               + SQR( CM_Old[2] - CM_New[2] );
           NIter ++;
-    
+
           if ( dR2 <= TolErrR2  ||  NIter >= NIterMax )
              break;
           else
              memcpy( CM_Old, CM_New, sizeof(double)*3 );
        }
-    
+
        if ( MPI_Rank == 0 )
        {
           if ( dR2 > TolErrR2 )
@@ -887,7 +891,7 @@ static void Record_CenterOfMass( bool record_flag )
                 Aux_Message( stderr, "WARNING : dR (%13.7e) > System_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), System_CM_TolErrR );
              else
                 Aux_Message( stderr, "WARNING : dR (%13.7e) > Soliton_CM_TolErrR (%13.7e) !!\n", sqrt(dR2), Soliton_CM_TolErrR );
-    
+
           if (record_flag)
           {
              FILE *file_center = fopen( filename_center, "a" );
@@ -903,9 +907,9 @@ static void Record_CenterOfMass( bool record_flag )
        {
            for (int i=0; i<3; i++)
                Center[i] = CM_New[i];
-           
+
            break;  // break the for loop since only CoM of whole halo is needed for passive field
-// 
+//
        }
    }  // end of for loop for repeat = 2
 
@@ -918,7 +922,7 @@ static void Record_CenterOfMass( bool record_flag )
 // Function    :  Do_COM_and_CF
 // Description :  Do record center of mass and calculate correlation function
 //
-// Note        :  1. It will call center of mass routine 
+// Note        :  1. It will call center of mass routine
 //                2. For the center coordinates, it will record the position of maximum density, minimum potential,
 //                   and center-of-mass
 //                3. Output filename is fixed to "Record__Center"
@@ -931,7 +935,7 @@ static void Do_COM_and_CF( void )
 {
    bool record_flag = true;
    Record_CenterOfMass( record_flag );
-   
+
 // Compute correlation if ComputeCorrelation flag is true
    if (ComputeCorrelation)
    {
@@ -970,7 +974,7 @@ static void Do_COM_and_CF( void )
 //-------------------------------------------------------------------------------------------------------
 static void End_Halo_Stability_Test()
 {
-   
+
 } // FUNCTION : End_Halo_Stability_Test
 #endif // end of if ( MODEL == ELBDM && defined GRAVITY )
 
