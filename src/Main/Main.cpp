@@ -667,8 +667,6 @@ int main( int argc, char *argv[] )
    Aux_ResetTimer();
 #  endif
 
-   Output_DumpData( 0 );
-
 #  ifdef SUPPORT_LIBYT
    Execute_YT( 0 );
 #  endif
