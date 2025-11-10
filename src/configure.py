@@ -37,7 +37,7 @@ PRINT_WIDTH = 100
 
 GAMER_CONFIG_DIR     = os.path.join("..", "configs")
 GAMER_MAKE_BASE      = "Makefile_base"
-#GAMER_MAKE_OUT       = "Makefile"
+GAMER_MAKE_OUT       = "Makefile"
 #GAMER_MAKE_OUT       = "Makefile_pure_hydro"
 #GAMER_MAKE_OUT       = "Makefile_hydro_with_particle"
 #GAMER_MAKE_OUT       = "Makefile_hydro_with_particle_libyt"
@@ -50,6 +50,7 @@ GAMER_MAKE_BASE      = "Makefile_base"
 #GAMER_MAKE_OUT       = "Makefile_pure_psidm_GRAMFE_spock"
 #GAMER_MAKE_OUT       = "Makefile_pure_psidm_GRAMFE_spectral_interp_spock"
 #GAMER_MAKE_OUT       = "Makefile_pure_psidm_libyt"
+#GAMER_MAKE_OUT       = "Makefile_pure_psidm_libyt_PATCH_SIZE=32_spock"
 #GAMER_MAKE_OUT       = "Makefile_psidm_with_particle"
 #GAMER_MAKE_OUT       = "Makefile_psidm_with_particle_spock"
 #GAMER_MAKE_OUT       = "Makefile_psidm_with_particle_libyt"
