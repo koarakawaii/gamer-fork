@@ -1088,7 +1088,7 @@ static void Init_User_ELBDM_Black_Hole_in_Halo(void)
                            amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[REAL][k][j][i] = dens_sqrt*COS((real)phase);
                            amr->patch[ amr->FluSg[lv] ][lv][PID]->fluid[IMAG][k][j][i] = dens_sqrt*SIN((real)phase);
                         }
-           	     } // end of for loop i
+           	         } // end of for loop i
                   } // end of for loop j
                } // end of for loop k
             } // end of for loop PID
