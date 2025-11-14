@@ -17,7 +17,7 @@ static double  *Soliton_DensProf   = NULL;               // soliton density prof
 static bool     first_run_flag;                          // flag suggesting first run (for determining whether write header in log file or not )
 static bool     Fluid_Periodic_BC_Flag;                  // flag for checking the fluid boundary condtion is setup to periodic (0: user defined; 1: periodic)
 #ifdef MASSIVE_PARTICLES
-static int      NewParAttTracerIdx = Idx_Undefined;      // particle attribute index for labelling particles
+static int      NewParAttIntTracerIdx = Idx_Undefined;   // particle attribute index for labelling particles
 static int      WriteDataInBinaryFlag;                   // flag for determining output data type (0:text 1:binary Other: Do not write)
 
 static bool     ParRefineFlag;                           // flag for refinement based on particles
@@ -314,18 +314,20 @@ static void Par_Init_ByRestart_Black_Hole_in_Soliton()
    const long   NNewPar        = ( MPI_Rank == 0 ) ? BH_AddParForRestart_NPar : 0;
    const long   NPar_AllRank   = NNewPar;
 
-   real_par *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAttFlt[PAR_NATT_FLT_TOTAL];
+   long_par *NewParAttInt[PAR_NATT_INT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NNewPar];
+   for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   NewParAttFlt[v] = new real_par [NNewPar];
+   for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   NewParAttInt[v] = new long_par [NNewPar];
 
 // set particle attributes
 // ============================================================================================================
-   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
-   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real_par *Type_AllRank      = NewParAtt[PAR_TYPE];
-   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAttFlt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAttFlt[PAR_MASS];
+   long_par *Type_AllRank      = NewParAttInt[PAR_TYPE];
+   real_par *Pos_AllRank[3]    = { NewParAttFlt[PAR_POSX], NewParAttFlt[PAR_POSY], NewParAttFlt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAttFlt[PAR_VELX], NewParAttFlt[PAR_VELY], NewParAttFlt[PAR_VELZ] };
+   long_par *TracerIdx_AllRank = NewParAttInt[NewParAttIntTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -373,7 +375,7 @@ static void Par_Init_ByRestart_Black_Hole_in_Soliton()
          Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real_par)p;
+         TracerIdx_AllRank[p] = (long_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -388,11 +390,12 @@ static void Par_Init_ByRestart_Black_Hole_in_Soliton()
    } // if ( MPI_Rank == 0 )
 
 // add particles here
-   Par_AddParticleAfterInit( NNewPar, NewParAtt );
+   Par_AddParticleAfterInit( NNewPar, NewParAttFlt, NewParAttInt );
 
 
 // free memory
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
+   for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   delete [] NewParAttFlt[v];
+   for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   delete [] NewParAttInt[v];
 
 // refine the grids
    if ( ParRefineFlag )
@@ -453,23 +456,27 @@ static void Par_Init_ByRestart_Black_Hole_in_Soliton()
 //                       and LB_Init_LoadBalance()
 //                   --> Therefore, there is no constraint on which particles should be set by this function
 //
-// Parameter   :  NPar_ThisRank : Number of particles to be set by this MPI rank
-//                NPar_AllRank  : Total Number of particles in all MPI ranks
-//                ParPosX/Y/Z   : Particle position array with the size of NPar_ThisRank
-//                ParVelX/Y/Z   : Particle velocity array with the size of NPar_ThisRank
-//                ParTime       : Particle time     array with the size of NPar_ThisRank
-//                ParType       : Particle type     array with the size of NPar_ThisRank
-//                AllAttribute  : Pointer array for all particle attributes
-//                                --> Dimension = [PAR_NATT_TOTAL][NPar_ThisRank]
-//                                --> Use the attribute indices defined in Field.h (e.g., Idx_ParCreTime)
-//                                    to access the data
+// Parameter   :  NPar_ThisRank   : Number of particles to be set by this MPI rank
+//                NPar_AllRank    : Total Number of particles in all MPI ranks
+//                ParPosX/Y/Z     : Particle position array with the size of NPar_ThisRank
+//                ParVelX/Y/Z     : Particle velocity array with the size of NPar_ThisRank
+//                ParTime         : Particle time     array with the size of NPar_ThisRank
+//                ParType         : Particle type     array with the size of NPar_ThisRank
+//                AllAttributeFlt : Pointer array for all particle floating-point attributes
+//                                  --> Dimension = [PAR_NATT_FLT_TOTAL][NPar_ThisRank]
+//                                  --> Use the attribute indices defined in Field.h (e.g., Idx_ParCreTime)
+//                                      to access the data
+//                AllAttributeInt : Pointer array for all particle integer attributes
+//                                  --> Dimension = [PAR_NATT_INT_TOTAL][NPar_ThisRank]
+//                                  --> Use the attribute indices defined in Field.h to access the data
 //
 // Return      :  None
 //-------------------------------------------------------------------------------------------------------
 void Par_Init_ByFunction_Black_Hole_in_Soliton( const long NPar_ThisRank, const long NPar_AllRank,
                                                 real_par *ParMass, real_par *ParPosX, real_par *ParPosY, real_par *ParPosZ,
                                                 real_par *ParVelX, real_par *ParVelY, real_par *ParVelZ, real_par *ParTime,
-                                                real_par *ParType, real_par *AllAttribute[PAR_NATT_TOTAL] )
+                                                long_par *ParType, real_par *AllAttributeFlt[PAR_NATT_FLT_TOTAL],
+                                                long_par *AllAttributeInt[PAR_NATT_INT_TOTAL])
 {
    const bool RowMajor_No_particle_data             = false;                 // load data into the column-major order
    const bool AllocMem_Yes_particle_data            = true;                  // allocate memory for Soliton_DensProf
@@ -491,18 +498,20 @@ void Par_Init_ByFunction_Black_Hole_in_Soliton( const long NPar_ThisRank, const 
    }
 
 
-   real_par *NewParAtt[PAR_NATT_TOTAL];
+   real_par *NewParAttFlt[PAR_NATT_FLT_TOTAL];
+   long_par *NewParAttInt[PAR_NATT_INT_TOTAL];
 
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   NewParAtt[v] = new real_par [NPar_AllRank];
+   for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   NewParAttFlt[v] = new real_par [NPar_AllRank];
+   for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   NewParAttInt[v] = new long_par [NPar_AllRank];
 
 // set particle attributes
 // ============================================================================================================
-   real_par *Time_AllRank      = NewParAtt[PAR_TIME];
-   real_par *Mass_AllRank      = NewParAtt[PAR_MASS];
-   real_par *Type_AllRank      = NewParAtt[PAR_TYPE];
-   real_par *Pos_AllRank[3]    = { NewParAtt[PAR_POSX], NewParAtt[PAR_POSY], NewParAtt[PAR_POSZ] };
-   real_par *Vel_AllRank[3]    = { NewParAtt[PAR_VELX], NewParAtt[PAR_VELY], NewParAtt[PAR_VELZ] };
-   real_par *TracerIdx_AllRank = NewParAtt[NewParAttTracerIdx];
+   real_par *Time_AllRank      = NewParAttFlt[PAR_TIME];
+   real_par *Mass_AllRank      = NewParAttFlt[PAR_MASS];
+   long_par *Type_AllRank      = NewParAttInt[PAR_TYPE];
+   real_par *Pos_AllRank[3]    = { NewParAttFlt[PAR_POSX], NewParAttFlt[PAR_POSY], NewParAttFlt[PAR_POSZ] };
+   real_par *Vel_AllRank[3]    = { NewParAttFlt[PAR_VELX], NewParAttFlt[PAR_VELY], NewParAttFlt[PAR_VELZ] };
+   long_par *TracerIdx_AllRank = NewParAttInt[NewParAttIntTracerIdx];
 
 
 // only the master rank will construct the initial condition
@@ -550,7 +559,7 @@ void Par_Init_ByFunction_Black_Hole_in_Soliton( const long NPar_ThisRank, const 
          Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
 
 //       particle tracer index
-         TracerIdx_AllRank[p] = (real_par)p;
+         TracerIdx_AllRank[p] = (long_par)p;
 
       } // for (long p=0; p<NPar_AllRank; p++)
 
@@ -588,14 +597,14 @@ void Par_Init_ByFunction_Black_Hole_in_Soliton( const long NPar_ThisRank, const 
 
 // send particle attributes from the master rank to all ranks
    real_par *Mass      =   ParMass;
-   real_par *Type      =   ParType;
+   long_par *Type      =   ParType;
    real_par *Pos[3]    = { ParPosX, ParPosY, ParPosZ };
    real_par *Vel[3]    = { ParVelX, ParVelY, ParVelZ };
-   real_par *TracerIdx = AllAttribute[NewParAttTracerIdx];
+   long_par *TracerIdx = AllAttributeInt[NewParAttIntTracerIdx];
 
    MPI_Scatterv( Mass_AllRank,      NSend, SendDisp, MPI_GAMER_REAL_PAR, Mass, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
-   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_GAMER_REAL_PAR, Type, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
-   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_GAMER_REAL_PAR, TracerIdx, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Type_AllRank,      NSend, SendDisp, MPI_GAMER_LONG_PAR, Type, NPar_ThisRank, MPI_GAMER_LONG_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( TracerIdx_AllRank, NSend, SendDisp, MPI_GAMER_LONG_PAR, TracerIdx, NPar_ThisRank, MPI_GAMER_LONG_PAR, 0, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)
    {
@@ -604,7 +613,8 @@ void Par_Init_ByFunction_Black_Hole_in_Soliton( const long NPar_ThisRank, const 
    }
 
 // free memory
-   for (int v=0; v<PAR_NATT_TOTAL; v++)   delete [] NewParAtt[v];
+   for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   delete [] NewParAttFlt[v];
+   for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   delete [] NewParAttInt[v];
 
 } // FUNCTION : Par_Init_ByFunction_Black_Hole_in_Soliton
 
@@ -636,9 +646,10 @@ static void Record_Particle_Data_Text( char *FileName )
          {
             File = fopen( FileName, "w" );
             fprintf( File, "# Time                    Step                    Active_Particles   ");
-            for (int v=0; v<PAR_NATT_TOTAL; v++)
-            for (int v=0; v<PAR_NATT_TOTAL; v++)
-                fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+            for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)
+                fprintf( File, "  %*s", (v==0)?20:21, ParAttFltLabel[v] );
+            for (int v=0; v<PAR_NATT_INT_TOTAL; v++)
+                fprintf( File, "  %*s", (v==0)?20:21, ParAttIntLabel[v] );
             fprintf( File, "\n" );
          }
          else if ( first_run_flag )
@@ -647,8 +658,10 @@ static void Record_Particle_Data_Text( char *FileName )
             File = fopen( FileName, "a" );
             fprintf( File, "# Time                    Step                    Active_Particles   ");
 
-            for (int v=0; v<PAR_NATT_TOTAL; v++)
-               fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+            for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)
+               fprintf( File, "  %*s", (v==0)?20:21, ParAttFltLabel[v] );
+            for (int v=0; v<PAR_NATT_INT_TOTAL; v++)
+               fprintf( File, "  %*s", (v==0)?20:21, ParAttIntLabel[v] );
             fprintf( File, "\n" );
             first_run_flag = false;
          }
@@ -670,7 +683,8 @@ static void Record_Particle_Data_Text( char *FileName )
             if ( amr->Par->Mass[p] < 0.0 )   continue;
 
             fprintf( File, "%20.14e    %13ld    %13ld          ", Time[0], Step, amr->Par->NPar_Active_AllRank );
-            for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->Attribute[v][p] );
+            for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->AttributeFlt[v][p] );
+            for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   fprintf( File, "  %12ld", (long)amr->Par->AttributeInt[v][p] );
 
             fprintf( File, "\n" );
          }
@@ -699,19 +713,14 @@ static void Record_Particle_Data_Binary( char *FileName )
 //      Aux_Message( stderr, "WARNING : file \"%s\" already exists and will be overwritten !!\n", FileName );
 
    FILE *File;
-   int par_natt_total = PAR_NATT_TOTAL;
+   int par_natt_total = PAR_NATT_FLT_TOTAL + PAR_NATT_INT_TOTAL;
 
 // open the file by root rank
    if ( MPI_Rank == 0 )
    {
        File = fopen( FileName, "w" );                  // overwrite the file no matter how
       if ( first_run_flag )
-      {
-//          File = fopen( FileName, "w" );                  // overwrite the file no matter how
-//          int par_natt_total = PAR_NATT_TOTAL;
-//          fwrite(&par_natt_total, sizeof(int), 1, File);  // write number of attribute only at simulation start and first_run_flag == true
           first_run_flag = false;
-      }
       fclose( File );
    }
    MPI_Barrier( MPI_COMM_WORLD );
@@ -734,7 +743,8 @@ static void Record_Particle_Data_Binary( char *FileName )
          {
 //          skip inactive particles
             if ( amr->Par->Mass[p] < 0.0 )   continue;
-            for (int v=0; v<PAR_NATT_TOTAL; v++)   fwrite( &(amr->Par->Attribute[v][p]),  sizeof(real_par), 1, File );  // write all attribute for selected particle for each time step
+            for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   fwrite( &(amr->Par->AttributeFlt[v][p]),  sizeof(real_par), 1, File );  // write all attribute for selected particle for each time step
+            for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   fwrite( &(amr->Par->AttributeInt[v][p]),  sizeof(long_par), 1, File );  // write all attribute for selected particle for each time step
          }
 
          fclose( File );
@@ -762,8 +772,8 @@ static void Record_Particle_Data_Binary( char *FileName )
 //-------------------------------------------------------------------------------------------------------
 static void AddNewParticleAttribute_Black_Hole_in_Soliton(void)
 {
-   if ( NewParAttTracerIdx == Idx_Undefined )
-      NewParAttTracerIdx = AddParticleAttribute( "ParticleTracerIdx" );
+   if ( NewParAttIntTracerIdx == Idx_Undefined )
+      NewParAttIntTracerIdx = AddParticleAttributeInt( "ParticleTracerIdx" );
 }
 
 #endif // end of ifdef MASSIVE_PARTICLES
