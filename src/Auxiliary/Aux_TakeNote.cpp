@@ -1658,7 +1658,7 @@ void Aux_TakeNote()
       fprintf( Note, "EXECUTE_YT_STEP                % d\n",      EXECUTE_YT_STEP         );
       fprintf( Note, "EXECUTE_YT_DT                  % 20.14e\n", EXECUTE_YT_DT           );
       fprintf( Note, "INIT_EXECUTE_YT_ID             % d\n",      INIT_EXECUTE_YT_ID      );
-      fprintf( Note, "YT_SCRIPT                      % s\n",      YT_SCRIPT               );
+      fprintf( Note, "YT_SCRIPT                       %s\n",      YT_SCRIPT               );
       fprintf( Note, "YT_VERBOSE                     % d\n",      YT_VERBOSE              );
       fprintf( Note, "YT_FIG_BASENAME                 %s\n",      YT_FIG_BASENAME         );
 #     ifdef LIBYT_JUPYTER

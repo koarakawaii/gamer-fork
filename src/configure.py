@@ -37,10 +37,10 @@ PRINT_WIDTH = 100
 
 GAMER_CONFIG_DIR     = os.path.join("..", "configs")
 GAMER_MAKE_BASE      = "Makefile_base"
-#GAMER_MAKE_OUT       = "Makefile"
+GAMER_MAKE_OUT       = "Makefile"
 #GAMER_MAKE_OUT       = "Makefile_psidm-corr-func_branch"
 #GAMER_MAKE_OUT       = "Makefile_psidm-corr-func_branch_spock"
-GAMER_MAKE_OUT       = "Makefile_psidm-corr-func_branch_PATCH_SIZE=32_spock"
+#GAMER_MAKE_OUT       = "Makefile_psidm-corr-func_branch_PATCH_SIZE=32_spock"
 GAMER_LOCAL_SETTING  = ".local_settings"
 GAMER_GLOBAL_SETTING = os.path.expanduser("~/.config/gamer/global_settings")
 GAMER_DESCRIPTION    = "Prepare a customized Makefile for GAMER.\n"\

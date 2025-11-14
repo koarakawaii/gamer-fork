@@ -452,9 +452,10 @@ void SetGridIC( real fluid[], const double x, const double y, const double z, co
 // Return      :  ParMass, ParPosX/Y/Z, ParVelX/Y/Z, ParTime, AllAttribute
 //-------------------------------------------------------------------------------------------------------
 void Par_Init_ByFunction_Toy_Model( const long NPar_ThisRank, const long NPar_AllRank,
-                                    real *ParMass, real *ParPosX, real *ParPosY, real *ParPosZ,
-                                    real *ParVelX, real *ParVelY, real *ParVelZ, real *ParTime,
-                                    real *AllAttribute[PAR_NATT_TOTAL] )
+                                    real_par *ParMass, real_par *ParPosX, real_par *ParPosY, real_par *ParPosZ,
+                                    real_par *ParVelX, real_par *ParVelY, real_par *ParVelZ, real_par *ParTime,
+                                    long_par *ParType, real_par *AllAttributeFlt[PAR_NATT_FLT_TOTAL],
+                                    long_par *AllAttributeInt[PAR_NATT_INT_TOTAL])
 {
 
    if (amr->Par->NPar_Active_AllRank<=0)
@@ -468,9 +469,10 @@ void Par_Init_ByFunction_Toy_Model( const long NPar_ThisRank, const long NPar_Al
    }
 
 
-   real *Mass_AllRank   = NULL;
-   real *Pos_AllRank[3] = { NULL, NULL, NULL };
-   real *Vel_AllRank[3] = { NULL, NULL, NULL };
+   real_par *Mass_AllRank   = NULL;
+   long_par *Type_AllRank   = NULL;
+   real_par *Pos_AllRank[3] = { NULL, NULL, NULL };
+   real_par *Vel_AllRank[3] = { NULL, NULL, NULL };
 
 // only the master rank will construct the initial condition
    if ( MPI_Rank == 0 )
@@ -480,13 +482,14 @@ void Par_Init_ByFunction_Toy_Model( const long NPar_ThisRank, const long NPar_Al
       const double *Position_table[3];
       const double *Velocity_table[3];
 
-      Mass_AllRank = new real [NPar_AllRank];
+      Mass_AllRank = new real_par [NPar_AllRank];
+      Type_AllRank = new long_par [NPar_AllRank];
       for (int d=0; d<3; d++)
       {
          Position_table[d] = Particle_Data_Table+(1+d)*NPar_AllRank;
          Velocity_table[d] = Particle_Data_Table+(4+d)*NPar_AllRank;
-         Pos_AllRank[d] = new real [NPar_AllRank];
-         Vel_AllRank[d] = new real [NPar_AllRank];
+         Pos_AllRank[d] = new real_par [NPar_AllRank];
+         Vel_AllRank[d] = new real_par [NPar_AllRank];
       }
 
 
@@ -495,6 +498,8 @@ void Par_Init_ByFunction_Toy_Model( const long NPar_ThisRank, const long NPar_Al
       {
 //       mass
          Mass_AllRank[p] = Mass_table[p];
+//       particle type
+         Type_AllRank[p] = PTYPE_GENERIC_MASSIVE;   // use root rank to declare type and MPI_Scatter to other ranks, for generality such that particle type might be different for different particles
          TotM += Mass_AllRank[p];
 
 //       position
@@ -504,7 +509,7 @@ void Par_Init_ByFunction_Toy_Model( const long NPar_ThisRank, const long NPar_Al
          for (int d=0; d<3; d++)
          {
             if ( OPT__BC_FLU[d*2] == BC_FLU_PERIODIC )
-               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real)amr->BoxSize[d], (real)amr->BoxSize[d] );
+               Pos_AllRank[d][p] = FMOD( Pos_AllRank[d][p]+(real_par)amr->BoxSize[d], (real_par)amr->BoxSize[d] );
          }
 
 //       velocity
@@ -546,33 +551,26 @@ void Par_Init_ByFunction_Toy_Model( const long NPar_ThisRank, const long NPar_Al
 
 
 // send particle attributes from the master rank to all ranks
-   real *Mass   =   ParMass;
-   real *Pos[3] = { ParPosX, ParPosY, ParPosZ };
-   real *Vel[3] = { ParVelX, ParVelY, ParVelZ };
+   real_par *Mass   =   ParMass;
+   long_par *Type   =   ParType;
+   real_par *Pos[3] = { ParPosX, ParPosY, ParPosZ };
+   real_par *Vel[3] = { ParVelX, ParVelY, ParVelZ };
 
-#  ifdef FLOAT8
-   MPI_Scatterv( Mass_AllRank, NSend, SendDisp, MPI_DOUBLE, Mass, NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-
-   for (int d=0; d<3; d++)
-   {
-      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Pos[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_DOUBLE, Vel[d], NPar_ThisRank, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-   }
-
-#  else
-   MPI_Scatterv( Mass_AllRank, NSend, SendDisp, MPI_FLOAT,  Mass, NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+   MPI_Scatterv( Mass_AllRank, NSend, SendDisp, MPI_GAMER_REAL_PAR, Mass, NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+   MPI_Scatterv( Type_AllRank, NSend, SendDisp, MPI_GAMER_LONG_PAR, Type, NPar_ThisRank, MPI_GAMER_LONG_PAR, 0, MPI_COMM_WORLD );
 
    for (int d=0; d<3; d++)
    {
-      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Pos[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
-      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_FLOAT,  Vel[d], NPar_ThisRank, MPI_FLOAT,  0, MPI_COMM_WORLD );
+      MPI_Scatterv( Pos_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Pos[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
+      MPI_Scatterv( Vel_AllRank[d], NSend, SendDisp, MPI_GAMER_REAL_PAR, Vel[d], NPar_ThisRank, MPI_GAMER_REAL_PAR, 0, MPI_COMM_WORLD );
    }
-#  endif
+
 
 
    if ( MPI_Rank == 0 )
    {
       delete [] Mass_AllRank;
+      delete [] Type_AllRank;
 
       for (int d=0; d<3; d++)
       {
@@ -615,8 +613,10 @@ static void Record_Particle_Data( char *FileName )
 
           fprintf( File, "#Time                    Step                    Active Particles   ");
 
-          for (int v=0; v<PAR_NATT_TOTAL; v++)
-              fprintf( File, "  %*s", (v==0)?20:21, ParAttLabel[v] );
+          for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)
+              fprintf( File, "  %*s", (v==0)?20:21, ParAttFltLabel[v] );
+          for (int v=0; v<PAR_NATT_INT_TOTAL; v++)
+              fprintf( File, "  %*s", (v==0)?20:21, ParAttIntLabel[v] );
           fprintf( File, "\n" );
           first_run_flag = false;
       }
@@ -638,7 +638,8 @@ static void Record_Particle_Data( char *FileName )
 //          skip inactive particles
             if ( amr->Par->Mass[p] < 0.0 )   continue;
 
-            for (int v=0; v<PAR_NATT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->Attribute[v][p] );
+            for (int v=0; v<PAR_NATT_FLT_TOTAL; v++)   fprintf( File, "  %21.14e", amr->Par->AttributeFlt[v][p] );
+            for (int v=0; v<PAR_NATT_INT_TOTAL; v++)   fprintf( File, "  %12ld", (long)amr->Par->AttributeInt[v][p] );
 
             fprintf( File, "\n" );
          }
